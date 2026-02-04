@@ -94,13 +94,6 @@ public final class DateTimePatterns {
     public static final String ISO_LOCAL_DATE_TIME_MILLIS = "yyyy-MM-dd'T'HH:mm:ss.SSS";
 
     /**
-     * ISO 8601 UTC 时间: {@code yyyy-MM-dd'T'HH:mm:ss'Z'}
-     * <p>示例: 2026-01-01T04:30:00Z (UTC 时间)
-     * <p>用于国际 API 交互 (如 AWS、Google Cloud)
-     */
-    public static final String ISO_INSTANT = "yyyy-MM-dd'T'HH:mm:ss'Z'";
-
-    /**
      * ISO 8601 带时区: {@code yyyy-MM-dd'T'HH:mm:ssXXX}
      * <p>示例: 2026-01-01T12:30:00+08:00 (中国时区)
      * <p>用于需要明确时区的场景

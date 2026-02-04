@@ -77,7 +77,7 @@ public class TimeUtil {
     public static @Nullable LocalDateTime parse(@Nullable String dateTime) {
         dateTime = Strings.nullToEmpty(dateTime).trim();
 
-        if (dateTime.isBlank()) {
+        if (dateTime.isEmpty()) {
             return null;
         }
 
