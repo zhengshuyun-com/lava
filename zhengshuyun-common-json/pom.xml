@@ -29,7 +29,7 @@
     <artifactId>zhengshuyun-common-json</artifactId>
     <name>${project.artifactId}</name>
     <description>整数云工具库JSON模块</description>
-    <url>https://github.com/zhengshuyun-open/oktool</url>
+    <url>https://github.com/zhengshuyun-com/zhengshuyun-common</url>
 
     <dependencies>
         <dependency>

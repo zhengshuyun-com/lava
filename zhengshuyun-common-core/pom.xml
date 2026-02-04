@@ -30,7 +30,7 @@
     <artifactId>zhengshuyun-common-core</artifactId>
     <name>${project.artifactId}</name>
     <description>整数云工具库核心模块</description>
-    <url>https://github.com/zhengshuyun-open/oktool</url>
+    <url>https://github.com/zhengshuyun-com/zhengshuyun-common</url>
 
     <dependencies>
         <dependency>

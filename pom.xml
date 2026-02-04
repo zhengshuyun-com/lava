@@ -29,7 +29,7 @@
 
     <name>zhengshuyun-common</name>
     <description>整数云工具库</description>
-    <url>https://github.com/zhengshuyun-open/oktool</url>
+    <url>https://github.com/zhengshuyun-com/zhengshuyun-common</url>
 
     <developers>
         <developer>
@@ -39,9 +39,9 @@
     </developers>
 
     <scm>
-        <connection>scm:git:git://github.com/zhengshuyun-open/oktool.git</connection>
-        <developerConnection>scm:git:ssh://github.com/zhengshuyun-open/oktool.git</developerConnection>
-        <url>https://github.com/zhengshuyun-open/oktool</url>
+        <connection>scm:git:https://github.com/zhengshuyun-com/zhengshuyun-common.git</connection>
+        <developerConnection>scm:git:git@github.com:zhengshuyun-com/zhengshuyun-common.git</developerConnection>
+        <url>https://github.com/zhengshuyun-com/zhengshuyun-common</url>
     </scm>
 
     <licenses>
