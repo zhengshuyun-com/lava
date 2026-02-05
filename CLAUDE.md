@@ -53,6 +53,7 @@ mvn test -pl zhengshuyun-common-json
 ## 关键约定
 
 - git 提交信息以中文为主。
+- 文档与新建文件命名尽量使用中文；需要保留英文专业术语时，使用“烤肉串”格式（如：`java-jwt-使用教程.md`）。
 - 复用优先: 复杂方法/逻辑尽量复用 Guava 和 core 包(指 `zhengshuyun-common-core` 模块内的工具类), 不要自己造轮子。
 
 ### 时间处理标准
