@@ -126,7 +126,7 @@ class HttpUtilTest {
         }
 
         @Test
-        @DisplayName("init() - 手动初始化成功")
+        @DisplayName("initHttpClient() - 手动初始化成功")
         void testManualInitialization() throws Exception {
             // 验证初始状态
             assertNull(getSingletonInstance(), "初始状态单例应该为 null");
@@ -136,7 +136,7 @@ class HttpUtilTest {
                     .setConnectTimeout(Duration.ofSeconds(5))
                     .build();
 
-            HttpUtil.init(customClient);
+            HttpUtil.initHttpClient(customClient);
 
             // 验证单例已被设置
             assertNotNull(getSingletonInstance(), "初始化后单例应该不为 null");
@@ -147,12 +147,12 @@ class HttpUtilTest {
         }
 
         @Test
-        @DisplayName("init() - 传入 null 应该抛出异常")
+        @DisplayName("initHttpClient() - 传入 null 应该抛出异常")
         void testInitWithNull() {
             // 传入 null 应该抛出 IllegalArgumentException
             IllegalArgumentException exception = assertThrows(
                     IllegalArgumentException.class,
-                    () -> HttpUtil.init(null),
+                    () -> HttpUtil.initHttpClient(null),
                     "传入 null 应该抛出 IllegalArgumentException"
             );
 
@@ -162,17 +162,17 @@ class HttpUtilTest {
         }
 
         @Test
-        @DisplayName("init() - 重复初始化应该抛出异常")
+        @DisplayName("initHttpClient() - 重复初始化应该抛出异常")
         void testDuplicateInitialization() {
             // 第一次初始化
             HttpClient client1 = HttpClient.builder().build();
-            HttpUtil.init(client1);
+            HttpUtil.initHttpClient(client1);
 
             // 第二次初始化应该抛出异常
             HttpClient client2 = HttpClient.builder().build();
             IllegalArgumentException exception = assertThrows(
                     IllegalArgumentException.class,
-                    () -> HttpUtil.init(client2),
+                    () -> HttpUtil.initHttpClient(client2),
                     "重复初始化应该抛出 IllegalArgumentException"
             );
 
@@ -182,7 +182,7 @@ class HttpUtilTest {
         }
 
         @Test
-        @DisplayName("init() - 在 getHttpClient() 之后不能再初始化")
+        @DisplayName("initHttpClient() - 在 getHttpClient() 之后不能再初始化")
         void testInitAfterGet() {
             // 先调用 getHttpClient() 触发懒加载
             HttpUtil.getHttpClient();
@@ -191,9 +191,19 @@ class HttpUtilTest {
             HttpClient client = HttpClient.builder().build();
             assertThrows(
                     IllegalArgumentException.class,
-                    () -> HttpUtil.init(client),
+                    () -> HttpUtil.initHttpClient(client),
                     "懒加载后再初始化应该抛出异常"
             );
+        }
+
+        @Test
+        @DisplayName("废弃方法 init() 兼容性测试")
+        @SuppressWarnings("deprecation")
+        void testDeprecatedInit() {
+            // 测试废弃方法仍然可用
+            HttpClient client = HttpClient.builder().build();
+            HttpUtil.initHttpClient(client);
+            assertNotNull(HttpUtil.getHttpClient());
         }
 
         @Test
@@ -250,7 +260,7 @@ class HttpUtilTest {
                     try {
                         startLatch.await();
                         HttpClient client = HttpClient.builder().build();
-                        HttpUtil.init(client);
+                        HttpUtil.initHttpClient(client);
                         results.add(true); // 初始化成功
                     } catch (IllegalArgumentException e) {
                         results.add(false); // 初始化失败
@@ -809,7 +819,7 @@ class HttpUtilTest {
                     .setReadTimeout(customReadTimeout)
                     .build();
 
-            HttpUtil.init(customClient);
+            HttpUtil.initHttpClient(customClient);
 
             HttpClient singleton = getSingletonInstance();
             assertNotNull(singleton, "单例不应该为 null");
@@ -834,7 +844,7 @@ class HttpUtilTest {
                         .setWriteTimeout(Duration.ofMillis(1))
                         .setCallTimeout(Duration.ofMillis(1))
                         .build();
-                HttpUtil.init(client);
+                HttpUtil.initHttpClient(client);
             }, "极小超时配置应该可以创建");
 
             HttpClient singleton = getSingletonInstance();
@@ -853,7 +863,7 @@ class HttpUtilTest {
                         .setWriteTimeout(Duration.ofHours(1))
                         .setCallTimeout(Duration.ofHours(1))
                         .build();
-                HttpUtil.init(client);
+                HttpUtil.initHttpClient(client);
             }, "极大超时配置应该可以创建");
 
             HttpClient singleton = getSingletonInstance();
@@ -869,7 +879,7 @@ class HttpUtilTest {
                     .setFollowRedirects(true)
                     .setFollowSslRedirects(false)
                     .build();
-            HttpUtil.init(client);
+            HttpUtil.initHttpClient(client);
 
             assertNotNull(getSingletonInstance(), "单例不应该为 null");
 
@@ -920,7 +930,7 @@ class HttpUtilTest {
                         return chain.proceed(chain.request());
                     })
                     .build();
-            HttpUtil.init(client);
+            HttpUtil.initHttpClient(client);
 
             HttpRequest request = HttpRequest.get(GET_URL).build();
             try (HttpResponse response = HttpUtil.execute(request)) {
@@ -950,7 +960,7 @@ class HttpUtilTest {
                         return chain.proceed(chain.request());
                     })
                     .build();
-            HttpUtil.init(client);
+            HttpUtil.initHttpClient(client);
 
             HttpRequest request = HttpRequest.get(GET_URL).build();
             try (HttpResponse response = HttpUtil.execute(request)) {
@@ -976,7 +986,7 @@ class HttpUtilTest {
                         return chain.proceed(modifiedRequest);
                     })
                     .build();
-            HttpUtil.init(client);
+            HttpUtil.initHttpClient(client);
 
             HttpRequest request = HttpRequest.get(GET_URL).build();
             try (HttpResponse response = HttpUtil.execute(request)) {
@@ -1001,7 +1011,7 @@ class HttpUtilTest {
                         return chain.proceed(chain.request());
                     })
                     .build();
-            HttpUtil.init(singletonClient);
+            HttpUtil.initHttpClient(singletonClient);
 
             HttpClient independentClient = HttpUtil.createHttpClientBuilder()
                     .addInterceptor(chain -> {
@@ -1038,7 +1048,7 @@ class HttpUtilTest {
                         return chain.proceed(modifiedRequest);
                     })
                     .build();
-            HttpUtil.init(client);
+            HttpUtil.initHttpClient(client);
 
             HttpRequest request = HttpRequest.get(GET_URL).build();
             try (HttpResponse response = HttpUtil.execute(request)) {

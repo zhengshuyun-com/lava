@@ -44,12 +44,20 @@ public final class JsonUtil {
      *
      * @param newObjectMapper newObjectMapper
      */
-    public static void init(ObjectMapper newObjectMapper) {
+    public static void initObjectMapper(ObjectMapper newObjectMapper) {
         synchronized (JsonUtil.class) {
-            Validate.isNull(objectMapper, "Json is already initialized");
+            Validate.isNull(objectMapper, "JsonUtil is already initialized");
             Validate.notNull(newObjectMapper, "ObjectMapper must not be null");
             objectMapper = newObjectMapper;
         }
+    }
+
+    /**
+     * @deprecated 使用 {@link #initObjectMapper(ObjectMapper)} 代替
+     */
+    @Deprecated(since = "1.0.0", forRemoval = true)
+    public static void init(ObjectMapper newObjectMapper) {
+        initObjectMapper(newObjectMapper);
     }
 
     private static ObjectMapper getObjectMapper() {

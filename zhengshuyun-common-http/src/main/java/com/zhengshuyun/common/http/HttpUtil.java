@@ -37,8 +37,8 @@ import com.zhengshuyun.common.core.lang.Validate;
  *     HttpRequest.get("https://example.com").build()
  * );
  *
- * // 方式2：自定义单例配置 (应用启动时调用一次) 
- * HttpUtil.init(
+ * // 方式2：自定义单例配置 (应用启动时调用一次)
+ * HttpUtil.initHttpClient(
  *     HttpClient.builder()
  *         .setConnectTimeout(Duration.ofSeconds(10))
  *         .setReadTimeout(Duration.ofSeconds(30))
@@ -87,17 +87,17 @@ public final class HttpUtil {
     /**
      * 初始化全局单例 HttpClient
      * <p>
-     * 通常在应用启动时调用一次, 用于自定义 HttpClient 配置 (如超时时间、拦截器等) . 
-     * 如果不调用此方法, 首次使用时会自动创建默认配置的单例. 
+     * 通常在应用启动时调用一次, 用于自定义 HttpClient 配置 (如超时时间、拦截器等) .
+     * 如果不调用此方法, 首次使用时会自动创建默认配置的单例.
      * <p>
-     * <b>注意：</b>只能初始化一次, 重复调用会抛出 IllegalArgumentException 异常. 
+     * <b>注意：</b>只能初始化一次, 重复调用会抛出 IllegalArgumentException 异常.
      *
      * <h3>使用示例</h3>
      * <pre>{@code
      * // 在应用启动时初始化
      * public class Application {
      *     public static void main(String[] args) {
-     *         HttpUtil.init(
+     *         HttpUtil.initHttpClient(
      *             HttpClient.builder()
      *                 .setConnectTimeout(Duration.ofSeconds(10))
      *                 .setReadTimeout(Duration.ofSeconds(30))
@@ -113,12 +113,20 @@ public final class HttpUtil {
      * @param httpClient HttpClient 实例, 不能为 null
      * @throws IllegalArgumentException 如果 httpClient 为 null 或已经初始化过
      */
-    public static void init(HttpClient httpClient) {
+    public static void initHttpClient(HttpClient httpClient) {
         synchronized (HttpUtil.class) {
             Validate.notNull(httpClient, "HttpClient must not be null");
             Validate.isNull(HttpUtil.httpClient, "HttpUtil is already initialized");
             HttpUtil.httpClient = httpClient;
         }
+    }
+
+    /**
+     * @deprecated 使用 {@link #initHttpClient(HttpClient)} 代替
+     */
+    @Deprecated(since = "1.0.0", forRemoval = true)
+    public static void init(HttpClient httpClient) {
+        initHttpClient(httpClient);
     }
 
     /**

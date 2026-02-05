@@ -51,8 +51,8 @@ class JsonUtilTest {
     void testConfig() {
         JsonUtil.writeValueAsString("");
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
-                JsonUtil.init(JsonUtil.builder().build()));
-        assertEquals("Json is already initialized", exception.getMessage());
+                JsonUtil.initObjectMapper(JsonUtil.builder().build()));
+        assertEquals("JsonUtil is already initialized", exception.getMessage());
     }
 
     // 序列化测试
@@ -487,6 +487,17 @@ class JsonUtilTest {
 
         // 尝试再次设置配置应该抛出异常
         assertThrows(IllegalArgumentException.class, () -> {
+            JsonUtil.initObjectMapper(JsonUtil.builder().build());
+        });
+    }
+
+    @DisplayName("废弃方法 init() 兼容性测试")
+    @Test
+    @SuppressWarnings("deprecation")
+    void testDeprecatedInit() {
+        // 测试废弃方法仍然可用
+        assertThrows(IllegalArgumentException.class, () -> {
+            JsonUtil.writeValueAsString(Map.of("test", "value"));
             JsonUtil.init(JsonUtil.builder().build());
         });
     }

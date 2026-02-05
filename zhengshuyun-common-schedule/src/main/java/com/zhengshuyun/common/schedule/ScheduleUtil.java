@@ -44,16 +44,16 @@ import java.util.concurrent.Executors;
  * ScheduleUtil.removeTask(id);
  * }</pre>
  *
- * <p><b>执行器配置</b>：默认使用虚拟线程执行器, 可通过 {@link #setTaskExecutor(ExecutorService)} 自定义
+ * <p><b>执行器配置</b>：默认使用虚拟线程执行器, 可通过 {@link #initTaskExecutor(ExecutorService)} 自定义
  * <pre>{@code
  * // CPU 密集型任务：使用固定线程池
- * ScheduleUtil.setTaskExecutor(Executors.newFixedThreadPool(8));
+ * ScheduleUtil.initTaskExecutor(Executors.newFixedThreadPool(8));
  *
  * // IO 密集型任务：使用虚拟线程（默认）
- * ScheduleUtil.setTaskExecutor(Executors.newVirtualThreadPerTaskExecutor());
+ * ScheduleUtil.initTaskExecutor(Executors.newVirtualThreadPerTaskExecutor());
  * }</pre>
  *
- * <p><b>高级用法</b>：需要更多控制（如暂停/恢复/修改任务）时, 使用 {@link #manager()}
+ * <p><b>高级用法</b>：需要更多控制（如暂停/恢复/修改任务）时, 使用 {@link #getManager()}
  *
  * @author Toint
  * @since 2026/2/5
@@ -74,6 +74,11 @@ public final class ScheduleUtil {
      * 任务执行器（负责执行任务, 默认虚拟线程）
      */
     private static volatile ExecutorService taskExecutor;
+
+    /**
+     * 标记执行器是否已初始化（无论是手动还是懒加载）
+     */
+    private static volatile boolean executorInitialized = false;
 
     static {
         // JVM 关闭时自动清理资源
@@ -128,7 +133,7 @@ public final class ScheduleUtil {
             s.start();
             return s;
         } catch (SchedulerException e) {
-            throw new ScheduleException("创建 Quartz 调度器失败", e);
+            throw new ScheduleException("创建 Quartz 调度器失败. " + e.getMessage(), e);
         }
     }
 
@@ -143,6 +148,7 @@ public final class ScheduleUtil {
                 if (taskExecutor == null) {
                     // 默认使用虚拟线程执行器
                     taskExecutor = Executors.newVirtualThreadPerTaskExecutor();
+                    executorInitialized = true;
                 }
             }
         }
@@ -159,14 +165,28 @@ public final class ScheduleUtil {
      *   <li>IO 密集型：虚拟线程执行器（默认）</li>
      *   <li>CPU 密集型：固定大小线程池</li>
      * </ul>
+     * <p>
+     * <b>注意：</b>只能初始化一次, 重复调用会抛出 IllegalArgumentException 异常.
+     * 必须在首次使用定时任务之前调用.
      *
      * @param executor 自定义执行器
+     * @throws IllegalArgumentException 如果 executor 为 null 或已经初始化过
      */
-    public static void setTaskExecutor(ExecutorService executor) {
+    public static void initTaskExecutor(ExecutorService executor) {
         Validate.notNull(executor, "executor must not be null");
         synchronized (ScheduleUtil.class) {
+            Validate.isTrue(!executorInitialized, "TaskExecutor is already initialized");
             taskExecutor = executor;
+            executorInitialized = true;
         }
+    }
+
+    /**
+     * @deprecated 使用 {@link #initTaskExecutor(ExecutorService)} 代替
+     */
+    @Deprecated(since = "1.0.0", forRemoval = true)
+    public static void setTaskExecutor(ExecutorService executor) {
+        initTaskExecutor(executor);
     }
 
     // 工厂方法
@@ -178,7 +198,7 @@ public final class ScheduleUtil {
      *
      * @return 任务管理器
      */
-    public static ScheduleManager manager() {
+    public static ScheduleManager getManager() {
         return new ScheduleManager(getScheduler());
     }
 
@@ -191,8 +211,8 @@ public final class ScheduleUtil {
      * @param task           任务
      * @return 任务 ID
      */
-    public static String scheduleEvery(long intervalMillis, Runnable task) {
-        return manager().addFixedRateTask(intervalMillis, task);
+    public static String addFixedRateTask(long intervalMillis, Runnable task) {
+        return getManager().addFixedRateTask(intervalMillis, task);
     }
 
     /**
@@ -202,8 +222,8 @@ public final class ScheduleUtil {
      * @param task     任务
      * @return 任务 ID
      */
-    public static String scheduleEvery(Duration interval, Runnable task) {
-        return manager().addFixedRateTask(interval, task);
+    public static String addFixedRateTask(Duration interval, Runnable task) {
+        return getManager().addFixedRateTask(interval, task);
     }
 
     /**
@@ -213,8 +233,8 @@ public final class ScheduleUtil {
      * @param task 任务
      * @return 任务 ID
      */
-    public static String scheduleCron(String cron, Runnable task) {
-        return manager().addCronTask(cron, task);
+    public static String addCronTask(String cron, Runnable task) {
+        return getManager().addCronTask(cron, task);
     }
 
     /**
@@ -224,8 +244,8 @@ public final class ScheduleUtil {
      * @param task        任务
      * @return 任务 ID
      */
-    public static String scheduleOnce(long delayMillis, Runnable task) {
-        return manager().addDelayedTask(delayMillis, task);
+    public static String addDelayedTask(long delayMillis, Runnable task) {
+        return getManager().addDelayedTask(delayMillis, task);
     }
 
     /**
@@ -235,8 +255,8 @@ public final class ScheduleUtil {
      * @param task  任务
      * @return 任务 ID
      */
-    public static String scheduleOnce(Duration delay, Runnable task) {
-        return manager().addDelayedTask(delay, task);
+    public static String addDelayedTask(Duration delay, Runnable task) {
+        return getManager().addDelayedTask(delay, task);
     }
 
     /**
@@ -245,6 +265,6 @@ public final class ScheduleUtil {
      * @param taskId 任务 ID
      */
     public static void removeTask(String taskId) {
-        manager().removeTask(taskId);
+        getManager().removeTask(taskId);
     }
 }
