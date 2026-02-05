@@ -21,7 +21,7 @@ package com.zhengshuyun.common.schedule;
  * <p>
  * 用于配置任务的执行行为, 如是否允许并发执行等
  * <pre>{@code
- * // 默认配置（允许并发）
+ * // 默认配置(允许并发)
  * TaskConfig config = TaskConfig.defaults();
  *
  * // 禁止并发执行

@@ -104,7 +104,7 @@ public final class EmailValidator {
             return false;
         }
 
-        // 首尾空格检查（RFC 5321 不允许首尾空格）
+        // 首尾空格检查(RFC 5321 不允许首尾空格)
         if (!email.equals(email.strip())) {
             return false;
         }
@@ -123,7 +123,7 @@ public final class EmailValidator {
     /**
      * 校验邮箱本地部分是否有效
      *
-     * @param localPart 邮箱本地部分（@ 符号之前）
+     * @param localPart 邮箱本地部分(@ 符号之前)
      * @return 如果本地部分有效返回 true, 否则返回 false
      */
     private static boolean isValidLocalPart(String localPart) {
@@ -131,12 +131,12 @@ public final class EmailValidator {
             return false;
         }
 
-        // 首尾点检查（RFC 5321 不允许本地部分以点开头或结尾）
+        // 首尾点检查(RFC 5321 不允许本地部分以点开头或结尾)
         if (localPart.startsWith(".") || localPart.endsWith(".")) {
             return false;
         }
 
-        // 连续点检查（RFC 5321 不允许本地部分包含连续点）
+        // 连续点检查(RFC 5321 不允许本地部分包含连续点)
         if (localPart.contains("..")) {
             return false;
         }
@@ -147,7 +147,7 @@ public final class EmailValidator {
     /**
      * 校验邮箱域名部分是否有效
      *
-     * @param domainPart 邮箱域名部分（@ 符号之后）
+     * @param domainPart 邮箱域名部分(@ 符号之后)
      * @return 如果域名部分有效返回 true, 否则返回 false
      */
     private static boolean isValidDomain(String domainPart) {

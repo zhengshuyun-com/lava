@@ -125,7 +125,7 @@ public class ScheduleManager {
                     .usingJobData(jobDataMap)
                     .build();
 
-            // 创建 Cron 触发器（默认使用 UTC 时区）
+            // 创建 Cron 触发器(默认使用 UTC 时区)
             CronTrigger trigger = TriggerBuilder.newTrigger()
                     .withIdentity(taskId)
                     .withSchedule(CronScheduleBuilder.cronSchedule(cron)
@@ -144,7 +144,7 @@ public class ScheduleManager {
     /**
      * 添加固定周期任务
      *
-     * @param intervalMillis 间隔时间（毫秒）
+     * @param intervalMillis 间隔时间(毫秒)
      * @param task           任务
      * @return 自动生成的任务 ID
      */
@@ -166,7 +166,7 @@ public class ScheduleManager {
     /**
      * 添加固定周期任务
      *
-     * @param intervalMillis 间隔时间（毫秒）
+     * @param intervalMillis 间隔时间(毫秒)
      * @param task           任务
      * @param config         任务配置
      * @return 自动生成的任务 ID
@@ -191,7 +191,7 @@ public class ScheduleManager {
      * 添加固定周期任务
      *
      * @param taskId         任务 ID
-     * @param intervalMillis 间隔时间（毫秒）
+     * @param intervalMillis 间隔时间(毫秒)
      * @param task           任务
      * @return 任务 ID
      */
@@ -215,7 +215,7 @@ public class ScheduleManager {
      * 添加固定周期任务
      *
      * @param taskId         任务 ID
-     * @param intervalMillis 间隔时间（毫秒）
+     * @param intervalMillis 间隔时间(毫秒)
      * @param task           任务
      * @param config         任务配置
      * @return 任务 ID
@@ -268,12 +268,12 @@ public class ScheduleManager {
         return addFixedRateTask(taskId, interval.toMillis(), task, config);
     }
 
-    // 延迟任务（一次性）
+    // 延迟任务(一次性)
 
     /**
-     * 添加延迟任务（一次性）
+     * 添加延迟任务(一次性)
      *
-     * @param delayMillis 延迟时间（毫秒）
+     * @param delayMillis 延迟时间(毫秒)
      * @param task        任务
      * @return 自动生成的任务 ID
      */
@@ -282,7 +282,7 @@ public class ScheduleManager {
     }
 
     /**
-     * 添加延迟任务（一次性）
+     * 添加延迟任务(一次性)
      *
      * @param delay 延迟时间
      * @param task  任务
@@ -293,9 +293,9 @@ public class ScheduleManager {
     }
 
     /**
-     * 添加延迟任务（一次性）
+     * 添加延迟任务(一次性)
      *
-     * @param delayMillis 延迟时间（毫秒）
+     * @param delayMillis 延迟时间(毫秒)
      * @param task        任务
      * @param config      任务配置
      * @return 自动生成的任务 ID
@@ -305,7 +305,7 @@ public class ScheduleManager {
     }
 
     /**
-     * 添加延迟任务（一次性）
+     * 添加延迟任务(一次性)
      *
      * @param delay  延迟时间
      * @param task   任务
@@ -317,10 +317,10 @@ public class ScheduleManager {
     }
 
     /**
-     * 添加延迟任务（一次性）
+     * 添加延迟任务(一次性)
      *
      * @param taskId      任务 ID
-     * @param delayMillis 延迟时间（毫秒）
+     * @param delayMillis 延迟时间(毫秒)
      * @param task        任务
      * @return 任务 ID
      */
@@ -329,7 +329,7 @@ public class ScheduleManager {
     }
 
     /**
-     * 添加延迟任务（一次性）
+     * 添加延迟任务(一次性)
      *
      * @param taskId 任务 ID
      * @param delay  延迟时间
@@ -341,10 +341,10 @@ public class ScheduleManager {
     }
 
     /**
-     * 添加延迟任务（一次性）
+     * 添加延迟任务(一次性)
      *
      * @param taskId      任务 ID
-     * @param delayMillis 延迟时间（毫秒）
+     * @param delayMillis 延迟时间(毫秒)
      * @param task        任务
      * @param config      任务配置
      * @return 任务 ID
@@ -386,7 +386,7 @@ public class ScheduleManager {
     }
 
     /**
-     * 添加延迟任务（一次性）
+     * 添加延迟任务(一次性)
      *
      * @param taskId 任务 ID
      * @param delay  延迟时间
@@ -487,7 +487,7 @@ public class ScheduleManager {
 
             CronTrigger oldTrigger = (CronTrigger) trigger;
 
-            // 创建新的触发器（保持 UTC 时区）
+            // 创建新的触发器(保持 UTC 时区)
             CronTrigger newTrigger = oldTrigger.getTriggerBuilder()
                     .withSchedule(CronScheduleBuilder.cronSchedule(newCron)
                             .inTimeZone(TimeZone.getTimeZone(ZoneIds.UTC)))
@@ -529,7 +529,7 @@ public class ScheduleManager {
             List<TaskInfo> result = new ArrayList<>();
             // 显式使用 GroupMatcher.anyJobGroup() 而非 null
             for (JobKey jobKey : scheduler.getJobKeys(GroupMatcher.anyJobGroup())) {
-                // 获取该 Job 的所有 Trigger（支持未来扩展多 Trigger 场景）
+                // 获取该 Job 的所有 Trigger(支持未来扩展多 Trigger 场景)
                 List<? extends Trigger> triggers = scheduler.getTriggersOfJob(jobKey);
                 if (!triggers.isEmpty()) {
                     // 当前实现：一个 Job 只有一个 Trigger，取第一个
@@ -560,7 +560,7 @@ public class ScheduleManager {
     }
 
     /**
-     * 校验间隔时间（毫秒）
+     * 校验间隔时间(毫秒)
      */
     private void validateInterval(long intervalMillis) {
         if (intervalMillis <= 0) {
@@ -569,21 +569,21 @@ public class ScheduleManager {
     }
 
     /**
-     * 校验间隔时间（Duration）
+     * 校验间隔时间(Duration)
      */
     private void validateInterval(Duration interval) {
         Validate.notNull(interval, "interval must not be null");
         if (interval.isNegative() || interval.isZero()) {
             throw new IllegalArgumentException("interval must be positive, got: " + interval);
         }
-        // 统一校验：必须至少 1 毫秒（避免 toMillis() 返回 0 的情况）
+        // 统一校验：必须至少 1 毫秒(避免 toMillis() 返回 0 的情况)
         if (interval.toMillis() < 1) {
             throw new IllegalArgumentException("interval must be at least 1 millisecond, got: " + interval);
         }
     }
 
     /**
-     * 校验延迟时间（毫秒）
+     * 校验延迟时间(毫秒)
      */
     private void validateDelay(long delayMillis) {
         if (delayMillis <= 0) {
@@ -592,14 +592,14 @@ public class ScheduleManager {
     }
 
     /**
-     * 校验延迟时间（Duration）
+     * 校验延迟时间(Duration)
      */
     private void validateDelay(Duration delay) {
         Validate.notNull(delay, "delay must not be null");
         if (delay.isNegative() || delay.isZero()) {
             throw new IllegalArgumentException("delay must be positive, got: " + delay);
         }
-        // 统一校验：必须至少 1 毫秒（避免 toMillis() 返回 0 的情况）
+        // 统一校验：必须至少 1 毫秒(避免 toMillis() 返回 0 的情况)
         if (delay.toMillis() < 1) {
             throw new IllegalArgumentException("delay must be at least 1 millisecond, got: " + delay);
         }

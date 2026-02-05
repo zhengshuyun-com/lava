@@ -101,8 +101,8 @@ class EmailValidatorTest {
 
     @Test
     void isValid_shouldPass_domainMaxLength() {
-        // 255 字符的域名（包括点分隔符）
-        // 例如: a.a.a....a.com（标签长度为 1，加点后为 2 字符）
+        // 255 字符的域名(包括点分隔符)
+        // 例如: a.a.a....a.com(标签长度为 1，加点后为 2 字符)
         StringBuilder domain = new StringBuilder();
         // 125 个 "a." = 250 字符，再加 ".com" = 254 字符
         for (int i = 0; i < 125; i++) {

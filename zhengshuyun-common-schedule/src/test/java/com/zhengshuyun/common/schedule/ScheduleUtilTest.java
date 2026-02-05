@@ -60,7 +60,7 @@ class ScheduleUtilTest {
     }
 
     /**
-     * 测试固定周期任务（毫秒）
+     * 测试固定周期任务(毫秒)
      * <p>
      * 每 500ms 执行一次, 等待 1.5 秒, 期望执行 3 次左右
      */
@@ -87,7 +87,7 @@ class ScheduleUtilTest {
     }
 
     /**
-     * 测试固定周期任务（Duration）
+     * 测试固定周期任务(Duration)
      */
     @Test
     @DisplayName("固定周期任务 - Duration")
@@ -134,7 +134,7 @@ class ScheduleUtilTest {
     }
 
     /**
-     * 测试延迟任务（一次性）
+     * 测试延迟任务(一次性)
      */
     @Test
     @DisplayName("延迟任务 - 一次性")
@@ -164,7 +164,7 @@ class ScheduleUtilTest {
     }
 
     /**
-     * 测试延迟任务（Duration）
+     * 测试延迟任务(Duration)
      */
     @Test
     @DisplayName("延迟任务 - Duration")
@@ -205,7 +205,7 @@ class ScheduleUtilTest {
         Thread.sleep(500);
         int countAfter = counter.get();
 
-        // 删除后执行次数应该不变（允许有一次正在执行的）
+        // 删除后执行次数应该不变(允许有一次正在执行的)
         assertTrue(countAfter <= countBefore + 1,
                 "删除后不应继续执行, before: " + countBefore + ", after: " + countAfter);
     }

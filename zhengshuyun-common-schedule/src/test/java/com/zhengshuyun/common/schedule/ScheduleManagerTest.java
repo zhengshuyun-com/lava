@@ -87,7 +87,7 @@ class ScheduleManagerTest {
         Thread.sleep(500);
         int countAfterPause = counter.get();
 
-        // 暂停后执行次数应该不变（允许有一次正在执行的）
+        // 暂停后执行次数应该不变(允许有一次正在执行的)
         assertTrue(countAfterPause <= countBefore + 1);
 
         // 恢复任务
@@ -112,7 +112,7 @@ class ScheduleManagerTest {
         AtomicInteger counter = new AtomicInteger(0);
         CountDownLatch latch = new CountDownLatch(1);
 
-        // 每天凌晨 2 点执行（正常情况下不会触发）
+        // 每天凌晨 2 点执行(正常情况下不会触发)
         String taskId = manager.addCronTask("0 0 2 * * ?", () -> {
             counter.incrementAndGet();
             latch.countDown();
@@ -140,7 +140,7 @@ class ScheduleManagerTest {
     void testUpdateCronTask() throws InterruptedException {
         AtomicInteger counter = new AtomicInteger(0);
 
-        // 每天凌晨 2 点执行（正常情况下不会触发）
+        // 每天凌晨 2 点执行(正常情况下不会触发)
         String taskId = manager.addCronTask("0 0 2 * * ?", counter::incrementAndGet);
 
         // 验证还没执行
@@ -241,7 +241,7 @@ class ScheduleManagerTest {
     }
 
     /**
-     * 测试并发控制 - 允许并发（默认）
+     * 测试并发控制 - 允许并发(默认)
      */
     @Test
     @DisplayName("并发控制 - 允许并发")

@@ -37,7 +37,7 @@ import java.util.concurrent.Executors;
  * // Cron 表达式
  * String id = ScheduleUtil.scheduleCron("0 0 2 * * ?", () -> backup());
  *
- * // 延迟执行（一次性）
+ * // 延迟执行(一次性)
  * String id = ScheduleUtil.scheduleOnce(Duration.ofSeconds(10), () -> init());
  *
  * // 删除任务
@@ -49,11 +49,11 @@ import java.util.concurrent.Executors;
  * // CPU 密集型任务：使用固定线程池
  * ScheduleUtil.initTaskExecutor(Executors.newFixedThreadPool(8));
  *
- * // IO 密集型任务：使用虚拟线程（默认）
+ * // IO 密集型任务：使用虚拟线程(默认)
  * ScheduleUtil.initTaskExecutor(Executors.newVirtualThreadPerTaskExecutor());
  * }</pre>
  *
- * <p><b>高级用法</b>：需要更多控制（如暂停/恢复/修改任务）时, 使用 {@link #getManager()}
+ * <p><b>高级用法</b>：需要更多控制(如暂停/恢复/修改任务)时, 使用 {@link #getManager()}
  *
  * @author Toint
  * @since 2026/2/5
@@ -63,20 +63,18 @@ public final class ScheduleUtil {
     private ScheduleUtil() {
     }
 
-    // 单例持有
-
     /**
-     * Quartz 调度器（负责触发任务）
+     * Quartz 调度器(负责触发任务)
      */
     private static volatile Scheduler scheduler;
 
     /**
-     * 任务执行器（负责执行任务, 默认虚拟线程）
+     * 任务执行器(负责执行任务, 默认虚拟线程)
      */
     private static volatile ExecutorService taskExecutor;
 
     /**
-     * 标记执行器是否已初始化（无论是手动还是懒加载）
+     * 标记执行器是否已初始化(无论是手动还是懒加载)
      */
     private static volatile boolean executorInitialized = false;
 
@@ -101,7 +99,7 @@ public final class ScheduleUtil {
     }
 
     /**
-     * 获取 Quartz 调度器（DCL 单例）
+     * 获取 Quartz 调度器(DCL 单例)
      */
     private static Scheduler getScheduler() {
         if (scheduler == null) {
@@ -162,7 +160,7 @@ public final class ScheduleUtil {
      * <p>
      * 默认使用虚拟线程执行器, 可根据任务类型选择合适的执行器：
      * <ul>
-     *   <li>IO 密集型：虚拟线程执行器（默认）</li>
+     *   <li>IO 密集型：虚拟线程执行器(默认)</li>
      *   <li>CPU 密集型：固定大小线程池</li>
      * </ul>
      * <p>
@@ -207,7 +205,7 @@ public final class ScheduleUtil {
     /**
      * 添加固定周期任务
      *
-     * @param intervalMillis 间隔时间（毫秒）
+     * @param intervalMillis 间隔时间(毫秒)
      * @param task           任务
      * @return 任务 ID
      */
@@ -238,9 +236,9 @@ public final class ScheduleUtil {
     }
 
     /**
-     * 添加延迟任务（一次性）
+     * 添加延迟任务(一次性)
      *
-     * @param delayMillis 延迟时间（毫秒）
+     * @param delayMillis 延迟时间(毫秒)
      * @param task        任务
      * @return 任务 ID
      */
@@ -249,7 +247,7 @@ public final class ScheduleUtil {
     }
 
     /**
-     * 添加延迟任务（一次性）
+     * 添加延迟任务(一次性)
      *
      * @param delay 延迟时间
      * @param task  任务

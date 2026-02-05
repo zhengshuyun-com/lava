@@ -44,10 +44,10 @@ public class TaskInfo {
     /** 任务状态 */
     private final Status status;
 
-    /** 下次执行时间, 可能为 null（已暂停或一次性任务已完成） */
+    /** 下次执行时间, 可能为 null(已暂停或一次性任务已完成) */
     private final @Nullable Instant nextFireTime;
 
-    /** 上次执行时间, 可能为 null（从未执行过） */
+    /** 上次执行时间, 可能为 null(从未执行过) */
     private final @Nullable Instant previousFireTime;
 
     public TaskInfo(String taskId, Status status,
