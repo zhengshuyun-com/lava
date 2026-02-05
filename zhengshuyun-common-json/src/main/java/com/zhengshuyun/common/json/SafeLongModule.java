@@ -26,7 +26,7 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
  */
 public class SafeLongModule extends SimpleModule {
     public SafeLongModule() {
-        super("SafeLongModule");
+        super(SafeLongModule.class.getName());
         addSerializer(Long.class, new SafeLongSerializer());
         addSerializer(Long.TYPE, new SafeLongSerializer());
     }
