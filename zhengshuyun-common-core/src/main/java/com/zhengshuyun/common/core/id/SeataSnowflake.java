@@ -20,7 +20,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.net.NetworkInterface;
 import java.util.Enumeration;
-import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -208,6 +208,6 @@ public final class SeataSnowflake {
      * @return workerId
      */
     private long generateRandomWorkerId() {
-        return new Random().nextInt(maxWorkerId + 1);
+        return ThreadLocalRandom.current().nextInt(maxWorkerId + 1);
     }
 }
