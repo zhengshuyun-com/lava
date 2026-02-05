@@ -10,6 +10,11 @@ out/
 *.code-workspace
 .history/
 
+# Eclipse
+.classpath
+.project
+.settings/
+
 # Maven
 target/
 pom.xml.tag
