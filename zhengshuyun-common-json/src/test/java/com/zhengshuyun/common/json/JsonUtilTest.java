@@ -22,6 +22,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.zhengshuyun.common.core.time.DateTimePatterns;
 import com.zhengshuyun.common.core.time.ZoneIds;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -45,6 +46,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class JsonUtilTest {
+    @DisplayName("已初始化时禁止再次配置")
     @Test
     void testConfig() {
         JsonUtil.writeValueAsString("");
@@ -55,6 +57,7 @@ class JsonUtilTest {
 
     // ==================== 序列化测试 ====================
 
+    @DisplayName("序列化对象为字符串")
     @Test
     void testWriteValueAsString() {
         String expected = """
@@ -63,6 +66,7 @@ class JsonUtilTest {
         assertEquals(expected, JsonUtil.writeValueAsString(user));
     }
 
+    @DisplayName("序列化对象为字节数组")
     @Test
     void testWriteValueAsBytes() {
         String expected = """
@@ -72,6 +76,7 @@ class JsonUtilTest {
         assertEquals(expected, new String(bytes, StandardCharsets.UTF_8));
     }
 
+    @DisplayName("序列化对象为格式化字符串")
     @Test
     void testWriteValueAsPrettyString() {
         SimpleUser user = new SimpleUser();
@@ -85,6 +90,7 @@ class JsonUtilTest {
         assert result.contains("25");
     }
 
+    @DisplayName("Instant 按 ISO-8601 序列化")
     @Test
     void testSerializeInstant() {
         Instant instant = Instant.parse("2026-01-01T00:00:00Z");
@@ -92,6 +98,7 @@ class JsonUtilTest {
         assertEquals("{\"time\":\"2026-01-01T00:00:00Z\"}", json);
     }
 
+    @DisplayName("Date 以 UTC 时区序列化")
     @Test
     void testSerializeDateWithUTC() {
         // 北京时间 2026-01-01 08:00:00 = UTC 2026-01-01 00:00:00
@@ -105,6 +112,7 @@ class JsonUtilTest {
 
     // ==================== 反序列化测试 - String ====================
 
+    @DisplayName("字符串反序列化为对象")
     @Test
     void testReadValue_String_Class() {
         String json = """
@@ -118,6 +126,7 @@ class JsonUtilTest {
                 user.getBirthDateTime().format(DateTimeFormatter.ofPattern(DateTimePatterns.ISO_INSTANT)));
     }
 
+    @DisplayName("字符串反序列化为集合(TypeReference)")
     @Test
     void testReadValue_String_TypeReference() {
         String json = """
@@ -130,6 +139,7 @@ class JsonUtilTest {
         assertEquals(20, list.getFirst().get("age"));
     }
 
+    @DisplayName("字符串反序列化为 JavaType")
     @Test
     void testReadValue_String_JavaType() {
         String json = """
@@ -142,6 +152,7 @@ class JsonUtilTest {
 
     // ==================== 反序列化测试 - byte[] ====================
 
+    @DisplayName("字节数组反序列化为对象")
     @Test
     void testReadValue_Bytes_Class() {
         String json = """
@@ -153,6 +164,7 @@ class JsonUtilTest {
         assertEquals(30, user.getAge());
     }
 
+    @DisplayName("字节数组反序列化为集合(TypeReference)")
     @Test
     void testReadValue_Bytes_Class_Map() {
         String json = """
@@ -165,6 +177,7 @@ class JsonUtilTest {
         assertEquals(30, map.get("age"));
     }
 
+    @DisplayName("字节数组反序列化为列表(TypeReference)")
     @Test
     void testReadValue_Bytes_TypeReference() {
         String json = """
@@ -177,6 +190,7 @@ class JsonUtilTest {
         assertEquals(3, list.get(2));
     }
 
+    @DisplayName("字节数组反序列化为 JavaType")
     @Test
     void testReadValue_Bytes_JavaType() {
         String json = """
@@ -190,6 +204,7 @@ class JsonUtilTest {
 
     // ==================== 反序列化测试 - InputStream ====================
 
+    @DisplayName("输入流反序列化为对象")
     @Test
     void testReadValue_InputStream_Class() {
         String json = """
@@ -201,6 +216,7 @@ class JsonUtilTest {
         assertEquals(100, user.getAge());
     }
 
+    @DisplayName("输入流反序列化为集合(TypeReference)")
     @Test
     void testReadValue_InputStream_Class_Map() {
         String json = """
@@ -213,6 +229,7 @@ class JsonUtilTest {
         assertEquals(100, map.get("value"));
     }
 
+    @DisplayName("输入流反序列化为列表(TypeReference)")
     @Test
     void testReadValue_InputStream_TypeReference() {
         String json = """
@@ -225,6 +242,7 @@ class JsonUtilTest {
         assertEquals("b", list.get(1));
     }
 
+    @DisplayName("输入流反序列化为 JavaType")
     @Test
     void testReadValue_InputStream_JavaType() {
         String json = """
@@ -238,6 +256,7 @@ class JsonUtilTest {
 
     // ==================== 反序列化测试 - File ====================
 
+    @DisplayName("文件反序列化为对象")
     @Test
     void testReadValue_File_Class(@TempDir Path tempDir) throws Exception {
         File file = tempDir.resolve("test.json").toFile();
@@ -251,6 +270,7 @@ class JsonUtilTest {
         assertEquals(42, user.getAge());
     }
 
+    @DisplayName("文件反序列化为集合(TypeReference)")
     @Test
     void testReadValue_File_Class_Map(@TempDir Path tempDir) throws Exception {
         File file = tempDir.resolve("test2.json").toFile();
@@ -265,6 +285,7 @@ class JsonUtilTest {
         assertEquals(42, map.get("number"));
     }
 
+    @DisplayName("文件反序列化为列表(TypeReference)")
     @Test
     void testReadValue_File_TypeReference(@TempDir Path tempDir) throws Exception {
         File file = tempDir.resolve("array.json").toFile();
@@ -279,6 +300,7 @@ class JsonUtilTest {
         assertEquals(1, list.get(0).get("id"));
     }
 
+    @DisplayName("文件反序列化为 JavaType")
     @Test
     void testReadValue_File_JavaType(@TempDir Path tempDir) throws Exception {
         File file = tempDir.resolve("data.json").toFile();
@@ -294,6 +316,7 @@ class JsonUtilTest {
 
     // ==================== readTree 测试 ====================
 
+    @DisplayName("字符串读取为树节点")
     @Test
     void testReadTree_String() {
         String json = """
@@ -304,6 +327,7 @@ class JsonUtilTest {
         assertEquals(123, node.get("nested").get("value").asInt());
     }
 
+    @DisplayName("字节数组读取为树节点")
     @Test
     void testReadTree_Bytes() {
         String json = """
@@ -315,6 +339,7 @@ class JsonUtilTest {
         assertEquals(2, node.get("array").get(1).asInt());
     }
 
+    @DisplayName("输入流读取为树节点")
     @Test
     void testReadTree_InputStream() {
         String json = """
@@ -325,6 +350,7 @@ class JsonUtilTest {
         assertEquals("ok", node.get("status").asText());
     }
 
+    @DisplayName("文件读取为树节点")
     @Test
     void testReadTree_File(@TempDir Path tempDir) throws Exception {
         File file = tempDir.resolve("tree.json").toFile();
@@ -339,6 +365,7 @@ class JsonUtilTest {
 
     // ==================== convertValue 测试 ====================
 
+    @DisplayName("Map 转换为对象")
     @Test
     void testConvertValue_Class() {
         Map<String, Object> map = Map.of("name", "Convert", "age", 25);
@@ -348,6 +375,7 @@ class JsonUtilTest {
         assertEquals(25, user.getAge());
     }
 
+    @DisplayName("List 转换为泛型结构")
     @Test
     void testConvertValue_TypeReference() {
         List<Map<String, Object>> list = List.of(
@@ -365,6 +393,7 @@ class JsonUtilTest {
         assertEquals(1, converted.get(0).get("id"));
     }
 
+    @DisplayName("Map 转换为 JavaType")
     @Test
     void testConvertValue_JavaType() {
         Map<String, String> map = Map.of("key", "value");
@@ -376,6 +405,7 @@ class JsonUtilTest {
 
     // ==================== valueToTree 测试 ====================
 
+    @DisplayName("对象转换为树节点")
     @Test
     void testValueToTree() {
         SimpleUser user = new SimpleUser();
@@ -389,6 +419,7 @@ class JsonUtilTest {
 
     // ==================== createNode 测试 ====================
 
+    @DisplayName("创建并写入 ObjectNode")
     @Test
     void testCreateObjectNode() {
         ObjectNode node = JsonUtil.createObjectNode();
@@ -399,6 +430,7 @@ class JsonUtilTest {
         assertEquals(123, node.get("number").asInt());
     }
 
+    @DisplayName("创建并写入 ArrayNode")
     @Test
     void testCreateArrayNode() {
         ArrayNode node = JsonUtil.createArrayNode();
@@ -413,18 +445,21 @@ class JsonUtilTest {
 
     // ==================== 异常测试 ====================
 
+    @DisplayName("无效 JSON 反序列化抛异常")
     @Test
     void testReadValue_InvalidJson() {
         String invalidJson = "{invalid json}";
         assertThrows(JsonException.class, () -> JsonUtil.readValue(invalidJson, Map.class));
     }
 
+    @DisplayName("无效 JSON 读树抛异常")
     @Test
     void testReadTree_InvalidJson() {
         String invalidJson = "not json at all";
         assertThrows(JsonException.class, () -> JsonUtil.readTree(invalidJson));
     }
 
+    @DisplayName("类型不兼容时转换抛异常")
     @Test
     void testConvertValue_IncompatibleType() {
         // 类型不兼容：age 是字符串而不是数字
@@ -434,6 +469,7 @@ class JsonUtilTest {
         });
     }
 
+    @DisplayName("日期格式错误时转换抛异常")
     @Test
     void testConvertValue_InvalidDateFormat() {
         // 日期格式不正确
@@ -443,6 +479,7 @@ class JsonUtilTest {
         });
     }
 
+    @DisplayName("已初始化后禁止重复 init")
     @Test
     void testInit_AlreadyInitialized() {
         // 第一次调用任何 Json 方法会触发初始化
@@ -454,6 +491,7 @@ class JsonUtilTest {
         });
     }
 
+    @DisplayName("格式化序列化异常路径")
     @Test
     void testWriteValueAsPrettyString_Exception() {
         // 创建一个无法序列化的对象
