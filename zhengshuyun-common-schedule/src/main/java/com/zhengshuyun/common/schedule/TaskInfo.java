@@ -35,9 +35,7 @@ public class TaskInfo {
         /** 等待执行 */
         WAITING,
         /** 已暂停 */
-        PAUSED,
-        /** 正在执行 */
-        RUNNING
+        PAUSED
     }
 
     /** 任务 ID */

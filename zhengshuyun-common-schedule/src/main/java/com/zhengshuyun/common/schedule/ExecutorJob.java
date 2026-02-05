@@ -40,6 +40,13 @@ public class ExecutorJob implements Job {
                 .get(TASK_WRAPPER_KEY);
 
         // 提交到执行器异步执行, 立即返回
-        ScheduleUtil.getTaskExecutor().submit(wrapper);
+        // 使用 execute() 而非 submit(), 避免异常被 Future 吞掉
+        try {
+            ScheduleUtil.getTaskExecutor().execute(wrapper);
+        } catch (Exception e) {
+            // 捕获 RejectedExecutionException 等异常, 防止影响 Quartz 调度
+            System.err.println("Failed to submit task to executor: " + e.getMessage());
+            e.printStackTrace(System.err);
+        }
     }
 }

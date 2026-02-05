@@ -86,7 +86,8 @@ public final class ScheduleUtil {
                 try {
                     s.shutdown(true); // 等待任务完成
                 } catch (SchedulerException e) {
-                    e.printStackTrace();
+                    System.err.println("Failed to shutdown scheduler: " + e.getMessage());
+                    e.printStackTrace(System.err);
                 }
             }
 

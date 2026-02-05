@@ -17,15 +17,14 @@
 package com.zhengshuyun.common.schedule;
 
 import com.zhengshuyun.common.core.lang.Validate;
+import com.zhengshuyun.common.core.time.ZoneIds;
 import org.quartz.*;
 import org.quartz.Trigger.TriggerState;
+import org.quartz.impl.matchers.GroupMatcher;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * 定时任务管理器
@@ -126,10 +125,11 @@ public class ScheduleManager {
                     .usingJobData(jobDataMap)
                     .build();
 
-            // 创建 Cron 触发器
+            // 创建 Cron 触发器（默认使用 UTC 时区）
             CronTrigger trigger = TriggerBuilder.newTrigger()
                     .withIdentity(taskId)
-                    .withSchedule(CronScheduleBuilder.cronSchedule(cron))
+                    .withSchedule(CronScheduleBuilder.cronSchedule(cron)
+                            .inTimeZone(TimeZone.getTimeZone(ZoneIds.UTC)))
                     .build();
 
             scheduler.scheduleJob(jobDetail, trigger);
@@ -474,14 +474,23 @@ public class ScheduleManager {
         Validate.notBlank(newCron, "newCron must not be blank");
         try {
             TriggerKey triggerKey = TriggerKey.triggerKey(taskId);
-            CronTrigger oldTrigger = (CronTrigger) scheduler.getTrigger(triggerKey);
-            if (oldTrigger == null) {
+            Trigger trigger = scheduler.getTrigger(triggerKey);
+            if (trigger == null) {
                 throw new ScheduleException("任务不存在: " + taskId);
             }
 
-            // 创建新的触发器
+            // 类型安全检查
+            if (!(trigger instanceof CronTrigger)) {
+                throw new ScheduleException("任务不是 Cron 任务: " + taskId +
+                        " (实际类型: " + trigger.getClass().getSimpleName() + ")");
+            }
+
+            CronTrigger oldTrigger = (CronTrigger) trigger;
+
+            // 创建新的触发器（保持 UTC 时区）
             CronTrigger newTrigger = oldTrigger.getTriggerBuilder()
-                    .withSchedule(CronScheduleBuilder.cronSchedule(newCron))
+                    .withSchedule(CronScheduleBuilder.cronSchedule(newCron)
+                            .inTimeZone(TimeZone.getTimeZone(ZoneIds.UTC)))
                     .build();
 
             scheduler.rescheduleJob(triggerKey, newTrigger);
@@ -518,10 +527,13 @@ public class ScheduleManager {
     public List<TaskInfo> listAllTasks() {
         try {
             List<TaskInfo> result = new ArrayList<>();
-            for (JobKey jobKey : scheduler.getJobKeys(null)) {
-                TriggerKey triggerKey = TriggerKey.triggerKey(jobKey.getName());
-                Trigger trigger = scheduler.getTrigger(triggerKey);
-                if (trigger != null) {
+            // 显式使用 GroupMatcher.anyJobGroup() 而非 null
+            for (JobKey jobKey : scheduler.getJobKeys(GroupMatcher.anyJobGroup())) {
+                // 获取该 Job 的所有 Trigger（支持未来扩展多 Trigger 场景）
+                List<? extends Trigger> triggers = scheduler.getTriggersOfJob(jobKey);
+                if (!triggers.isEmpty()) {
+                    // 当前实现：一个 Job 只有一个 Trigger，取第一个
+                    Trigger trigger = triggers.get(0);
                     result.add(buildTaskInfo(jobKey.getName(), trigger));
                 }
             }
@@ -564,6 +576,10 @@ public class ScheduleManager {
         if (interval.isNegative() || interval.isZero()) {
             throw new IllegalArgumentException("interval must be positive, got: " + interval);
         }
+        // 统一校验：必须至少 1 毫秒（避免 toMillis() 返回 0 的情况）
+        if (interval.toMillis() < 1) {
+            throw new IllegalArgumentException("interval must be at least 1 millisecond, got: " + interval);
+        }
     }
 
     /**
@@ -583,6 +599,10 @@ public class ScheduleManager {
         if (delay.isNegative() || delay.isZero()) {
             throw new IllegalArgumentException("delay must be positive, got: " + delay);
         }
+        // 统一校验：必须至少 1 毫秒（避免 toMillis() 返回 0 的情况）
+        if (delay.toMillis() < 1) {
+            throw new IllegalArgumentException("delay must be at least 1 millisecond, got: " + delay);
+        }
     }
 
     /**
@@ -592,7 +612,7 @@ public class ScheduleManager {
         TriggerState state = scheduler.getTriggerState(trigger.getKey());
         TaskInfo.Status status = switch (state) {
             case PAUSED -> TaskInfo.Status.PAUSED;
-            case BLOCKED -> TaskInfo.Status.RUNNING;
+            // 移除 RUNNING 状态：任务实际在外部执行器执行，Quartz 状态不能准确反映
             default -> TaskInfo.Status.WAITING;
         };
 

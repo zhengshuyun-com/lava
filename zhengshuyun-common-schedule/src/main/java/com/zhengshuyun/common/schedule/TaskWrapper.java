@@ -58,6 +58,11 @@ class TaskWrapper implements Runnable {
 
         try {
             task.run();
+        } catch (Throwable e) {
+            // 捕获所有异常, 防止任务失败影响调度器
+            // 打印到 stderr 以便观测（生产环境建议使用日志框架）
+            System.err.println("Task execution failed: " + e.getMessage());
+            e.printStackTrace(System.err);
         } finally {
             // 重置运行状态
             running.set(false);
