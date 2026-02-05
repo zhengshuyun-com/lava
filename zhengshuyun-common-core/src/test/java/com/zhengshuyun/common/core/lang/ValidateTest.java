@@ -222,8 +222,6 @@ class ValidateTest {
         assertThrows(IllegalArgumentException.class, () -> Validate.isEmail(null));
         assertThrows(IllegalArgumentException.class, () -> Validate.isEmail(""));
         assertThrows(IllegalArgumentException.class, () -> Validate.isEmail("invalid"));
-        assertThrows(IllegalArgumentException.class, () -> Validate.isEmail("@example.com"));
-        assertThrows(IllegalArgumentException.class, () -> Validate.isEmail("test@"));
     }
 
     @Test

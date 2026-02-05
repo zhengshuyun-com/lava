@@ -53,6 +53,7 @@ mvn test -pl zhengshuyun-common-json
 ## 关键约定
 
 - git 提交信息以中文为主。
+- 复用优先: 复杂方法/逻辑尽量复用 Guava 和 core 包(指 `zhengshuyun-common-core` 模块内的工具类), 不要自己造轮子。
 
 ### 时间处理标准
 - **格式常量**: 使用 `DateTimePatterns` 统一管理（位于 core 模块）

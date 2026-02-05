@@ -40,9 +40,6 @@ public final class Validate {
     private static final String DEFAULT_INVALID_EMAIL_MESSAGE = "The validated value must be a valid email";
     private static final String DEFAULT_INVALID_MOBILE_MESSAGE = "The validated value must be a valid mobile number";
 
-    /** 邮箱正则 */
-    private static final Pattern EMAIL_PATTERN = Pattern.compile("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$");
-
     /** 中国手机号正则, 1开头, 第二位3-9, 共11位 */
     private static final Pattern MOBILE_PATTERN = Pattern.compile("^1[3-9]\\d{9}$");
 
@@ -409,7 +406,7 @@ public final class Validate {
      * @throws IllegalArgumentException 校验失败
      */
     public static String isEmail(@Nullable String str) {
-        if (str == null || !EMAIL_PATTERN.matcher(str).matches()) {
+        if (!EmailValidator.isValid(str)) {
             throw new IllegalArgumentException(DEFAULT_INVALID_EMAIL_MESSAGE);
         }
         return str;
@@ -424,7 +421,7 @@ public final class Validate {
      * @throws IllegalArgumentException 校验失败
      */
     public static String isEmail(@Nullable String str, @Nullable Object errMsg) {
-        if (str == null || !EMAIL_PATTERN.matcher(str).matches()) {
+        if (!EmailValidator.isValid(str)) {
             throw new IllegalArgumentException(String.valueOf(errMsg));
         }
         return str;
@@ -443,7 +440,7 @@ public final class Validate {
             @Nullable String str,
             @Nullable String errMsgTemplate,
             @Nullable Object... errMsgArgs) {
-        if (str == null || !EMAIL_PATTERN.matcher(str).matches()) {
+        if (!EmailValidator.isValid(str)) {
             throw new IllegalArgumentException(Strings.lenientFormat(errMsgTemplate, errMsgArgs));
         }
         return str;
