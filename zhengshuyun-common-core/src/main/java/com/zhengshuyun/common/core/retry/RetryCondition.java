@@ -16,7 +16,10 @@
 
 package com.zhengshuyun.common.core.retry;
 
+import com.zhengshuyun.common.core.lang.Validate;
 import org.jspecify.annotations.Nullable;
+
+import java.util.Arrays;
 
 /**
  * 重试条件
@@ -78,7 +81,8 @@ public interface RetryCondition {
 
         @SafeVarargs
         RetryOnException(Class<? extends Throwable>... exceptionTypes) {
-            this.exceptionTypes = exceptionTypes;
+            Validate.notNull(exceptionTypes, "exceptionTypes must not be null");
+            this.exceptionTypes = Arrays.copyOf(exceptionTypes, exceptionTypes.length);
         }
 
         @Override
