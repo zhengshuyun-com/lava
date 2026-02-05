@@ -46,22 +46,21 @@ import java.util.Map;
  * }
  * }</pre>
  *
+ * <p><strong>重要</strong>: {@link #getBodyAsStream()} 返回的流由 HttpResponse 管理生命周期,
+ * <strong>不需要单独关闭</strong>. 关闭 HttpResponse 会自动关闭流和释放网络连接.
+ *
  * <h2>响应体读取</h2>
  * <ul>
- *     <li>{@link #getBodyAsBytes()} - 加载到内存, 适合小文件 (支持重复读取)</li>
- *     <li>{@link #getBodyAsString()} - 加载到内存, 返回字符串 (支持重复读取)</li>
- *     <li>{@link #getBodyAsStream()} - 流式读取, 适合大文件 (不支持重复读取)</li>
+ *     <li>{@link #getBodyAsBytes()} - 读取为字节数组 (自动缓存, 支持重复调用)</li>
+ *     <li>{@link #getBodyAsStream()} - 读取为流 (一次性, 重复调用抛异常)</li>
+ *     <li>{@link #getBodyAsString()} - 读取为字符串 (委托给 getBodyAsBytes)</li>
  * </ul>
- * <p>
  *
- * <h2>注意：</h2>
- * {@link #getBodyAsStream()}只能读取一次, 多次读取需先调用 {@code getBodyAsBytes()} 缓存.
- *
- * <p>如果先直接或间接调用{@link #getBodyAsStream()}后重复读取响应体, 不会报错, 返回如下:
+ * <p><strong>重要</strong>:
  * <ul>
- *     <li>{@link #getBodyAsBytes()}: {@code return new byte[0]}</li>
- *     <li>{@link #getBodyAsStream()}: {@code return new ByteArrayInputStream(new byte[0])}</li>
- *     <li>{@link #getBodyAsString()}: {@code return new String(new byte[0])}</li>
+ *     <li>响应体只能被消费一次 (getBodyAsStream 直接返回底层流)</li>
+ *     <li>如需多次读取, 请先调用 getBodyAsBytes() 缓存, 再调用其他方法</li>
+ *     <li>重复调用 getBodyAsStream() 会抛出 IllegalStateException</li>
  * </ul>
  *
  * <h2>线程安全</h2>
@@ -83,6 +82,11 @@ public final class HttpResponse implements AutoCloseable {
     private byte[] cacheBodyBytes;
 
     /**
+     * 响应体是否已被消费 (调用过 getBodyAsStream 或 getBodyAsBytes)
+     */
+    private boolean bodyConsumed = false;
+
+    /**
      * 元数据
      */
     private final HttpCallMetadata metadata;
@@ -95,7 +99,7 @@ public final class HttpResponse implements AutoCloseable {
     }
 
     /**
-     * 从 OkHttp Response 创建 (带元数据) 
+     * 从 OkHttp Response 创建 (带元数据)
      *
      * @param response OkHttp 响应
      * @param metadata 元数据
@@ -119,14 +123,14 @@ public final class HttpResponse implements AutoCloseable {
     }
 
     /**
-     * 是否成功 (2xx) 
+     * 是否成功 (2xx)
      */
     public boolean isSuccessful() {
         return response.isSuccessful();
     }
 
     /**
-     * 是否重定向 (3xx) 
+     * 是否重定向 (3xx)
      */
     public boolean isRedirect() {
         return response.isRedirect();
@@ -154,7 +158,7 @@ public final class HttpResponse implements AutoCloseable {
     }
 
     /**
-     * 获取指定响应头的值 (带默认值) 
+     * 获取指定响应头的值 (带默认值)
      */
     public String getHeaderOrDefault(String name, String defaultValue) {
         return response.header(name, defaultValue);
@@ -184,7 +188,7 @@ public final class HttpResponse implements AutoCloseable {
     }
 
     /**
-     * 获取 Location 响应头 (重定向地址) 
+     * 获取 Location 响应头 (重定向地址)
      *
      * @return 重定向地址, 不存在时返回 null
      */
@@ -195,9 +199,9 @@ public final class HttpResponse implements AutoCloseable {
     /**
      * 获取所有 Set-Cookie 响应头
      * <p>
-     * 返回解析后的 Cookie 名称和值的映射. 如果存在多个同名 Cookie, 后者会覆盖前者. 
+     * 返回解析后的 Cookie 名称和值的映射. 如果存在多个同名 Cookie, 后者会覆盖前者.
      * <p>
-     * 注意：只返回 Cookie 的名称和值, 不包含其他属性 (如 Path、Domain、Expires 等) 
+     * 注意：只返回 Cookie 的名称和值, 不包含其他属性 (如 Path、Domain、Expires 等)
      *
      * @return 不可变的 Cookie 名称到值的映射, 无 Cookie 时返回空 Map
      */
@@ -254,17 +258,9 @@ public final class HttpResponse implements AutoCloseable {
      * <p>
      * 注意：会将整个响应体加载到内存中, 不适合大文件.
      *
-     * <h2>
-     * 资源关闭说明
-     * </h2>
-     *
-     * <ul>
-     *     <li>自动关闭: {@link #getBodyAsBytes()}会自动关闭资源. 否则必须 {@link #close()} 关闭资源.</li>
-     *     <li>手动关闭: {@link #getBodyAsStream()}不会自动关闭资源, 需要手动 {@link #close()} 关闭资源.</li>
-     * </ul>
-     *
      * @return 响应体字节数组
-     * @throws HttpException 读取失败时抛出
+     * @throws HttpException         读取失败时抛出
+     * @throws IllegalStateException 如果响应体已被消费且未缓存
      */
     public byte[] getBodyAsBytes() {
         // 如果已缓存, 直接返回
@@ -272,28 +268,20 @@ public final class HttpResponse implements AutoCloseable {
             return cacheBodyBytes;
         }
 
-        // 首次读取, 成功后自动关闭资源, 等同调用 HttpResponse#close()
-        try (ResponseBody body = response.body()) {
-            cacheBodyBytes = body != null ? body.bytes() : new byte[0];
-            return cacheBodyBytes;
+        // 获取流并读取 (流的生命周期由 HttpResponse 管理, 无需单独关闭)
+        try {
+            InputStream stream = getBodyAsStream();
+            cacheBodyBytes = stream.readAllBytes();
         } catch (IOException e) {
             throw new HttpException("Failed to read response body. " + e.getMessage(), e);
         }
+        return cacheBodyBytes;
     }
 
     /**
-     * 获取响应体字符串 (使用 UTF-8 编码) 
+     * 获取响应体字符串 (使用 UTF-8 编码)
      * <p>
      * 注意：会将整个响应体加载到内存中, 不适合大文件
-     *
-     * <h2>
-     * 资源关闭说明
-     * </h2>
-     *
-     * <ul>
-     *     <li>自动关闭: {@link #getBodyAsBytes()}会自动关闭资源. 否则必须 {@link #close()} 关闭资源.</li>
-     *     <li>手动关闭: {@link #getBodyAsStream()}不会自动关闭资源, 需要手动 {@link #close()} 关闭资源.</li>
-     * </ul>
      *
      * @return 响应体字符串
      * @throws HttpException 读取失败时抛出
@@ -303,18 +291,9 @@ public final class HttpResponse implements AutoCloseable {
     }
 
     /**
-     * 获取响应体字符串 (指定编码) 
+     * 获取响应体字符串 (指定编码)
      * <p>
      * 注意：会将整个响应体加载到内存中, 不适合大文件
-     *
-     * <h2>
-     * 资源关闭说明
-     * </h2>
-     *
-     * <ul>
-     *     <li>自动关闭: {@link #getBodyAsBytes()}会自动关闭资源. 否则必须 {@link #close()} 关闭资源.</li>
-     *     <li>手动关闭: {@link #getBodyAsStream()}不会自动关闭资源, 需要手动 {@link #close()} 关闭资源.</li>
-     * </ul>
      *
      * @param charset 字符编码
      * @return 响应体字符串
@@ -329,51 +308,54 @@ public final class HttpResponse implements AutoCloseable {
      * <p>
      * 适合处理大文件, 流式读取不会占用大量内存.
      *
-     * <h2>使用示例：</h2>
+     * <h2>资源管理</h2>
+     * <p><strong>重要</strong>: 返回的流的生命周期由 HttpResponse 管理,
+     * <strong>不需要</strong>单独关闭流, 只需要关闭 HttpResponse:
+     *
      * <pre>{@code
+     * // ✅ 正确: 只关闭 HttpResponse
      * try (HttpResponse response = client.get(url)) {
      *     InputStream stream = response.getBodyAsStream();
-     *     // 使用 stream, 无需关闭
-     *     // response.close() 时会自动关闭
+     *     // 使用 stream...
+     *     // response.close() 时会自动关闭流和网络连接
      * }
+     *
+     * // ❌ 错误: 单独关闭流不会释放网络连接
+     * HttpResponse response = client.get(url);
+     * InputStream stream = response.getBodyAsStream();
+     * stream.close();  // 网络连接仍然打开!
      * }</pre>
      *
-     * <p>
-     * 如果需要多次读取, 请先调用 {@link #getBodyAsBytes()} 进行缓存
-     *
-     * <h2>
-     * 资源关闭说明
-     * </h2>
-     *
+     * <h2>多次读取</h2>
+     * <p><strong>注意</strong>:
      * <ul>
-     *     <li>自动关闭: {@link #getBodyAsBytes()}会自动关闭资源. 否则必须 {@link #close()} 关闭资源.</li>
-     *     <li>手动关闭: {@link #getBodyAsStream()}不会自动关闭资源, 需要手动 {@link #close()} 关闭资源.</li>
+     *   <li>如果已调用 {@link #getBodyAsBytes()}, 返回缓存的字节流 (可重复调用, 可单独关闭)</li>
+     *   <li>否则返回底层流 (一次性, 再次调用抛异常, 生命周期由 Response 管理)</li>
+     *   <li>建议: 需要多次读取时, 先调用 getBodyAsBytes() 缓存</li>
      * </ul>
      *
-     * @return 响应体输入流 (生命周期由 Response 管理) 
-     * <p>
-     * <h2>多次调用结果</h2>
-     * <ul>
-     *     <li>可重复读取: {@link #getBodyAsBytes()} 缓存至内存后, 后续重复调用均会返回缓存流</li>
-     *     <li>仅单次读取: 直接调用本方法, 返回原始流, 后续重复调用均返回空字节流</li>
-     * </ul>
+     * @return 响应体输入流, 如果响应体为空返回空流
+     * @throws IllegalStateException 如果响应体已被消费且未缓存
      */
     public InputStream getBodyAsStream() {
-        // 如果已经缓存了, 返回缓存流
-        // 无需关闭该流
+        // 如果已经缓存了, 返回缓存流 (可重复调用)
         if (cacheBodyBytes != null) {
             return new ByteArrayInputStream(cacheBodyBytes);
         }
 
-        // 返回原始流 (生命周期由 Response 管理) 
+        // 检查是否已被消费
+        if (bodyConsumed) {
+            throw new IllegalStateException(
+                    "Response body stream has already been consumed. Use getBodyAsBytes() for caching and multiple reads.");
+        }
+
+        // 返回原始流 (生命周期由 Response 管理)
         ResponseBody body = response.body();
         if (body != null) {
-            // 标记流已经被读取, 避免其他方法重复读取
-            cacheBodyBytes = new byte[0];
+            bodyConsumed = true;
             return body.byteStream();
         }
 
-        // 无需关闭该流
         return InputStream.nullInputStream();
     }
 
