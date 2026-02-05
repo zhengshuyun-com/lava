@@ -1,8 +1,8 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+本文件用于指导 Claude Code (claude.ai/code) 在本仓库中进行开发与协作。
 
-## Project Overview
+## 项目概览
 
 zhengshuyun-common 是一个 Java 通用工具库集合，采用 Maven 多模块架构。要求 JDK 25。
 
@@ -12,7 +12,7 @@ zhengshuyun-common 是一个 Java 通用工具库集合，采用 Maven 多模块
 - `zhengshuyun-common-http` - HTTP 客户端封装（基于 OkHttp）
 - `zhengshuyun-common-spring-boot-starter` - Spring Boot 自动配置
 
-## Build & Test Commands
+## 构建与测试命令
 
 ### 完整构建
 ```bash
@@ -50,7 +50,7 @@ mvn install -pl zhengshuyun-common-core -DskipTests
 mvn test -pl zhengshuyun-common-json
 ```
 
-## Architecture & Design Patterns
+## 架构与设计模式
 
 ### JSON 序列化架构（zhengshuyun-common-json）
 
@@ -121,7 +121,9 @@ Retrier.builder()
 - `transfer(InputStream, OutputStream)` - 流拷贝
 - `transferWithProgress(...)` - 带进度的流拷贝
 
-## Key Conventions
+## 关键约定
+
+- git 提交信息以中文为主。
 
 ### 时间处理标准
 - **格式常量**: 使用 `DateTimePatterns` 统一管理（位于 core 模块）
@@ -140,7 +142,7 @@ Retrier.builder()
 - 使用 JUnit 5 (Jupiter)
 - 测试数据: 使用 `User.create()` 等静态工厂方法
 
-## Breaking Changes History
+## 破坏性变更历史
 
 ### JSON 序列化格式变更 (1.0.0)
 - **变更**: 默认格式从中国本地化改为 ISO 8601 UTC
