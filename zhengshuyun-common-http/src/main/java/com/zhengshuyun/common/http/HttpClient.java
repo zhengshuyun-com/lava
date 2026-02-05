@@ -119,6 +119,9 @@ public final class HttpClient {
             // 确保 response 被关闭以避免资源泄漏
             IoUtil.closeQuietly(response);
             throw new HttpException("HTTP request failed: " + e.getMessage(), e);
+        } catch (RuntimeException e) {
+            IoUtil.closeQuietly(response);
+            throw e;
         }
     }
 
