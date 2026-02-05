@@ -94,6 +94,14 @@ public final class DateTimePatterns {
     public static final String ISO_LOCAL_DATE_TIME_MILLIS = "yyyy-MM-dd'T'HH:mm:ss.SSS";
 
     /**
+     * ISO 8601 UTC 时间 (带 Z 后缀): {@code yyyy-MM-dd'T'HH:mm:ss'Z'}
+     * <p>示例: 2026-01-01T12:30:00Z
+     * <p>用于明确表示 UTC 时间的场景，适用于 Date/Instant/LocalDateTime
+     * <p>注意: 'Z' 为字面量字符，使用时必须确保时区为 UTC
+     */
+    public static final String ISO_INSTANT = "yyyy-MM-dd'T'HH:mm:ss'Z'";
+
+    /**
      * ISO 8601 带时区: {@code yyyy-MM-dd'T'HH:mm:ssXXX}
      * <p>示例: 2026-01-01T12:30:00+08:00 (中国时区)
      * <p>用于需要明确时区的场景

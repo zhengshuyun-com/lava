@@ -44,7 +44,7 @@ class ByteStreamCopierTest {
      */
     @Test
     void testCopyString() {
-        String input = "Oktool";
+        String input = "zhengshuyun-common";
         String result = ByteStreamCopier.builder()
                 .setSource(input)
                 .build()
@@ -57,7 +57,7 @@ class ByteStreamCopierTest {
      */
     @Test
     void testCopyStringWithCharset() {
-        String input = "Oktool";
+        String input = "zhengshuyun-common";
         String result = ByteStreamCopier.builder()
                 .setSource(input, StandardCharsets.UTF_8)
                 .build()

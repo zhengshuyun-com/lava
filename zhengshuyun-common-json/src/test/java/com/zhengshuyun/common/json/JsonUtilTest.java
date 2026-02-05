@@ -21,6 +21,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.zhengshuyun.common.core.time.DateTimePatterns;
+import com.zhengshuyun.common.core.time.ZoneIds;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -30,8 +31,7 @@ import java.io.FileWriter;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -42,6 +42,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class JsonUtilTest {
     @Test
@@ -57,7 +58,7 @@ class JsonUtilTest {
     @Test
     void testWriteValueAsString() {
         String expected = """
-                {"id":"1234567890123456789","name":"Oktool","age":18,"birthDateTime":"2026-01-01 00:00:00","birthLocalDate":"2026-01-01","birthLocalTime":"00:00:00","birthDate":"2026-01-01 00:00:00"}""";
+                {"id":"1234567890123456789","name":"zhengshuyun-common","age":18,"birthDateTime":"2026-01-01T00:00:00Z","birthLocalDate":"2026-01-01","birthLocalTime":"00:00:00","birthDate":"2026-01-01T00:00:00Z"}""";
         User user = User.create();
         assertEquals(expected, JsonUtil.writeValueAsString(user));
     }
@@ -65,7 +66,7 @@ class JsonUtilTest {
     @Test
     void testWriteValueAsBytes() {
         String expected = """
-                {"id":"1234567890123456789","name":"Oktool","age":18,"birthDateTime":"2026-01-01 00:00:00","birthLocalDate":"2026-01-01","birthLocalTime":"00:00:00","birthDate":"2026-01-01 00:00:00"}""";
+                {"id":"1234567890123456789","name":"zhengshuyun-common","age":18,"birthDateTime":"2026-01-01T00:00:00Z","birthLocalDate":"2026-01-01","birthLocalTime":"00:00:00","birthDate":"2026-01-01T00:00:00Z"}""";
         User user = User.create();
         byte[] bytes = JsonUtil.writeValueAsBytes(user);
         assertEquals(expected, new String(bytes, StandardCharsets.UTF_8));
@@ -78,10 +79,28 @@ class JsonUtilTest {
         user.setAge(25);
 
         String result = JsonUtil.writeValueAsPrettyString(user);
-        // 验证包含换行符和缩进 (格式化输出) 
+        // 验证包含换行符和缩进 (格式化输出)
         assert result.contains("\n");
         assert result.contains("Test");
         assert result.contains("25");
+    }
+
+    @Test
+    void testSerializeInstant() {
+        Instant instant = Instant.parse("2026-01-01T00:00:00Z");
+        String json = JsonUtil.writeValueAsString(Map.of("time", instant));
+        assertEquals("{\"time\":\"2026-01-01T00:00:00Z\"}", json);
+    }
+
+    @Test
+    void testSerializeDateWithUTC() {
+        // 北京时间 2026-01-01 08:00:00 = UTC 2026-01-01 00:00:00
+        LocalDateTime shanghaiTime = LocalDateTime.of(2026, 1, 1, 8, 0, 0);
+        Date date = Date.from(shanghaiTime.atZone(ZoneIds.ASIA_SHANGHAI).toInstant());
+
+        String json = JsonUtil.writeValueAsString(Map.of("time", date));
+        // 期望输出 UTC 时间
+        assertTrue(json.contains("2026-01-01T00:00:00Z"));
     }
 
     // ==================== 反序列化测试 - String ====================
@@ -89,14 +108,14 @@ class JsonUtilTest {
     @Test
     void testReadValue_String_Class() {
         String json = """
-                {"id":"1234567890123456789","name":"Oktool","age":18,"birthDateTime":"2026-01-01 00:00:00","birthLocalDate":"2026-01-01","birthLocalTime":"00:00:00","birthDate":"2026-01-01 00:00:00"}""";
+                {"id":"1234567890123456789","name":"zhengshuyun-common","age":18,"birthDateTime":"2026-01-01T00:00:00Z","birthLocalDate":"2026-01-01","birthLocalTime":"00:00:00","birthDate":"2026-01-01T00:00:00Z"}""";
         User user = JsonUtil.readValue(json, User.class);
 
         assertEquals(1234567890123456789L, user.getId());
-        assertEquals("Oktool", user.getName());
+        assertEquals("zhengshuyun-common", user.getName());
         assertEquals(18, user.getAge());
-        assertEquals("2026-01-01 00:00:00",
-                user.getBirthDateTime().format(DateTimeFormatter.ofPattern(DateTimePatterns.DATE_TIME)));
+        assertEquals("2026-01-01T00:00:00Z",
+                user.getBirthDateTime().format(DateTimeFormatter.ofPattern(DateTimePatterns.ISO_INSTANT)));
     }
 
     @Test
@@ -462,24 +481,17 @@ class JsonUtilTest {
         private Date birthDate;
 
         public static User create() {
-            LocalDateTime localDateTime = LocalDateTime.parse(
-                    "2026-01-01 00:00:00",
-                    DateTimeFormatter.ofPattern(DateTimePatterns.DATE_TIME)
-            );
+            LocalDateTime localDateTime = LocalDateTime.of(2026, 1, 1, 0, 0, 0);
 
             User user = new User();
             user.setId(1234567890123456789L);
-            user.setName("Oktool");
+            user.setName("zhengshuyun-common");
             user.setAge(18);
             user.setBirthDateTime(localDateTime);
             user.setBirthLocalDate(localDateTime.toLocalDate());
             user.setBirthLocalTime(localDateTime.toLocalTime());
-            try {
-                user.setBirthDate(new SimpleDateFormat(DateTimePatterns.DATE_TIME)
-                        .parse("2026-01-01 00:00:00"));
-            } catch (ParseException e) {
-                throw new RuntimeException(e);
-            }
+            // 创建 UTC 时间的 Date: 2026-01-01 00:00:00 UTC
+            user.setBirthDate(Date.from(Instant.parse("2026-01-01T00:00:00Z")));
             return user;
         }
 

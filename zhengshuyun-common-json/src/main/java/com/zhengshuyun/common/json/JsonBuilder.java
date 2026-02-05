@@ -32,25 +32,51 @@ import com.zhengshuyun.common.core.time.DateTimePatterns;
 import com.zhengshuyun.common.core.time.ZoneIds;
 import org.jspecify.annotations.Nullable;
 
-import java.text.SimpleDateFormat;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.ZoneId;
+import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 import java.util.TimeZone;
 import java.util.function.Consumer;
 
 /**
+ * JSON 序列化配置构建器
+ *
+ * <p>默认配置 (适合通用库/框架场景):
+ * <ul>
+ *   <li>日期时间格式: ISO 8601 UTC 时间 ({@code yyyy-MM-dd'T'HH:mm:ss'Z'})</li>
+ *   <li>日期格式: ISO 8601 ({@code yyyy-MM-dd})</li>
+ *   <li>时间格式: ISO 8601 ({@code HH:mm:ss})</li>
+ *   <li>时区: UTC</li>
+ *   <li>地区: Locale.ROOT (无地区特定格式)</li>
+ *   <li>Long 类型: JS 安全序列化 (超出范围转字符串)</li>
+ * </ul>
+ *
+ * <p>日期时间类型序列化示例:
+ * <ul>
+ *   <li>{@code Date}: {@code "2026-01-01T12:30:00Z"} (UTC 时间, 带 Z 后缀)</li>
+ *   <li>{@code Instant}: {@code "2026-01-01T12:30:00Z"} (UTC 时间, 带 Z 后缀)</li>
+ *   <li>{@code LocalDateTime}: {@code "2026-01-01T12:30:00Z"} (作为 UTC 时间, 带 Z 后缀)</li>
+ *   <li>{@code LocalDate}: {@code "2026-01-01"}</li>
+ *   <li>{@code LocalTime}: {@code "12:30:00"}</li>
+ * </ul>
+ *
+ * <p><strong>迁移指南 (保持旧格式)</strong>:
+ * <pre>{@code
+ * ObjectMapper mapper = new JsonBuilder()
+ *     .setDateTimeFormat(DateTimePatterns.DATE_TIME)  // "yyyy-MM-dd HH:mm:ss"
+ *     .setZone(ZoneIds.ASIA_SHANGHAI)
+ *     .setLocale(Locale.CHINA)
+ *     .build();
+ * }</pre>
+ *
  * @author Toint
  * @since 2025/12/29
  */
 public final class JsonBuilder {
     /**
-     * 日期时间格式, 默认{@link DateTimePatterns#DATE_TIME}
+     * 日期时间格式, 默认{@link DateTimePatterns#ISO_INSTANT}
      */
-    private String dateTimeFormat = DateTimePatterns.DATE_TIME;
+    private String dateTimeFormat = DateTimePatterns.ISO_INSTANT;
 
     /**
      * 日期格式, 默认{@link DateTimePatterns#DATE}
@@ -63,14 +89,14 @@ public final class JsonBuilder {
     private String timeFormat = DateTimePatterns.TIME;
 
     /**
-     * 时区, 默认{@link ZoneIds#ASIA_SHANGHAI}
+     * 时区, 默认{@link ZoneIds#UTC}
      */
-    private ZoneId zone = ZoneIds.ASIA_SHANGHAI;
+    private ZoneId zone = ZoneIds.UTC;
 
     /**
-     * 地区, 默认{@link Locale#CHINA}
+     * 地区, 默认{@link Locale#ROOT}
      */
-    private Locale locale = Locale.CHINA;
+    private Locale locale = Locale.ROOT;
 
     /**
      * Long值JS安全序列化
@@ -120,13 +146,11 @@ public final class JsonBuilder {
     }
 
     public ObjectMapper build() {
-        // java.util.Date
         Validate.notNull(locale, "Locale must not be null");
         Validate.notNull(zone, "ZoneId must not be null");
         Validate.notBlank(dateTimeFormat, "dateTimeFormat must not be blank");
+
         TimeZone timeZone = TimeZone.getTimeZone(zone);
-        SimpleDateFormat dateFormat = new SimpleDateFormat(dateTimeFormat, locale);
-        dateFormat.setTimeZone(timeZone);
 
         // 使用 Builder 模式创建 ObjectMapper
         JsonMapper.Builder builder = JsonMapper.builder()
@@ -136,10 +160,11 @@ public final class JsonBuilder {
                 .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
                 // 序列化空对象时不抛异常
                 .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
-                // 设置Date格式和时区
-                .defaultDateFormat(dateFormat)
+                // 设置时区和地区
                 .defaultTimeZone(timeZone)
                 .defaultLocale(locale)
+                // 添加 Date ISO 8601 序列化支持
+                .addModule(new IsoDateModule(zone))
                 // 添加Java8时间模块支持
                 .addModule(createJavaTimeModule());
 
@@ -164,7 +189,6 @@ public final class JsonBuilder {
     private JavaTimeModule createJavaTimeModule() {
         JavaTimeModule module = new JavaTimeModule();
 
-        // TODO: 默认用ISO-8601
         // LocalDateTime
         DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern(dateTimeFormat, locale);
         module.addSerializer(LocalDateTime.class, new LocalDateTimeSerializer(dateTimeFormatter));
