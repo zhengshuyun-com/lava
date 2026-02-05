@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-本文件用于指导 Claude Code (claude.ai/code) 在本仓库中进行开发与协作。
+本文件用于指导代码助手在本仓库中进行开发与协作。
 
 ## 项目概览
 
@@ -50,77 +50,6 @@ mvn install -pl zhengshuyun-common-core -DskipTests
 mvn test -pl zhengshuyun-common-json
 ```
 
-## 架构与设计模式
-
-### JSON 序列化架构（zhengshuyun-common-json）
-
-**设计理念**: 提供统一的 JSON 配置，默认采用 ISO 8601 UTC 标准。
-
-**核心组件**:
-1. **JsonBuilder** - Builder 模式配置 ObjectMapper
-   - 默认配置: ISO 8601 格式 + UTC 时区 + Locale.ROOT
-   - 可通过 setter 自定义时区/格式/地区
-
-2. **JsonUtil** - 单例门面，提供静态方法
-   - 初始化: `JsonUtil.init(ObjectMapper)` 或自动使用默认配置
-   - 线程安全: 双重检查锁确保单例
-
-3. **IsoDateModule** - 自定义 Date 序列化器
-   - 确保 `java.util.Date` 输出 `yyyy-MM-dd'T'HH:mm:ss'Z'` 格式
-   - 处理时区转换为 UTC
-
-**时间类型序列化规则**:
-- `Date/Instant`: `2026-01-01T00:00:00Z` (UTC + Z 后缀)
-- `LocalDateTime`: `2026-01-01T00:00:00Z` (直接当作 UTC)
-- `LocalDate`: `2026-01-01`
-- `LocalTime`: `12:30:00`
-
-**扩展方式**:
-```java
-ObjectMapper mapper = JsonUtil.builder()
-    .setCustomizer(builder -> {
-        // 添加自定义模块
-    })
-    .build();
-```
-
-### 重试机制架构（zhengshuyun-common-core）
-
-**设计理念**: 提供声明式和编程式两种重试方式。
-
-**核心组件**:
-1. **Retrier** - 可配置的重试执行器
-   - 支持多种重试策略: 固定间隔、指数退避、线性增长
-   - 支持条件重试: 异常类型、自定义条件
-   - 支持监听器: 重试前、成功、失败、达到最大次数
-
-2. **RetryUtil** - 简化的静态方法门面
-   - 快速重试: `RetryUtil.retry(() -> {...})`
-   - 自定义配置: `RetryUtil.retry(() -> {...}, maxRetries, interval)`
-
-**使用示例**:
-```java
-// 编程式
-Retrier.builder()
-    .setMaxRetries(3)
-    .setStrategy(RetryStrategy.exponentialBackoff(Duration.ofSeconds(1)))
-    .setOnRetry((attempt, exception) -> log.warn("Retry {} due to {}", attempt, exception))
-    .build()
-    .execute(() -> riskyOperation());
-```
-
-### IO 工具架构（zhengshuyun-common-core）
-
-**ByteStreamCopier** - Builder 模式的流复制工具:
-- 支持多种输入源: String、byte[]、InputStream、File
-- 支持多种输出目标: OutputStream、File、String
-- 支持进度监听: `ProgressListener`
-- 自动资源管理: try-with-resources
-
-**DataTransferUtil** - 静态方法简化常见操作:
-- `transfer(InputStream, OutputStream)` - 流拷贝
-- `transferWithProgress(...)` - 带进度的流拷贝
-
 ## 关键约定
 
 - git 提交信息以中文为主。
@@ -141,10 +70,3 @@ Retrier.builder()
 - 测试方法命名: `testXxx` 或 `testXxx_条件`
 - 使用 JUnit 5 (Jupiter)
 - 测试数据: 使用 `User.create()` 等静态工厂方法
-
-## 破坏性变更历史
-
-### JSON 序列化格式变更 (1.0.0)
-- **变更**: 默认格式从中国本地化改为 ISO 8601 UTC
-- **影响**: Date/LocalDateTime 输出格式从 `yyyy-MM-dd HH:mm:ss` 变为 `yyyy-MM-dd'T'HH:mm:ss'Z'`
-- **迁移**: 需要更新前端/客户端的日期解析逻辑，或通过 JsonBuilder setter 恢复旧格式
