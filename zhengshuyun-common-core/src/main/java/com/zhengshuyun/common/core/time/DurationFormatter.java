@@ -65,7 +65,7 @@ public final class DurationFormatter {
         Validate.isFalse(duration.isNegative(), "duration cannot be negative");
     }
 
-    // ==================== 静态工厂方法 ====================
+    // 静态工厂方法
 
     public static DurationFormatter of(Duration duration) {
         return new DurationFormatter(duration);
@@ -99,7 +99,7 @@ public final class DurationFormatter {
         return of(Duration.ofNanos(nanos));
     }
 
-    // ==================== 配置方法 ====================
+    // 配置方法
 
     /**
      * 设置最大单位
@@ -183,7 +183,7 @@ public final class DurationFormatter {
         return this;
     }
 
-    // ==================== 格式化方法 ====================
+    // 格式化方法
 
     /**
      * 格式化时长

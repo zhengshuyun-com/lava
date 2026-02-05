@@ -170,7 +170,7 @@ public final class HttpHeaders {
      */
     public static final String UPGRADE = "Upgrade";
 
-    // ==================== 响应头 ====================
+    // 响应头
 
     /**
      * Content-Disposition: 内容处理方式

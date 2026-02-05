@@ -334,7 +334,7 @@ class ProgressListenerTest {
         assertTrue(progressCalled.get());
     }
 
-    // ==================== 辅助类 ====================
+    // 辅助类
 
     /**
      * 生命周期跟踪器

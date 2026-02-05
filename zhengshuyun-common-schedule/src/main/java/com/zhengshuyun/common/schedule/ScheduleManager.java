@@ -59,7 +59,7 @@ public class ScheduleManager {
         this.scheduler = scheduler;
     }
 
-    // ==================== Cron 任务 ====================
+    // Cron 任务
 
     /**
      * 添加 Cron 任务
@@ -139,7 +139,7 @@ public class ScheduleManager {
         }
     }
 
-    // ==================== 固定周期任务 ====================
+    // 固定周期任务
 
     /**
      * 添加固定周期任务
@@ -268,7 +268,7 @@ public class ScheduleManager {
         return addFixedRateTask(taskId, interval.toMillis(), task, config);
     }
 
-    // ==================== 延迟任务（一次性） ====================
+    // 延迟任务（一次性）
 
     /**
      * 添加延迟任务（一次性）
@@ -399,7 +399,7 @@ public class ScheduleManager {
         return addDelayedTask(taskId, delay.toMillis(), task, config);
     }
 
-    // ==================== 任务管理 ====================
+    // 任务管理
 
     /**
      * 删除任务
@@ -543,7 +543,7 @@ public class ScheduleManager {
         }
     }
 
-    // ==================== 私有方法 ====================
+    // 私有方法
 
     /**
      * 生成任务 ID

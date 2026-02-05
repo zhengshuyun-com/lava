@@ -48,7 +48,7 @@ class ValidateTest {
         }
     }
 
-    // ==================== isFalse ====================
+    // isFalse
 
     @Test
     void isFalse_shouldPass() {
@@ -80,7 +80,7 @@ class ValidateTest {
         assertEquals("期望 false", ex.getMessage());
     }
 
-    // ==================== isTrue ====================
+    // isTrue
 
     @Test
     void isTrue_shouldPass() {
@@ -112,7 +112,7 @@ class ValidateTest {
         assertEquals("期望 true 但得到 false", ex.getMessage());
     }
 
-    // ==================== notBlank ====================
+    // notBlank
 
     @Test
     void notBlank_shouldPass() {
@@ -145,7 +145,7 @@ class ValidateTest {
         assertEquals("字段 'username' 不能为空白", ex.getMessage());
     }
 
-    // ==================== notNull ====================
+    // notNull
 
     @Test
     void notNull_shouldPass() {
@@ -177,7 +177,7 @@ class ValidateTest {
         assertEquals("参数 'config' 不能为 null", ex.getMessage());
     }
 
-    // ==================== isNull ====================
+    // isNull
 
     @Test
     void isNull_shouldPass() {
@@ -209,7 +209,7 @@ class ValidateTest {
         assertEquals("字段 'optional' 必须为 null", ex.getMessage());
     }
 
-    // ==================== isEmail ====================
+    // isEmail
 
     @Test
     void isEmail_shouldPass() {
@@ -233,7 +233,7 @@ class ValidateTest {
         assertEquals("邮箱格式错误", ex.getMessage());
     }
 
-    // ==================== isMobile ====================
+    // isMobile
 
     @Test
     void isMobile_shouldPass() {

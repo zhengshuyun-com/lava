@@ -197,7 +197,7 @@ public final class ByteStreamCopier {
         });
     }
 
-    // ==================== 内部方法 ====================
+    // 内部方法
 
     /**
      * 带进度监听的流复制
@@ -233,7 +233,7 @@ public final class ByteStreamCopier {
         return totalBytes;
     }
 
-    // ==================== Builder ====================
+    // Builder
 
     /**
      * 字节流复制器构建器

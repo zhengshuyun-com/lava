@@ -42,7 +42,7 @@ class HttpResponseTest {
      */
     private static final String TEST_URL = "https://postman-echo.com/get";
 
-    // ==================== 响应体读取测试 ====================
+    // 响应体读取测试
 
     @Nested
     @DisplayName("响应体读取测试")
@@ -237,7 +237,7 @@ class HttpResponseTest {
         }
     }
 
-    // ==================== 响应体为空测试 ====================
+    // 响应体为空测试
 
     @Nested
     @DisplayName("响应体为空测试")
@@ -270,7 +270,7 @@ class HttpResponseTest {
         }
     }
 
-    // ==================== 元数据测试 ====================
+    // 元数据测试
 
     @Nested
     @DisplayName("元数据测试")

@@ -31,7 +31,7 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class DataTransferUtilTest {
 
-    // ==================== formatBytes 测试 ====================
+    // formatBytes 测试
 
     /**
      * 测试格式化字节 - 小于 1KB
@@ -134,7 +134,7 @@ class DataTransferUtilTest {
         assertEquals("123 KB", DataTransferUtil.formatBytes(125952));
     }
 
-    // ==================== calculatePercentage 测试 ====================
+    // calculatePercentage 测试
 
     /**
      * 测试计算百分比 - 正常情况
@@ -210,7 +210,7 @@ class DataTransferUtilTest {
         assertEquals(1, DataTransferUtil.calculatePercentage(1, 100)); // 1%
     }
 
-    // ==================== formatDuration 测试 ====================
+    // formatDuration 测试
 
     /**
      * 测试格式化时长 - 毫秒
@@ -261,7 +261,7 @@ class DataTransferUtilTest {
         assertNotNull(result);
     }
 
-    // ==================== formatSpeed 测试 ====================
+    // formatSpeed 测试
 
     /**
      * 测试格式化速率 - 正常情况
@@ -310,7 +310,7 @@ class DataTransferUtilTest {
         assertEquals("0 B/s", DataTransferUtil.formatSpeed(0, 1000));
     }
 
-    // ==================== Tracker 测试 ====================
+    // Tracker 测试
 
     /**
      * 测试创建追踪器

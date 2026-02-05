@@ -41,7 +41,7 @@ import static org.junit.jupiter.api.Assertions.*;
 @DisplayName("HttpUtil 单元测试")
 class HttpUtilTest {
 
-    // ==================== URL 常量 ====================
+    // URL 常量
 
     /**
      * 基础测试 URL - Postman Echo 服务 (用于实际HTTP请求测试)
@@ -92,7 +92,7 @@ class HttpUtilTest {
         return (HttpClient) field.get(null);
     }
 
-    // ==================== 单例管理测试 ====================
+    // 单例管理测试
 
     @Nested
     @DisplayName("单例初始化测试")
@@ -273,7 +273,7 @@ class HttpUtilTest {
         }
     }
 
-    // ==================== 静态工厂方法测试 ====================
+    // 静态工厂方法测试
 
     @Nested
     @DisplayName("静态工厂方法测试")
@@ -371,7 +371,7 @@ class HttpUtilTest {
         }
     }
 
-    // ==================== HTTP 方法测试 ====================
+    // HTTP 方法测试
 
     @Nested
     @DisplayName("HTTP 方法测试")
@@ -605,7 +605,7 @@ class HttpUtilTest {
         }
     }
 
-    // ==================== 执行请求测试 ====================
+    // 执行请求测试
 
     @Nested
     @DisplayName("执行请求测试")
@@ -790,7 +790,7 @@ class HttpUtilTest {
         }
     }
 
-    // ==================== 配置验证测试 ====================
+    // 配置验证测试
 
     @Nested
     @DisplayName("配置验证测试")
@@ -901,7 +901,7 @@ class HttpUtilTest {
         }
     }
 
-    // ==================== 拦截器测试 ====================
+    // 拦截器测试
 
     @Nested
     @DisplayName("拦截器测试")
@@ -1052,7 +1052,7 @@ class HttpUtilTest {
         }
     }
 
-    // ==================== 性能测试 (可选)  ====================
+    // 性能测试 (可选)
 
     @Nested
     @DisplayName("性能测试")
@@ -1078,7 +1078,7 @@ class HttpUtilTest {
             long endTime = System.nanoTime();
             long durationMs = (endTime - startTime) / 1_000_000; // 转换为毫秒
 
-            System.out.println("========== 单例获取性能测试 ==========");
+            System.out.println("单例获取性能测试");
             System.out.println("总次数: " + iterations);
             System.out.println("总耗时: " + durationMs + " ms");
             System.out.println("平均耗时: " + (double) (endTime - startTime) / iterations + " ns");
@@ -1107,7 +1107,7 @@ class HttpUtilTest {
             long endTime = System.nanoTime();
             long durationMs = (endTime - startTime) / 1_000_000;
 
-            System.out.println("========== 创建实例性能测试 ==========");
+            System.out.println("创建实例性能测试");
             System.out.println("总次数: " + iterations);
             System.out.println("总耗时: " + durationMs + " ms");
             System.out.println("平均耗时: " + (double) durationMs / iterations + " ms");
@@ -1148,7 +1148,7 @@ class HttpUtilTest {
             long durationMs = (endTime - startTime) / 1_000_000;
             int totalOperations = threadCount * iterationsPerThread;
 
-            System.out.println("========== 并发获取单例性能测试 ==========");
+            System.out.println("并发获取单例性能测试");
             System.out.println("线程数: " + threadCount);
             System.out.println("每线程操作数: " + iterationsPerThread);
             System.out.println("总操作数: " + totalOperations);
@@ -1181,7 +1181,7 @@ class HttpUtilTest {
             long createEnd = System.nanoTime();
             long createDuration = (createEnd - createStart) / 1_000_000;
 
-            System.out.println("========== 单例 vs 创建实例性能对比 ==========");
+            System.out.println("单例 vs 创建实例性能对比");
             System.out.println("操作次数: " + iterations);
             System.out.println("单例总耗时: " + singletonDuration + " ms");
             System.out.println("创建总耗时: " + createDuration + " ms");

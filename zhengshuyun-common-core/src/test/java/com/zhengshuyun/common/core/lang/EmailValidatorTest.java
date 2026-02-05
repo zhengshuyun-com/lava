@@ -22,7 +22,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class EmailValidatorTest {
 
-    // ==================== 基本有效邮箱 ====================
+    // 基本有效邮箱
 
     @Test
     void isValid_shouldPass_basicEmail() {
@@ -31,7 +31,7 @@ class EmailValidatorTest {
         assertTrue(EmailValidator.isValid("user.tag+tag@sub.domain.co"));
     }
 
-    // ==================== 基本无效邮箱 ====================
+    // 基本无效邮箱
 
     @Test
     void isValid_shouldFail_nullOrEmpty() {
@@ -51,7 +51,7 @@ class EmailValidatorTest {
         assertFalse(EmailValidator.isValid("test@example.com."));
     }
 
-    // ==================== 本地部分首尾点 ====================
+    // 本地部分首尾点
 
     @Test
     void isValid_shouldFail_localPartStartsWithDot() {
@@ -68,7 +68,7 @@ class EmailValidatorTest {
         assertFalse(EmailValidator.isValid("test..user@example.com"));
     }
 
-    // ==================== 首尾空格 ====================
+    // 首尾空格
 
     @Test
     void isValid_shouldFail_leadingWhitespace() {
@@ -85,7 +85,7 @@ class EmailValidatorTest {
         assertFalse(EmailValidator.isValid(" test@example.com "));
     }
 
-    // ==================== 长度边界 ====================
+    // 长度边界
 
     @Test
     void isValid_shouldPass_localPartMaxLength() {
@@ -124,7 +124,7 @@ class EmailValidatorTest {
         assertFalse(EmailValidator.isValid("test@" + domain));
     }
 
-    // ==================== 国际化域名 ====================
+    // 国际化域名
 
     @Test
     void isValid_shouldPass_internationalDomain() {
@@ -136,7 +136,7 @@ class EmailValidatorTest {
         assertTrue(EmailValidator.isValid("user@中国.cn"));
     }
 
-    // ==================== 特殊字符 ====================
+    // 特殊字符
 
     @Test
     void isValid_shouldPass_specialCharacters() {
@@ -152,7 +152,7 @@ class EmailValidatorTest {
         assertFalse(EmailValidator.isValid("test user@example.com"));
     }
 
-    // ==================== 边界情况 ====================
+    // 边界情况
 
     @Test
     void isValid_shouldFail_multipleAtSigns() {

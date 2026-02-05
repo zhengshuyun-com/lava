@@ -63,7 +63,7 @@ public final class ScheduleUtil {
     private ScheduleUtil() {
     }
 
-    // ==================== 单例持有 ====================
+    // 单例持有
 
     /**
      * Quartz 调度器（负责触发任务）
@@ -75,19 +75,15 @@ public final class ScheduleUtil {
      */
     private static volatile ExecutorService taskExecutor;
 
-    /**
-     * JVM 关闭时自动清理资源
-     */
     static {
+        // JVM 关闭时自动清理资源
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             // 关闭调度器
             Scheduler s = scheduler;
             if (s != null) {
                 try {
                     s.shutdown(true); // 等待任务完成
-                } catch (SchedulerException e) {
-                    System.err.println("Failed to shutdown scheduler: " + e.getMessage());
-                    e.printStackTrace(System.err);
+                } catch (SchedulerException ignore) {
                 }
             }
 
@@ -153,7 +149,7 @@ public final class ScheduleUtil {
         return taskExecutor;
     }
 
-    // ==================== 执行器配置 ====================
+    // 执行器配置
 
     /**
      * 自定义任务执行器
@@ -173,7 +169,7 @@ public final class ScheduleUtil {
         }
     }
 
-    // ==================== 工厂方法 ====================
+    // 工厂方法
 
     /**
      * 获取任务管理器
@@ -186,7 +182,7 @@ public final class ScheduleUtil {
         return new ScheduleManager(getScheduler());
     }
 
-    // ==================== 简单 API ====================
+    // 简单 API
 
     /**
      * 添加固定周期任务
