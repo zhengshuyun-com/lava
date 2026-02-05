@@ -156,6 +156,7 @@ public final class Retrier {
                 success = true;
             } catch (Throwable e) {
                 lastError = e;
+                result = null;
                 success = false;
             }
 

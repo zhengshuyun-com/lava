@@ -278,32 +278,48 @@ public final class HttpClient {
 
         /**
          * 设置连接超时时间
+         *
+         * @param timeout 超时时间, Duration.ZERO 表示禁用超时
          */
         public Builder setConnectTimeout(Duration timeout) {
+            Validate.notNull(timeout, "connectTimeout must not be null");
+            Validate.isFalse(timeout.isNegative(), "connectTimeout must not be negative, use Duration.ZERO to disable");
             this.connectTimeout = timeout;
             return this;
         }
 
         /**
          * 设置读取超时时间
+         *
+         * @param timeout 超时时间, Duration.ZERO 表示禁用超时
          */
         public Builder setReadTimeout(Duration timeout) {
+            Validate.notNull(timeout, "readTimeout must not be null");
+            Validate.isFalse(timeout.isNegative(), "readTimeout must not be negative, use Duration.ZERO to disable");
             this.readTimeout = timeout;
             return this;
         }
 
         /**
          * 设置写入超时时间
+         *
+         * @param timeout 超时时间, Duration.ZERO 表示禁用超时
          */
         public Builder setWriteTimeout(Duration timeout) {
+            Validate.notNull(timeout, "writeTimeout must not be null");
+            Validate.isFalse(timeout.isNegative(), "writeTimeout must not be negative, use Duration.ZERO to disable");
             this.writeTimeout = timeout;
             return this;
         }
 
         /**
          * 设置总调用超时时间
+         *
+         * @param timeout 超时时间, Duration.ZERO 表示禁用超时
          */
         public Builder setCallTimeout(Duration timeout) {
+            Validate.notNull(timeout, "callTimeout must not be null");
+            Validate.isFalse(timeout.isNegative(), "callTimeout must not be negative, use Duration.ZERO to disable");
             this.callTimeout = timeout;
             return this;
         }

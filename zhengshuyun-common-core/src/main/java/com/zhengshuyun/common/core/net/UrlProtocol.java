@@ -16,7 +16,10 @@
 
 package com.zhengshuyun.common.core.net;
 
+import com.google.common.base.Objects;
 import com.zhengshuyun.common.core.lang.Validate;
+
+import java.util.Locale;
 
 /**
  * URL 协议类型
@@ -96,7 +99,7 @@ public final class UrlProtocol {
      */
     public static UrlProtocol of(String name) {
         Validate.notBlank(name, "protocol name must not be blank");
-        String normalized = name.toLowerCase();
+        String normalized = name.toLowerCase(Locale.ROOT);
         return switch (normalized) {
             case "http" -> HTTP;
             case "https" -> HTTPS;
@@ -104,7 +107,7 @@ public final class UrlProtocol {
             case "wss" -> WSS;
             case "ftp" -> FTP;
             case "file" -> FILE;
-            default -> new UrlProtocol(name);
+            default -> new UrlProtocol(normalized);
         };
     }
 
@@ -115,6 +118,18 @@ public final class UrlProtocol {
      */
     public String getName() {
         return name;
+    }
+
+    @Override
+    public boolean equals(Object object) {
+        if (object == null || getClass() != object.getClass()) return false;
+        UrlProtocol that = (UrlProtocol) object;
+        return Objects.equal(name, that.name);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(name);
     }
 
     @Override

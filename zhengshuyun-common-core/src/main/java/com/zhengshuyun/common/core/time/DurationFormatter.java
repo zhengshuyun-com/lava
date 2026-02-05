@@ -249,10 +249,12 @@ public final class DurationFormatter {
 
         if (shouldInclude(ChronoUnit.SECONDS)) {
             seconds = totalSeconds;
+            totalSeconds = 0;
         }
 
-        // 计算毫秒/微秒/纳秒 (从 duration 的纳秒部分提取) 
-        long remainingNanos = duration.toNanosPart(); // 0-999,999,999
+        // 计算毫秒/微秒/纳秒
+        // 如果 SECONDS 不在范围内，需要将未消费的秒数转换为纳秒
+        long remainingNanos = totalSeconds * 1_000_000_000L + duration.toNanosPart();
 
         if (shouldInclude(ChronoUnit.MILLIS)) {
             millis = remainingNanos / 1_000_000;

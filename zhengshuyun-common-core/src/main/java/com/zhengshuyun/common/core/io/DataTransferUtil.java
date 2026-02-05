@@ -69,7 +69,10 @@ public final class DataTransferUtil {
         if (total <= 0) {
             return null;
         }
-        return (int) Math.min(100, current * 100 / total);
+        // 使用分解计算避免 current * 100 溢出
+        long q = current / total;
+        long r = current % total;
+        return (int) Math.min(100, q * 100 + r * 100 / total);
     }
 
     /**

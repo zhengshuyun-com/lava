@@ -152,8 +152,10 @@ public final class HttpResponse implements AutoCloseable {
 
     /**
      * 获取指定响应头的值
+     *
+     * @return 响应头的值, 不存在时返回 null
      */
-    public String getHeader(String name) {
+    public @Nullable String getHeader(String name) {
         return response.header(name);
     }
 
@@ -166,8 +168,10 @@ public final class HttpResponse implements AutoCloseable {
 
     /**
      * 获取 Content-Type
+     *
+     * @return Content-Type, 不存在时返回 null
      */
-    public String getContentType() {
+    public @Nullable String getContentType() {
         return getHeader(HttpHeaders.CONTENT_TYPE);
     }
 
@@ -192,7 +196,7 @@ public final class HttpResponse implements AutoCloseable {
      *
      * @return 重定向地址, 不存在时返回 null
      */
-    public String getLocation() {
+    public @Nullable String getLocation() {
         return getHeader("Location");
     }
 

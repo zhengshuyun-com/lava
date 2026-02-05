@@ -396,9 +396,9 @@ public final class HttpRequest {
          * 添加文件
          */
         public MultipartBuilder addFile(String name, File file, String contentType) {
-            Validate.isTrue(file.exists(), "File does not exist: {}", file.getAbsolutePath());
+            Validate.isTrue(file.exists(), "File does not exist: %s", file.getAbsolutePath());
             MediaType mediaType = MediaType.parse(contentType);
-            Validate.notNull(mediaType, "Invalid content type: {}", contentType);
+            Validate.notNull(mediaType, "Invalid content type: %s", contentType);
             RequestBody requestBody = RequestBody.create(file, mediaType);
             builder.addFormDataPart(name, file.getName(), requestBody);
             return this;

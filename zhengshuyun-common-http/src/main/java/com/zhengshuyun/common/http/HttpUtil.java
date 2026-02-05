@@ -211,8 +211,8 @@ public final class HttpUtil {
     /**
      * 使用全局单例 HttpClient 执行 HTTP 请求
      * <p>
-     * 这是最常用的方法, 适用于大多数 HTTP 请求场景. 
-     * 内部使用 {@link #getHttpClient()} 获取单例执行请求. 
+     * 这是最常用的方法, 适用于大多数 HTTP 请求场景.
+     * 内部使用 {@link #getHttpClient()} 获取单例执行请求.
      *
      * <h3>使用示例</h3>
      * <pre>{@code
@@ -220,7 +220,7 @@ public final class HttpUtil {
      * HttpResponse response = HttpUtil.execute(
      *     HttpRequest.get("https://api.example.com/users")
      *         .setUserAgentBrowser()
-     *         .setAcceptJson()
+     *         .setHeader("Accept", "application/json")
      *         .build()
      * );
      *
@@ -236,12 +236,12 @@ public final class HttpUtil {
      * // 链式调用
      * String body = HttpUtil.execute(
      *     HttpRequest.get("https://api.example.com/users").build()
-     * ).getBody();
+     * ).getBodyAsString();
      * }</pre>
      *
      * @param request HTTP 请求对象, 不能为 null
      * @return HTTP 响应对象
-     * @throws HttpException 请求失败时抛出 (网络错误、超时、服务器错误等) 
+     * @throws HttpException 请求失败时抛出 (网络错误、超时、服务器错误等)
      * @throws IllegalArgumentException 如果 request 为 null
      */
     public static HttpResponse execute(HttpRequest request) {
