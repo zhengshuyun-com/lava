@@ -42,7 +42,10 @@ import java.util.Date;
  */
 public class ScheduledTask {
 
+    /** 任务 ID */
     private final String id;
+
+    /** Quartz 调度器 */
     private final Scheduler scheduler;
 
     ScheduledTask(String id, Scheduler scheduler) {
@@ -162,10 +165,5 @@ public class ScheduledTask {
         } catch (SchedulerException e) {
             throw new ScheduleException("查询上次执行时间失败: " + id, e);
         }
-    }
-
-    @Override
-    public String toString() {
-        return "ScheduledTask{id='" + id + "'}";
     }
 }

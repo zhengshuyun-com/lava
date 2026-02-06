@@ -19,6 +19,8 @@ package com.zhengshuyun.common.core.io;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -38,6 +40,8 @@ import static org.junit.jupiter.api.Assertions.*;
  * @since 2026/1/11
  */
 class ByteStreamCopierTest {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(ByteStreamCopierTest.class);
 
     /**
      * 测试字符串复制 (UTF-8编码) 
@@ -1001,13 +1005,13 @@ class ByteStreamCopierTest {
                     @Override
                     public void onStart(long totalBytes) {
                         if (totalBytes > 0) {
-                            System.out.println("开始写入, 总大小: " + DataTransferUtil.formatBytes(totalBytes));
+                            LOGGER.info("开始写入, 总大小: {}", DataTransferUtil.formatBytes(totalBytes));
                         }
                     }
 
                     @Override
                     public void onProgress(long bytesRead, long contentLength) {
-                        System.out.println(tracker.format(bytesRead));
+                        LOGGER.info("{}", tracker.format(bytesRead));
                         try {
                             TimeUnit.MILLISECONDS.sleep(10);
                         } catch (InterruptedException e) {
@@ -1017,7 +1021,7 @@ class ByteStreamCopierTest {
 
                     @Override
                     public void onComplete(long currentBytes, long totalBytes) {
-                        System.out.println("复制完成. 总计: " + DataTransferUtil.formatBytes(currentBytes));
+                        LOGGER.info("复制完成. 总计: {}", DataTransferUtil.formatBytes(currentBytes));
                     }
                 })
                 .build()

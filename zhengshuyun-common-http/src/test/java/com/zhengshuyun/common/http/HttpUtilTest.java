@@ -19,6 +19,8 @@ package com.zhengshuyun.common.http;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import org.junit.jupiter.api.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Field;
 import java.time.Duration;
@@ -40,6 +42,8 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 @DisplayName("HttpUtil 单元测试")
 class HttpUtilTest {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(HttpUtilTest.class);
 
     // URL 常量
 
@@ -1088,11 +1092,11 @@ class HttpUtilTest {
             long endTime = System.nanoTime();
             long durationMs = (endTime - startTime) / 1_000_000; // 转换为毫秒
 
-            System.out.println("单例获取性能测试");
-            System.out.println("总次数: " + iterations);
-            System.out.println("总耗时: " + durationMs + " ms");
-            System.out.println("平均耗时: " + (double) (endTime - startTime) / iterations + " ns");
-            System.out.println("每秒操作数: " + (iterations * 1000L / durationMs));
+            LOGGER.info("单例获取性能测试");
+            LOGGER.info("总次数: {}", iterations);
+            LOGGER.info("总耗时: {} ms", durationMs);
+            LOGGER.info("平均耗时: {} ns", (double) (endTime - startTime) / iterations);
+            LOGGER.info("每秒操作数: {}", (iterations * 1000L / durationMs));
 
             // 性能断言 (应该非常快) 
             assertTrue(durationMs < 1000, "100万次获取应该在1秒内完成");
@@ -1117,11 +1121,11 @@ class HttpUtilTest {
             long endTime = System.nanoTime();
             long durationMs = (endTime - startTime) / 1_000_000;
 
-            System.out.println("创建实例性能测试");
-            System.out.println("总次数: " + iterations);
-            System.out.println("总耗时: " + durationMs + " ms");
-            System.out.println("平均耗时: " + (double) durationMs / iterations + " ms");
-            System.out.println("每秒操作数: " + (iterations * 1000L / durationMs));
+            LOGGER.info("创建实例性能测试");
+            LOGGER.info("总次数: {}", iterations);
+            LOGGER.info("总耗时: {} ms", durationMs);
+            LOGGER.info("平均耗时: {} ms", (double) durationMs / iterations);
+            LOGGER.info("每秒操作数: {}", (iterations * 1000L / durationMs));
         }
 
         @Test
@@ -1158,12 +1162,12 @@ class HttpUtilTest {
             long durationMs = (endTime - startTime) / 1_000_000;
             int totalOperations = threadCount * iterationsPerThread;
 
-            System.out.println("并发获取单例性能测试");
-            System.out.println("线程数: " + threadCount);
-            System.out.println("每线程操作数: " + iterationsPerThread);
-            System.out.println("总操作数: " + totalOperations);
-            System.out.println("总耗时: " + durationMs + " ms");
-            System.out.println("吞吐量: " + (totalOperations * 1000L / durationMs) + " ops/s");
+            LOGGER.info("并发获取单例性能测试");
+            LOGGER.info("线程数: {}", threadCount);
+            LOGGER.info("每线程操作数: {}", iterationsPerThread);
+            LOGGER.info("总操作数: {}", totalOperations);
+            LOGGER.info("总耗时: {} ms", durationMs);
+            LOGGER.info("吞吐量: {} ops/s", (totalOperations * 1000L / durationMs));
 
             executor.shutdown();
             assertTrue(executor.awaitTermination(5, TimeUnit.SECONDS));
@@ -1191,12 +1195,12 @@ class HttpUtilTest {
             long createEnd = System.nanoTime();
             long createDuration = (createEnd - createStart) / 1_000_000;
 
-            System.out.println("单例 vs 创建实例性能对比");
-            System.out.println("操作次数: " + iterations);
-            System.out.println("单例总耗时: " + singletonDuration + " ms");
-            System.out.println("创建总耗时: " + createDuration + " ms");
-            System.out.println("性能差异: " + (createDuration / (double) singletonDuration) + "x");
-            System.out.println("单例更快: " + (createDuration - singletonDuration) + " ms");
+            LOGGER.info("单例 vs 创建实例性能对比");
+            LOGGER.info("操作次数: {}", iterations);
+            LOGGER.info("单例总耗时: {} ms", singletonDuration);
+            LOGGER.info("创建总耗时: {} ms", createDuration);
+            LOGGER.info("性能差异: {}x", (createDuration / (double) singletonDuration));
+            LOGGER.info("单例更快: {} ms", (createDuration - singletonDuration));
 
             // 单例应该显著更快
             assertTrue(singletonDuration < createDuration,
