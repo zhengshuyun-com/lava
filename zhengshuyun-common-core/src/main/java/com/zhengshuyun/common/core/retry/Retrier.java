@@ -379,7 +379,7 @@ public final class Retrier {
          * @param listener 重试监听器, 可以为 null
          * @return this
          */
-        public Builder setRetryListener(RetryListener listener) {
+        public Builder setRetryListener(@Nullable RetryListener listener) {
             this.retryListener = listener;
             return this;
         }
