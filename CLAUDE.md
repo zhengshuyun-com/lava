@@ -1,10 +1,10 @@
 # CLAUDE.md
 
-本文件用于指导代码助手在本仓库中进行开发与协作。
+本文件用于指导代码助手在本仓库中进行开发与协作.
 
 ## 项目概览
 
-zhengshuyun-common 是一个 Java 通用工具库集合，采用 Maven 多模块架构。要求 JDK 25。
+zhengshuyun-common 是一个 Java 通用工具库集合, 采用 Maven 多模块架构. 要求 JDK 25.
 
 **Maven 模块结构**:
 
@@ -49,7 +49,7 @@ mvn test -pl zhengshuyun-common-json -am
 
 ### 模块依赖顺序
 
-修改 core 模块后，需要先安装到本地仓库再测试依赖它的模块：
+修改 core 模块后, 需要先安装到本地仓库再测试依赖它的模块：
 
 ```bash
 mvn install -pl zhengshuyun-common-core -DskipTests
@@ -58,10 +58,10 @@ mvn test -pl zhengshuyun-common-json
 
 ## 关键约定
 
-- git 提交信息以中文为主。
-- 文档命名优先使用中文；需要保留英文专业术语时，使用"烤肉串"格式(如：`java-jwt-使用教程.md`)。
-- 复用优先: 复杂方法/逻辑尽量复用 Guava 和 core 包(指 `zhengshuyun-common-core` 模块内的工具类), 不要自己造轮子。
-- 方法命名规范: 赋值操作统一使用 `set` 等动词开头；获取操作统一使用 `get` 等动词开头。
+- git 提交信息以中文为主.
+- 文档命名优先使用中文；需要保留英文专业术语时, 使用"烤肉串"格式(如：`java-jwt-使用教程.md`).
+- 复用优先: 复杂方法/逻辑尽量复用 Guava 和 core 包(指 `zhengshuyun-common-core` 模块内的工具类), 不要自己造轮子.
+- 方法命名规范: 赋值操作统一使用 `set` 等动词开头；获取操作统一使用 `get` 等动词开头.
 
 ### 时间处理标准
 
