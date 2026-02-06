@@ -23,9 +23,9 @@ import org.quartz.*;
 /**
  * 链式任务构建器
  * <p>
- * 通过 {@link ScheduleUtil#newTask(Runnable)} 创建
+ * 通过 {@link ScheduleUtil#taskBuilder(Runnable)} 创建
  * <pre>{@code
- * ScheduledTask task = ScheduleUtil.newTask(() -> doWork())
+ * ScheduledTask task = ScheduleUtil.taskBuilder(() -> doWork())
  *     .setId("my-task")
  *     .setTrigger(Trigger.builder().setInterval(5000).build())
  *     .schedule();

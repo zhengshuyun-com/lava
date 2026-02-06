@@ -27,7 +27,7 @@ import java.util.Date;
  * <p>
  * 提供任务的生命周期管理和状态查询
  * <pre>{@code
- * ScheduledTask task = ScheduleUtil.newTask(() -> check())
+ * ScheduledTask task = ScheduleUtil.taskBuilder(() -> check())
  *     .setId("health-check")
  *     .setTrigger(Trigger.builder().setInterval(5000).build())
  *     .schedule();
