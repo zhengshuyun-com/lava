@@ -17,11 +17,12 @@
 package com.zhengshuyun.common.schedule;
 
 import com.zhengshuyun.common.core.lang.Validate;
-import org.quartz.Scheduler;
-import org.quartz.SchedulerException;
+import org.quartz.*;
 import org.quartz.impl.StdSchedulerFactory;
+import org.quartz.impl.matchers.GroupMatcher;
 
-import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -29,31 +30,40 @@ import java.util.concurrent.Executors;
 /**
  * 定时任务工具类
  * <p>
- * 提供简单的静态方法创建定时任务, 内部使用 Quartz 调度器 + 虚拟线程执行器
+ * 提供 Builder 风格的 API 创建和管理定时任务, 内部使用 Quartz 调度器 + 虚拟线程执行器
  * <pre>{@code
- * // 每 5 秒执行
- * String id = ScheduleUtil.scheduleEvery(Duration.ofSeconds(5), () -> check());
+ * // 固定间隔
+ * ScheduledTask task = ScheduleUtil.newTask(() -> check())
+ *     .setId("health-check")
+ *     .setTrigger(Trigger.builder()
+ *         .setInterval(5000)
+ *         .setInitialDelay(1000)
+ *         .build())
+ *     .schedule();
  *
- * // Cron 表达式
- * String id = ScheduleUtil.scheduleCron("0 0 2 * * ?", () -> backup());
+ * // Cron
+ * ScheduleUtil.newTask(() -> backup())
+ *     .setId("daily-backup")
+ *     .setTrigger(Trigger.builder()
+ *         .setCron("0 0 2 * * ?")
+ *         .build())
+ *     .schedule();
  *
- * // 延迟执行(一次性)
- * String id = ScheduleUtil.scheduleOnce(Duration.ofSeconds(10), () -> init());
+ * // 延迟一次
+ * ScheduleUtil.newTask(() -> init())
+ *     .setTrigger(Trigger.builder()
+ *         .setDelay(10000)
+ *         .build())
+ *     .schedule();
  *
- * // 删除任务
- * ScheduleUtil.removeTask(id);
+ * // 管理任务
+ * task.pause();
+ * task.resume();
+ * task.delete();
+ * ScheduleUtil.deleteTask("health-check");
  * }</pre>
  *
- * <p><b>执行器配置</b>：默认使用虚拟线程执行器, 可通过 {@link #initTaskExecutor(ExecutorService)} 自定义
- * <pre>{@code
- * // CPU 密集型任务：使用固定线程池
- * ScheduleUtil.initTaskExecutor(Executors.newFixedThreadPool(8));
- *
- * // IO 密集型任务：使用虚拟线程(默认)
- * ScheduleUtil.initTaskExecutor(Executors.newVirtualThreadPerTaskExecutor());
- * }</pre>
- *
- * <p><b>高级用法</b>：需要更多控制(如暂停/恢复/修改任务)时, 使用 {@link #getManager()}
+ * <p><b>执行器配置</b>: 默认使用虚拟线程执行器, 可通过 {@link #initTaskExecutor(ExecutorService)} 自定义
  *
  * @author Toint
  * @since 2026/2/5
@@ -63,34 +73,25 @@ public final class ScheduleUtil {
     private ScheduleUtil() {
     }
 
-    /**
-     * Quartz 调度器(负责触发任务)
-     */
+    /** Quartz 调度器(负责触发任务) */
     private static volatile Scheduler scheduler;
 
-    /**
-     * 任务执行器(负责执行任务, 默认虚拟线程)
-     */
+    /** 任务执行器(负责执行任务, 默认虚拟线程) */
     private static volatile ExecutorService taskExecutor;
 
-    /**
-     * 标记执行器是否已初始化(无论是手动还是懒加载)
-     */
+    /** 标记执行器是否已初始化(无论是手动还是懒加载) */
     private static volatile boolean executorInitialized = false;
 
     static {
-        // JVM 关闭时自动清理资源
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            // 关闭调度器
             Scheduler s = scheduler;
             if (s != null) {
                 try {
-                    s.shutdown(true); // 等待任务完成
+                    s.shutdown(true);
                 } catch (SchedulerException ignore) {
                 }
             }
 
-            // 关闭执行器
             ExecutorService e = taskExecutor;
             if (e != null) {
                 e.shutdown();
@@ -101,7 +102,7 @@ public final class ScheduleUtil {
     /**
      * 获取 Quartz 调度器(DCL 单例)
      */
-    private static Scheduler getScheduler() {
+    static Scheduler getScheduler() {
         if (scheduler == null) {
             synchronized (ScheduleUtil.class) {
                 if (scheduler == null) {
@@ -112,18 +113,12 @@ public final class ScheduleUtil {
         return scheduler;
     }
 
-    /**
-     * 创建 Quartz 调度器
-     */
     private static Scheduler createScheduler() {
         try {
             Properties props = new Properties();
             props.setProperty("org.quartz.scheduler.instanceName", "ZhengShuyunScheduler");
-            // 线程池类型
             props.setProperty("org.quartz.threadPool.class", "org.quartz.simpl.SimpleThreadPool");
-            // 调度线程数: 只负责触发, 2 个足够
             props.setProperty("org.quartz.threadPool.threadCount", "2");
-            // 内存存储
             props.setProperty("org.quartz.jobStore.class", "org.quartz.simpl.RAMJobStore");
 
             StdSchedulerFactory factory = new StdSchedulerFactory(props);
@@ -144,7 +139,6 @@ public final class ScheduleUtil {
         if (taskExecutor == null) {
             synchronized (ScheduleUtil.class) {
                 if (taskExecutor == null) {
-                    // 默认使用虚拟线程执行器
                     taskExecutor = Executors.newVirtualThreadPerTaskExecutor();
                     executorInitialized = true;
                 }
@@ -153,18 +147,16 @@ public final class ScheduleUtil {
         return taskExecutor;
     }
 
-    // 执行器配置
-
     /**
      * 自定义任务执行器
      * <p>
-     * 默认使用虚拟线程执行器, 可根据任务类型选择合适的执行器：
+     * 默认使用虚拟线程执行器, 可根据任务类型选择合适的执行器:
      * <ul>
-     *   <li>IO 密集型：虚拟线程执行器(默认)</li>
-     *   <li>CPU 密集型：固定大小线程池</li>
+     *   <li>IO 密集型: 虚拟线程执行器(默认)</li>
+     *   <li>CPU 密集型: 固定大小线程池</li>
      * </ul>
      * <p>
-     * <b>注意：</b>只能初始化一次, 重复调用会抛出 IllegalArgumentException 异常.
+     * <b>注意:</b>只能初始化一次, 重复调用会抛出 IllegalArgumentException 异常.
      * 必须在首次使用定时任务之前调用.
      *
      * @param executor 自定义执行器
@@ -179,90 +171,105 @@ public final class ScheduleUtil {
         }
     }
 
-    /**
-     * @deprecated 使用 {@link #initTaskExecutor(ExecutorService)} 代替
-     */
-    @Deprecated(since = "1.0.0", forRemoval = true)
-    public static void setTaskExecutor(ExecutorService executor) {
-        initTaskExecutor(executor);
-    }
-
-    // 工厂方法
+    // 任务创建
 
     /**
-     * 获取任务管理器
-     * <p>
-     * 管理器提供完整的任务管理能力, 包括指定任务 ID、暂停、恢复、修改等
+     * 创建任务构建器
      *
-     * @return 任务管理器
-     */
-    public static ScheduleManager getManager() {
-        return new ScheduleManager(getScheduler());
-    }
-
-    // 简单 API
-
-    /**
-     * 添加固定周期任务
-     *
-     * @param intervalMillis 间隔时间(毫秒)
-     * @param task           任务
-     * @return 任务 ID
-     */
-    public static String addFixedRateTask(long intervalMillis, Runnable task) {
-        return getManager().addFixedRateTask(intervalMillis, task);
-    }
-
-    /**
-     * 添加固定周期任务
-     *
-     * @param interval 间隔时间
-     * @param task     任务
-     * @return 任务 ID
-     */
-    public static String addFixedRateTask(Duration interval, Runnable task) {
-        return getManager().addFixedRateTask(interval, task);
-    }
-
-    /**
-     * 添加 Cron 任务
-     *
-     * @param cron Cron 表达式
      * @param task 任务
-     * @return 任务 ID
+     * @return 任务构建器
      */
-    public static String addCronTask(String cron, Runnable task) {
-        return getManager().addCronTask(cron, task);
+    public static TaskBuilder newTask(Runnable task) {
+        Validate.notNull(task, "task must not be null");
+        return new TaskBuilder(task);
     }
 
-    /**
-     * 添加延迟任务(一次性)
-     *
-     * @param delayMillis 延迟时间(毫秒)
-     * @param task        任务
-     * @return 任务 ID
-     */
-    public static String addDelayedTask(long delayMillis, Runnable task) {
-        return getManager().addDelayedTask(delayMillis, task);
-    }
-
-    /**
-     * 添加延迟任务(一次性)
-     *
-     * @param delay 延迟时间
-     * @param task  任务
-     * @return 任务 ID
-     */
-    public static String addDelayedTask(Duration delay, Runnable task) {
-        return getManager().addDelayedTask(delay, task);
-    }
+    // 任务管理
 
     /**
      * 删除任务
      *
      * @param taskId 任务 ID
      */
-    public static void removeTask(String taskId) {
-        getManager().removeTask(taskId);
+    public static void deleteTask(String taskId) {
+        Validate.notBlank(taskId, "taskId must not be blank");
+        try {
+            if (!getScheduler().deleteJob(JobKey.jobKey(taskId))) {
+                throw new ScheduleException("任务不存在: " + taskId);
+            }
+        } catch (SchedulerException e) {
+            throw new ScheduleException("删除任务失败: " + taskId, e);
+        }
+    }
+
+    /**
+     * 重新调度任务
+     *
+     * @param taskId  任务 ID
+     * @param trigger 新的触发器
+     */
+    public static void reschedule(String taskId, Trigger trigger) {
+        Validate.notBlank(taskId, "taskId must not be blank");
+        Validate.notNull(trigger, "trigger must not be null");
+        try {
+            TriggerKey triggerKey = TriggerKey.triggerKey(taskId);
+            org.quartz.Trigger oldTrigger = getScheduler().getTrigger(triggerKey);
+            if (oldTrigger == null) {
+                throw new ScheduleException("任务不存在: " + taskId);
+            }
+            org.quartz.Trigger newQuartzTrigger = trigger.toQuartzTrigger(taskId);
+            getScheduler().rescheduleJob(triggerKey, newQuartzTrigger);
+        } catch (SchedulerException e) {
+            throw new ScheduleException("重新调度任务失败: " + taskId, e);
+        }
+    }
+
+    // 任务查询
+
+    /**
+     * 获取任务句柄
+     *
+     * @param taskId 任务 ID
+     * @return 任务句柄
+     * @throws ScheduleException 任务不存在时
+     */
+    public static ScheduledTask getTask(String taskId) {
+        Validate.notBlank(taskId, "taskId must not be blank");
+        try {
+            TriggerKey triggerKey = TriggerKey.triggerKey(taskId);
+            if (getScheduler().getTrigger(triggerKey) == null) {
+                throw new ScheduleException("任务不存在: " + taskId);
+            }
+            return new ScheduledTask(taskId, getScheduler());
+        } catch (SchedulerException e) {
+            throw new ScheduleException("获取任务失败: " + taskId, e);
+        }
+    }
+
+    /**
+     * 获取所有任务
+     *
+     * @return 任务列表
+     */
+    public static List<ScheduledTask> getAllTasks() {
+        try {
+            Scheduler s = getScheduler();
+            List<ScheduledTask> result = new ArrayList<>();
+            for (JobKey jobKey : s.getJobKeys(GroupMatcher.anyJobGroup())) {
+                result.add(new ScheduledTask(jobKey.getName(), s));
+            }
+            return result;
+        } catch (SchedulerException e) {
+            throw new ScheduleException("获取所有任务失败", e);
+        }
+    }
+
+    /**
+     * 获取底层 Quartz Scheduler
+     *
+     * @return Quartz Scheduler
+     */
+    public static Scheduler getQuartzScheduler() {
+        return getScheduler();
     }
 }

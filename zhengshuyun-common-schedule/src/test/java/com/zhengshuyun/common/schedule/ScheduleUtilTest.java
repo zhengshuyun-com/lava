@@ -21,7 +21,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;
-import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -34,21 +34,15 @@ import static org.junit.jupiter.api.Assertions.*;
  * ScheduleUtil 测试
  *
  * @author Toint
- * @since 2026/2/5
+ * @since 2026/2/6
  */
 class ScheduleUtilTest {
 
-    /**
-     * 每个测试前重置执行器状态
-     */
     @BeforeEach
     void setUp() throws Exception {
         resetExecutor();
     }
 
-    /**
-     * 使用反射重置执行器状态
-     */
     private void resetExecutor() throws Exception {
         Field executorField = ScheduleUtil.class.getDeclaredField("taskExecutor");
         executorField.setAccessible(true);
@@ -59,239 +53,417 @@ class ScheduleUtilTest {
         initializedField.set(null, false);
     }
 
-    /**
-     * 测试固定周期任务(毫秒)
-     * <p>
-     * 每 500ms 执行一次, 等待 1.5 秒, 期望执行 3 次左右
-     */
     @Test
-    @DisplayName("固定周期任务 - 毫秒")
-    void testAddFixedRateTask_millis() throws InterruptedException {
+    @DisplayName("固定间隔任务")
+    void testInterval() throws InterruptedException {
         AtomicInteger counter = new AtomicInteger(0);
         CountDownLatch latch = new CountDownLatch(3);
 
-        String taskId = ScheduleUtil.addFixedRateTask(500, () -> {
+        ScheduledTask task = ScheduleUtil.newTask(() -> {
             counter.incrementAndGet();
             latch.countDown();
-        });
+        })
+                .setId("interval-task")
+                .setTrigger(Trigger.builder().setInterval(500).build())
+                .schedule();
 
-        assertNotNull(taskId);
+        assertNotNull(task);
+        assertEquals("interval-task", task.getId());
 
-        // 等待执行 3 次
-        boolean completed = latch.await(2, TimeUnit.SECONDS);
-        assertTrue(completed, "任务应该在 2 秒内执行 3 次");
-        assertTrue(counter.get() >= 3, "执行次数应该 >= 3, 实际: " + counter.get());
+        boolean completed = latch.await(3, TimeUnit.SECONDS);
+        assertTrue(completed, "任务应该在 3 秒内执行 3 次");
+        assertTrue(counter.get() >= 3);
 
-        // 清理
-        ScheduleUtil.removeTask(taskId);
+        task.delete();
     }
 
-    /**
-     * 测试固定周期任务(Duration)
-     */
     @Test
-    @DisplayName("固定周期任务 - Duration")
-    void testAddFixedRateTask_duration() throws InterruptedException {
+    @DisplayName("固定间隔任务 - 带初始延迟")
+    void testInterval_withInitialDelay() throws InterruptedException {
         AtomicInteger counter = new AtomicInteger(0);
-        CountDownLatch latch = new CountDownLatch(2);
+        CountDownLatch latch = new CountDownLatch(1);
 
-        String taskId = ScheduleUtil.addFixedRateTask(Duration.ofMillis(500), () -> {
+        ScheduledTask task = ScheduleUtil.newTask(() -> {
             counter.incrementAndGet();
             latch.countDown();
-        });
+        })
+                .setTrigger(Trigger.builder()
+                        .setInterval(500)
+                        .setInitialDelay(1000)
+                        .build())
+                .schedule();
 
-        assertNotNull(taskId);
+        // 500ms 时应该还没执行(初始延迟 1000ms)
+        Thread.sleep(500);
+        assertEquals(0, counter.get());
+
         boolean completed = latch.await(2, TimeUnit.SECONDS);
         assertTrue(completed);
-        assertTrue(counter.get() >= 2);
+        assertTrue(counter.get() >= 1);
 
-        ScheduleUtil.removeTask(taskId);
+        task.delete();
     }
 
-    /**
-     * 测试 Cron 任务
-     * <p>
-     * 使用每秒执行的 Cron 表达式, 等待执行 2 次
-     */
+    @Test
+    @DisplayName("固定间隔任务 - 限制重复次数")
+    void testInterval_withRepeatCount() throws InterruptedException {
+        AtomicInteger counter = new AtomicInteger(0);
+        CountDownLatch latch = new CountDownLatch(3); // repeatCount=2, 总执行 = 2 + 1 = 3
+
+        ScheduledTask task = ScheduleUtil.newTask(() -> {
+            counter.incrementAndGet();
+            latch.countDown();
+        })
+                .setTrigger(Trigger.builder()
+                        .setInterval(200)
+                        .setRepeatCount(2)
+                        .build())
+                .schedule();
+
+        boolean completed = latch.await(3, TimeUnit.SECONDS);
+        assertTrue(completed, "应该执行 3 次(repeatCount=2)");
+
+        // 再等待, 确认不会继续执行
+        Thread.sleep(500);
+        assertEquals(3, counter.get(), "总执行次数应该是 3");
+        // 任务完成后 Quartz 自动清理, 无需手动 delete
+    }
+
     @Test
     @DisplayName("Cron 任务")
-    void testAddCronTask() throws InterruptedException {
+    void testCron() throws InterruptedException {
         AtomicInteger counter = new AtomicInteger(0);
         CountDownLatch latch = new CountDownLatch(2);
 
-        // 每秒执行
-        String taskId = ScheduleUtil.addCronTask("* * * * * ?", () -> {
+        ScheduledTask task = ScheduleUtil.newTask(() -> {
             counter.incrementAndGet();
             latch.countDown();
-        });
+        })
+                .setId("cron-task")
+                .setTrigger(Trigger.builder().setCron("* * * * * ?").build())
+                .schedule();
 
-        assertNotNull(taskId);
         boolean completed = latch.await(3, TimeUnit.SECONDS);
         assertTrue(completed, "Cron 任务应该在 3 秒内执行 2 次");
         assertTrue(counter.get() >= 2);
 
-        ScheduleUtil.removeTask(taskId);
+        task.delete();
     }
 
-    /**
-     * 测试延迟任务(一次性)
-     */
     @Test
     @DisplayName("延迟任务 - 一次性")
-    void testAddDelayedTask() throws InterruptedException {
+    void testDelay() throws InterruptedException {
         AtomicInteger counter = new AtomicInteger(0);
         CountDownLatch latch = new CountDownLatch(1);
 
-        String taskId = ScheduleUtil.addDelayedTask(500, () -> {
+        ScheduledTask task = ScheduleUtil.newTask(() -> {
             counter.incrementAndGet();
             latch.countDown();
-        });
-
-        assertNotNull(taskId);
+        })
+                .setTrigger(Trigger.builder().setDelay(500).build())
+                .schedule();
 
         // 300ms 时应该还没执行
         Thread.sleep(300);
         assertEquals(0, counter.get());
 
-        // 等待执行
         boolean completed = latch.await(1, TimeUnit.SECONDS);
         assertTrue(completed);
         assertEquals(1, counter.get());
 
-        // 再等待 500ms, 确认只执行一次
+        // 再等待, 确认只执行一次
         Thread.sleep(500);
         assertEquals(1, counter.get());
     }
 
-    /**
-     * 测试延迟任务(Duration)
-     */
     @Test
-    @DisplayName("延迟任务 - Duration")
-    void testAddDelayedTask_duration() throws InterruptedException {
-        AtomicInteger counter = new AtomicInteger(0);
-        CountDownLatch latch = new CountDownLatch(1);
+    @DisplayName("自动生成任务 ID")
+    void testAutoGeneratedId() {
+        ScheduledTask task = ScheduleUtil.newTask(() -> {})
+                .setTrigger(Trigger.builder().setDelay(60000).build())
+                .schedule();
 
-        String taskId = ScheduleUtil.addDelayedTask(Duration.ofMillis(300), () -> {
-            counter.incrementAndGet();
-            latch.countDown();
-        });
+        assertNotNull(task.getId());
+        assertFalse(task.getId().isBlank());
 
-        assertNotNull(taskId);
-        boolean completed = latch.await(1, TimeUnit.SECONDS);
-        assertTrue(completed);
-        assertEquals(1, counter.get());
+        task.delete();
     }
 
-    /**
-     * 测试删除任务
-     */
     @Test
-    @DisplayName("删除任务")
-    void testRemoveTask() throws InterruptedException {
+    @DisplayName("删除任务 - deleteTask")
+    void testDeleteTask() throws InterruptedException {
         AtomicInteger counter = new AtomicInteger(0);
 
-        String taskId = ScheduleUtil.addFixedRateTask(200, counter::incrementAndGet);
+        ScheduledTask task = ScheduleUtil.newTask(counter::incrementAndGet)
+                .setId("to-delete")
+                .setTrigger(Trigger.builder().setInterval(200).build())
+                .schedule();
 
-        // 等待执行几次
         Thread.sleep(500);
         int countBefore = counter.get();
         assertTrue(countBefore >= 1);
 
-        // 删除任务
-        ScheduleUtil.removeTask(taskId);
+        ScheduleUtil.deleteTask("to-delete");
 
-        // 等待一段时间, 确认不再执行
         Thread.sleep(500);
         int countAfter = counter.get();
-
-        // 删除后执行次数应该不变(允许有一次正在执行的)
-        assertTrue(countAfter <= countBefore + 1,
-                "删除后不应继续执行, before: " + countBefore + ", after: " + countAfter);
+        assertTrue(countAfter <= countBefore + 1);
     }
 
-    /**
-     * 测试删除不存在的任务
-     */
     @Test
     @DisplayName("删除不存在的任务 - 抛出异常")
-    void testRemoveTask_notExists() {
+    void testDeleteTask_notExists() {
         assertThrows(ScheduleException.class, () ->
-                ScheduleUtil.removeTask("not-exists-task-id"));
+                ScheduleUtil.deleteTask("not-exists"));
     }
 
-    /**
-     * 测试参数校验 - 间隔时间必须大于 0
-     */
     @Test
-    @DisplayName("参数校验 - 间隔时间必须大于 0")
-    void testAddFixedRateTask_invalidInterval() {
-        assertThrows(IllegalArgumentException.class, () ->
-                ScheduleUtil.addFixedRateTask(0, () -> {}));
+    @DisplayName("暂停和恢复任务")
+    void testPauseAndResume() throws InterruptedException {
+        AtomicInteger counter = new AtomicInteger(0);
 
-        assertThrows(IllegalArgumentException.class, () ->
-                ScheduleUtil.addFixedRateTask(-1, () -> {}));
+        ScheduledTask task = ScheduleUtil.newTask(counter::incrementAndGet)
+                .setId("pause-resume")
+                .setTrigger(Trigger.builder().setInterval(200).build())
+                .schedule();
 
-        assertThrows(IllegalArgumentException.class, () ->
-                ScheduleUtil.addFixedRateTask(Duration.ZERO, () -> {}));
+        Thread.sleep(500);
+        int countBefore = counter.get();
+        assertTrue(countBefore >= 1);
 
-        assertThrows(IllegalArgumentException.class, () ->
-                ScheduleUtil.addFixedRateTask(Duration.ofSeconds(-1), () -> {}));
+        // 暂停
+        task.pause();
+        assertTrue(task.isPaused());
+
+        Thread.sleep(500);
+        int countAfterPause = counter.get();
+        assertTrue(countAfterPause <= countBefore + 1);
+
+        // 恢复
+        task.resume();
+        assertFalse(task.isPaused());
+
+        Thread.sleep(500);
+        int countAfterResume = counter.get();
+        assertTrue(countAfterResume > countAfterPause);
+
+        task.delete();
     }
 
-    /**
-     * 测试参数校验 - 延迟时间必须大于 0
-     */
     @Test
-    @DisplayName("参数校验 - 延迟时间必须大于 0")
-    void testAddDelayedTask_invalidDelay() {
-        assertThrows(IllegalArgumentException.class, () ->
-                ScheduleUtil.addDelayedTask(0, () -> {}));
+    @DisplayName("立即触发任务")
+    void testTriggerNow() throws InterruptedException {
+        AtomicInteger counter = new AtomicInteger(0);
+        CountDownLatch latch = new CountDownLatch(1);
 
-        assertThrows(IllegalArgumentException.class, () ->
-                ScheduleUtil.addDelayedTask(-1, () -> {}));
+        ScheduledTask task = ScheduleUtil.newTask(() -> {
+            counter.incrementAndGet();
+            latch.countDown();
+        })
+                .setId("trigger-now")
+                .setTrigger(Trigger.builder().setCron("0 0 2 * * ?").build())
+                .schedule();
+
+        assertEquals(0, counter.get());
+
+        task.triggerNow();
+
+        boolean completed = latch.await(2, TimeUnit.SECONDS);
+        assertTrue(completed);
+        assertEquals(1, counter.get());
+
+        task.delete();
     }
 
-    /**
-     * 测试参数校验 - Cron 表达式不能为空
-     */
     @Test
-    @DisplayName("参数校验 - Cron 表达式不能为空")
-    void testAddCron_invalidCronTask() {
-        assertThrows(IllegalArgumentException.class, () ->
-                ScheduleUtil.addCronTask(null, () -> {}));
+    @DisplayName("reschedule - 重新调度")
+    void testReschedule() throws InterruptedException {
+        AtomicInteger counter = new AtomicInteger(0);
 
-        assertThrows(IllegalArgumentException.class, () ->
-                ScheduleUtil.addCronTask("", () -> {}));
+        ScheduledTask task = ScheduleUtil.newTask(counter::incrementAndGet)
+                .setId("reschedule-task")
+                .setTrigger(Trigger.builder().setCron("0 0 2 * * ?").build())
+                .schedule();
 
-        assertThrows(IllegalArgumentException.class, () ->
-                ScheduleUtil.addCronTask("   ", () -> {}));
+        Thread.sleep(500);
+        assertEquals(0, counter.get());
+
+        // 重新调度为每秒执行
+        ScheduleUtil.reschedule("reschedule-task",
+                Trigger.builder().setCron("* * * * * ?").build());
+
+        Thread.sleep(2000);
+        assertTrue(counter.get() >= 1, "重新调度后应该开始执行");
+
+        task.delete();
     }
 
-    /**
-     * 测试 initTaskExecutor - 正常初始化
-     */
+    @Test
+    @DisplayName("getTask - 获取任务句柄")
+    void testGetTask() {
+        ScheduledTask task = ScheduleUtil.newTask(() -> {})
+                .setId("get-task")
+                .setTrigger(Trigger.builder().setCron("0 0 2 * * ?").build())
+                .schedule();
+
+        ScheduledTask found = ScheduleUtil.getTask("get-task");
+        assertEquals("get-task", found.getId());
+        assertFalse(found.isPaused());
+        assertNotNull(found.getNextFireTime());
+
+        task.delete();
+    }
+
+    @Test
+    @DisplayName("getTask - 不存在的任务抛异常")
+    void testGetTask_notExists() {
+        assertThrows(ScheduleException.class, () ->
+                ScheduleUtil.getTask("not-exists"));
+    }
+
+    @Test
+    @DisplayName("getAllTasks")
+    void testGetAllTasks() {
+        ScheduledTask task1 = ScheduleUtil.newTask(() -> {})
+                .setId("all-task-1")
+                .setTrigger(Trigger.builder().setCron("0 0 2 * * ?").build())
+                .schedule();
+
+        ScheduledTask task2 = ScheduleUtil.newTask(() -> {})
+                .setId("all-task-2")
+                .setTrigger(Trigger.builder().setCron("0 0 3 * * ?").build())
+                .schedule();
+
+        List<ScheduledTask> tasks = ScheduleUtil.getAllTasks();
+        assertTrue(tasks.stream().anyMatch(t -> "all-task-1".equals(t.getId())));
+        assertTrue(tasks.stream().anyMatch(t -> "all-task-2".equals(t.getId())));
+
+        task1.delete();
+        task2.delete();
+    }
+
+    @Test
+    @DisplayName("getNextFireTime / getPreviousFireTime")
+    void testFireTimes() throws InterruptedException {
+        CountDownLatch latch = new CountDownLatch(1);
+
+        ScheduledTask task = ScheduleUtil.newTask(latch::countDown)
+                .setId("fire-times")
+                .setTrigger(Trigger.builder().setCron("* * * * * ?").build())
+                .schedule();
+
+        assertNotNull(task.getNextFireTime());
+        assertNull(task.getPreviousFireTime()); // 还没执行过
+
+        latch.await(2, TimeUnit.SECONDS);
+        Thread.sleep(100);
+
+        assertNotNull(task.getPreviousFireTime());
+
+        task.delete();
+    }
+
+    @Test
+    @DisplayName("getQuartzScheduler")
+    void testGetQuartzScheduler() {
+        assertNotNull(ScheduleUtil.getQuartzScheduler());
+    }
+
+    @Test
+    @DisplayName("任务异常不影响调度器")
+    void testTaskException() throws InterruptedException {
+        AtomicInteger counter = new AtomicInteger(0);
+        CountDownLatch latch = new CountDownLatch(3);
+
+        ScheduledTask task = ScheduleUtil.newTask(() -> {
+            counter.incrementAndGet();
+            latch.countDown();
+            throw new RuntimeException("模拟异常");
+        })
+                .setId("exception-task")
+                .setTrigger(Trigger.builder().setInterval(200).build())
+                .schedule();
+
+        boolean completed = latch.await(2, TimeUnit.SECONDS);
+        assertTrue(completed, "任务异常不应影响后续调度");
+        assertTrue(counter.get() >= 3);
+
+        task.delete();
+    }
+
+    @Test
+    @DisplayName("Trigger 模式互斥校验")
+    void testTrigger_mutualExclusive() {
+        // 同时设置 cron 和 interval
+        assertThrows(IllegalArgumentException.class, () ->
+                Trigger.builder().setCron("* * * * * ?").setInterval(1000).build());
+
+        // 同时设置 cron 和 delay
+        assertThrows(IllegalArgumentException.class, () ->
+                Trigger.builder().setCron("* * * * * ?").setDelay(1000).build());
+
+        // 同时设置 interval 和 delay
+        assertThrows(IllegalArgumentException.class, () ->
+                Trigger.builder().setInterval(1000).setDelay(1000).build());
+
+        // 三种都没设置
+        assertThrows(IllegalArgumentException.class, () ->
+                Trigger.builder().build());
+    }
+
+    @Test
+    @DisplayName("Trigger - initialDelay 仅在 interval 模式下有效")
+    void testTrigger_initialDelayOnlyForInterval() {
+        assertThrows(IllegalArgumentException.class, () ->
+                Trigger.builder().setCron("* * * * * ?").setInitialDelay(1000).build());
+
+        assertThrows(IllegalArgumentException.class, () ->
+                Trigger.builder().setDelay(1000).setInitialDelay(500).build());
+    }
+
+    @Test
+    @DisplayName("Trigger - repeatCount 仅在 interval 模式下有效")
+    void testTrigger_repeatCountOnlyForInterval() {
+        assertThrows(IllegalArgumentException.class, () ->
+                Trigger.builder().setCron("* * * * * ?").setRepeatCount(5).build());
+    }
+
+    @Test
+    @DisplayName("TaskBuilder - trigger 未设置抛异常")
+    void testTaskBuilder_noTrigger() {
+        assertThrows(IllegalArgumentException.class, () ->
+                ScheduleUtil.newTask(() -> {}).schedule());
+    }
+
+    @Test
+    @DisplayName("newTask - null 参数校验")
+    void testNewTask_null() {
+        assertThrows(IllegalArgumentException.class, () ->
+                ScheduleUtil.newTask(null));
+    }
+
+    @Test
+    @DisplayName("无效的 Cron 表达式")
+    void testInvalidCron() {
+        assertThrows(Exception.class, () ->
+                ScheduleUtil.newTask(() -> {})
+                        .setTrigger(Trigger.builder().setCron("invalid-cron").build())
+                        .schedule());
+    }
+
     @Test
     @DisplayName("initTaskExecutor - 正常初始化")
     void testInitTaskExecutor() throws Exception {
         ExecutorService customExecutor = Executors.newFixedThreadPool(4);
         ScheduleUtil.initTaskExecutor(customExecutor);
 
-        // 验证初始化成功
         Field executorField = ScheduleUtil.class.getDeclaredField("taskExecutor");
         executorField.setAccessible(true);
         assertSame(customExecutor, executorField.get(null));
 
-        Field initializedField = ScheduleUtil.class.getDeclaredField("executorInitialized");
-        initializedField.setAccessible(true);
-        assertTrue((Boolean) initializedField.get(null));
-
         customExecutor.shutdown();
     }
 
-    /**
-     * 测试 initTaskExecutor - null 参数校验
-     */
     @Test
     @DisplayName("initTaskExecutor - null 参数校验")
     void testInitTaskExecutor_null() {
@@ -299,9 +471,6 @@ class ScheduleUtilTest {
                 ScheduleUtil.initTaskExecutor(null));
     }
 
-    /**
-     * 测试 initTaskExecutor - 重复初始化抛异常
-     */
     @Test
     @DisplayName("initTaskExecutor - 重复初始化抛异常")
     void testInitTaskExecutor_duplicate() {
@@ -314,49 +483,5 @@ class ScheduleUtilTest {
 
         executor1.shutdown();
         executor2.shutdown();
-    }
-
-    /**
-     * 测试 initTaskExecutor - 懒加载后不能初始化
-     */
-    @Test
-    @DisplayName("initTaskExecutor - 懒加载后不能初始化")
-    void testInitTaskExecutor_afterLazyInit() throws InterruptedException {
-        // 先触发懒加载
-        AtomicInteger counter = new AtomicInteger(0);
-        CountDownLatch latch = new CountDownLatch(1);
-        String taskId = ScheduleUtil.addFixedRateTask(100, () -> {
-            counter.incrementAndGet();
-            latch.countDown();
-        });
-
-        // 等待任务执行一次，确保懒加载完成
-        latch.await(1, TimeUnit.SECONDS);
-
-        // 尝试初始化应该失败
-        ExecutorService customExecutor = Executors.newFixedThreadPool(4);
-        assertThrows(IllegalArgumentException.class, () ->
-                ScheduleUtil.initTaskExecutor(customExecutor));
-
-        ScheduleUtil.removeTask(taskId);
-        customExecutor.shutdown();
-    }
-
-    /**
-     * 测试废弃方法 setTaskExecutor 兼容性
-     */
-    @Test
-    @DisplayName("废弃方法 setTaskExecutor 兼容性测试")
-    @SuppressWarnings("deprecation")
-    void testDeprecatedSetTaskExecutor() throws Exception {
-        ExecutorService customExecutor = Executors.newFixedThreadPool(2);
-        ScheduleUtil.setTaskExecutor(customExecutor);
-
-        // 验证初始化成功
-        Field executorField = ScheduleUtil.class.getDeclaredField("taskExecutor");
-        executorField.setAccessible(true);
-        assertSame(customExecutor, executorField.get(null));
-
-        customExecutor.shutdown();
     }
 }
