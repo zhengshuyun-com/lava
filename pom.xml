@@ -56,6 +56,7 @@
         <module>zhengshuyun-common-json</module>
         <module>zhengshuyun-common-http</module>
         <module>zhengshuyun-common-schedule</module>
+        <module>zhengshuyun-common-bom</module>
     </modules>
 
     <properties>
