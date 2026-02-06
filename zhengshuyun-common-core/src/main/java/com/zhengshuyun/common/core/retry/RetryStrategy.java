@@ -31,15 +31,15 @@ public interface RetryStrategy {
     /**
      * 获取下一次重试前的延迟时间
      *
-     * @param attempt 当前重试次数 (从 1 开始) 
+     * @param attempt 当前重试次数 (从 1 开始)
      * @return 延迟时间
      */
     Duration getDelay(int attempt);
 
     /**
-     * 创建固定延迟策略 (毫秒) 
+     * 创建固定延迟策略 (毫秒)
      *
-     * @param delayMillis 延迟时间 (毫秒) 
+     * @param delayMillis 延迟时间 (毫秒)
      * @return 固定延迟策略
      */
     static RetryStrategy ofFixedDelayMillis(long delayMillis) {
@@ -57,11 +57,11 @@ public interface RetryStrategy {
     }
 
     /**
-     * 创建指数退避策略 (毫秒) 
+     * 创建指数退避策略 (毫秒)
      *
-     * @param initialDelay 初始延迟 (毫秒) 
+     * @param initialDelay 初始延迟 (毫秒)
      * @param multiplier   倍数
-     * @param maxDelay     最大延迟 (毫秒) 
+     * @param maxDelay     最大延迟 (毫秒)
      * @return 指数退避策略
      */
     static RetryStrategy ofExponentialBackoffMillis(long initialDelay, double multiplier, long maxDelay) {
@@ -81,7 +81,7 @@ public interface RetryStrategy {
     }
 
     /**
-     * 创建无延迟策略 (立即重试) 
+     * 创建无延迟策略 (立即重试)
      *
      * @return 无延迟策略
      */
@@ -166,7 +166,7 @@ public interface RetryStrategy {
     }
 
     /**
-     * 无延迟策略 (立即重试) 
+     * 无延迟策略 (立即重试)
      */
     class NoDelayStrategy implements RetryStrategy {
 

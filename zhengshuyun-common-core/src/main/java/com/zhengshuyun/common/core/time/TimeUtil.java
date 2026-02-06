@@ -57,18 +57,18 @@ public class TimeUtil {
      * <p>
      * 支持的格式 (按优先级顺序):
      * <ul>
-      *   <li>{@code yyyy-MM-dd HH:mm:ss} - 标准日期时间, 如: 2026-01-01 12:30:00</li>
-      *   <li>{@code yyyy-MM-dd HH:mm:ss.SSS} - 带毫秒的标准日期时间, 如: 2026-01-01 12:30:00.123</li>
-      *   <li>{@code yyyy/MM/dd HH:mm:ss} - 斜杠分隔日期时间, 如: 2026/01/01 12:30:00</li>
-      *   <li>{@code yyyy/MM/dd HH:mm:ss.SSS} - 带毫秒的斜杠分隔日期时间, 如: 2026/01/01 12:30:00.123</li>
-      *   <li>{@code yyyyMMddHHmmss} - 紧凑日期时间, 如: 20260101123000</li>
-      *   <li>{@code yyyy年MM月dd日 HH时mm分ss秒} - 中文日期时间, 如: 2026年01月01日 12时30分00秒</li>
-      *   <li>{@code yyyy-MM-dd'T'HH:mm:ss} - ISO 8601 标准本地时间, 如: 2026-01-01T12:30:00</li>
-      *   <li>{@code yyyy-MM-dd'T'HH:mm:ss.SSS} - 带毫秒的 ISO 8601 标准本地时间, 如: 2026-01-01T12:30:00.123</li>
-      *   <li>{@code yyyy-MM-dd} - 标准日期, 如: 2026-01-01 (时间部分默认为 00:00:00)</li>
-      *   <li>{@code yyyy/MM/dd} - 斜杠分隔日期, 如: 2026/01/01 (时间部分默认为 00:00:00)</li>
-      *   <li>{@code yyyyMMdd} - 紧凑日期, 如: 20260101 (时间部分默认为 00:00:00)</li>
-      *   <li>{@code yyyy年MM月dd日} - 中文日期, 如: 2026年01月01日 (时间部分默认为 00:00:00)</li>
+     *   <li>{@code yyyy-MM-dd HH:mm:ss} - 标准日期时间, 如: 2026-01-01 12:30:00</li>
+     *   <li>{@code yyyy-MM-dd HH:mm:ss.SSS} - 带毫秒的标准日期时间, 如: 2026-01-01 12:30:00.123</li>
+     *   <li>{@code yyyy/MM/dd HH:mm:ss} - 斜杠分隔日期时间, 如: 2026/01/01 12:30:00</li>
+     *   <li>{@code yyyy/MM/dd HH:mm:ss.SSS} - 带毫秒的斜杠分隔日期时间, 如: 2026/01/01 12:30:00.123</li>
+     *   <li>{@code yyyyMMddHHmmss} - 紧凑日期时间, 如: 20260101123000</li>
+     *   <li>{@code yyyy年MM月dd日 HH时mm分ss秒} - 中文日期时间, 如: 2026年01月01日 12时30分00秒</li>
+     *   <li>{@code yyyy-MM-dd'T'HH:mm:ss} - ISO 8601 标准本地时间, 如: 2026-01-01T12:30:00</li>
+     *   <li>{@code yyyy-MM-dd'T'HH:mm:ss.SSS} - 带毫秒的 ISO 8601 标准本地时间, 如: 2026-01-01T12:30:00.123</li>
+     *   <li>{@code yyyy-MM-dd} - 标准日期, 如: 2026-01-01 (时间部分默认为 00:00:00)</li>
+     *   <li>{@code yyyy/MM/dd} - 斜杠分隔日期, 如: 2026/01/01 (时间部分默认为 00:00:00)</li>
+     *   <li>{@code yyyyMMdd} - 紧凑日期, 如: 20260101 (时间部分默认为 00:00:00)</li>
+     *   <li>{@code yyyy年MM月dd日} - 中文日期, 如: 2026年01月01日 (时间部分默认为 00:00:00)</li>
      * </ul>
      *
      * @param dateTime 日期时间字符串

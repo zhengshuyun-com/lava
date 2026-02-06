@@ -26,7 +26,8 @@ package com.zhengshuyun.common.http;
  */
 public final class HttpUserAgents {
 
-    private HttpUserAgents() {}
+    private HttpUserAgents() {
+    }
 
     /**
      * Chrome on macOS

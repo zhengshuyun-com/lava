@@ -31,8 +31,8 @@ import java.util.function.Supplier;
 /**
  * 字节流复制器
  * <p>
- * 优雅地处理字节流复制, 支持多种数据源和目标, 可选进度监听. 
- * 所有由框架打开的流都会自动关闭, 用户无需手动管理资源. 
+ * 优雅地处理字节流复制, 支持多种数据源和目标, 可选进度监听.
+ * 所有由框架打开的流都会自动关闭, 用户无需手动管理资源.
  *
  * @author Toint
  */
@@ -44,17 +44,17 @@ public final class ByteStreamCopier {
     private static final long UNKNOWN_LENGTH = -1L;
 
     /**
-     * 字节源 (Guava 统一抽象, 支持多次打开流) 
+     * 字节源 (Guava 统一抽象, 支持多次打开流)
      */
     private final ByteSource byteSource;
 
     /**
-     * 总字节数 (-1 表示未知, 用于进度计算) 
+     * 总字节数 (-1 表示未知, 用于进度计算)
      */
     private final long contentLength;
 
     /**
-     * 进度监听器 (可选) 
+     * 进度监听器 (可选)
      */
     private final @Nullable ProgressListener progressListener;
 
@@ -72,7 +72,7 @@ public final class ByteStreamCopier {
     }
 
     /**
-     * 写入为字符串 (UTF-8 编码) 
+     * 写入为字符串 (UTF-8 编码)
      *
      * @return 字符串内容
      * @throws UncheckedIOException 如果发生 I/O 错误
@@ -82,7 +82,7 @@ public final class ByteStreamCopier {
     }
 
     /**
-     * 写入为字符串 (指定编码) 
+     * 写入为字符串 (指定编码)
      *
      * @param charset 字符集
      * @return 字符串内容
@@ -119,7 +119,7 @@ public final class ByteStreamCopier {
      * 写入到路径
      *
      * @param path    目标路径
-     * @param options 打开选项 (如 StandardOpenOption.CREATE, APPEND 等) 
+     * @param options 打开选项 (如 StandardOpenOption.CREATE, APPEND 等)
      * @return 复制的字节数
      * @throws UncheckedIOException 如果发生 I/O 错误
      */
@@ -132,7 +132,7 @@ public final class ByteStreamCopier {
      * 写入到文件
      *
      * @param file  目标文件
-     * @param modes 写入模式 (如 FileWriteMode.APPEND) 
+     * @param modes 写入模式 (如 FileWriteMode.APPEND)
      * @return 复制的字节数
      * @throws UncheckedIOException 如果发生 I/O 错误
      */
@@ -142,7 +142,7 @@ public final class ByteStreamCopier {
     }
 
     /**
-     * 写入到字节接收器 (Guava ByteSink 抽象) 
+     * 写入到字节接收器 (Guava ByteSink 抽象)
      *
      * @param byteSink 字节接收器
      * @return 复制的字节数
@@ -202,7 +202,7 @@ public final class ByteStreamCopier {
     /**
      * 带进度监听的流复制
      * <p>
-     * 读取数据块时触发进度回调, 适用于大文件传输场景. 
+     * 读取数据块时触发进度回调, 适用于大文件传输场景.
      *
      * @param inputStream  输入流
      * @param outputStream 输出流
@@ -238,7 +238,7 @@ public final class ByteStreamCopier {
     /**
      * 字节流复制器构建器
      * <p>
-     * 支持多种数据源, 自动推断内容长度 (如果可能) . 
+     * 支持多种数据源, 自动推断内容长度 (如果可能) .
      */
     public static final class Builder {
 
@@ -250,7 +250,7 @@ public final class ByteStreamCopier {
         }
 
         /**
-         * 设置输入流源 (支持多次写入) 
+         * 设置输入流源 (支持多次写入)
          * <p>
          * <b>注意：</b>
          * <ul>
@@ -260,15 +260,15 @@ public final class ByteStreamCopier {
          * <li>内容长度未知, 进度监听器的百分比计算可能不准确</li>
          * </ul>
          *
-         * @param supplier 输入流提供者 (将被自动关闭) 
+         * @param supplier 输入流提供者 (将被自动关闭)
          * @return Builder 实例
          */
         public Builder setSource(Supplier<InputStream> supplier) {
             return setSource(supplier, UNKNOWN_LENGTH);
         }
-        
+
         /**
-         * 设置输入流源 (支持多次写入, 指定内容长度) 
+         * 设置输入流源 (支持多次写入, 指定内容长度)
          * <p>
          * <b>注意：</b>
          * <ul>
@@ -277,7 +277,7 @@ public final class ByteStreamCopier {
          * <li>如果 Supplier 每次返回同一个流实例, 则只能写入一次</li>
          * </ul>
          *
-         * @param supplier      输入流提供者 (将被自动关闭) 
+         * @param supplier      输入流提供者 (将被自动关闭)
          * @param contentLength 内容长度 (字节) , -1 表示未知
          * @return Builder 实例
          */
@@ -296,7 +296,7 @@ public final class ByteStreamCopier {
         }
 
         /**
-         * 设置输入流源 (仅支持单次写入) 
+         * 设置输入流源 (仅支持单次写入)
          * <p>
          * <b>注意：</b>
          * <ul>
@@ -306,15 +306,15 @@ public final class ByteStreamCopier {
          * <li>内容长度未知, 进度监听器的百分比计算可能不准确</li>
          * </ul>
          *
-         * @param inputStream 输入流 (将被自动关闭, 仅支持单次写入) 
+         * @param inputStream 输入流 (将被自动关闭, 仅支持单次写入)
          * @return Builder 实例
          */
         public Builder setSource(InputStream inputStream) {
             return setSource(inputStream, UNKNOWN_LENGTH);
         }
-        
+
         /**
-         * 设置输入流源 (仅支持单次写入, 指定内容长度) 
+         * 设置输入流源 (仅支持单次写入, 指定内容长度)
          * <p>
          * <b>注意：</b>
          * <ul>
@@ -323,13 +323,13 @@ public final class ByteStreamCopier {
          * <li>如需多次写入, 请使用 File/Path 作为源, 或使用 {@link #setSource(Supplier)} 提供新流</li>
          * </ul>
          *
-         * @param inputStream   输入流 (将被自动关闭, 仅支持单次写入) 
+         * @param inputStream   输入流 (将被自动关闭, 仅支持单次写入)
          * @param contentLength 内容长度 (字节) , -1 表示未知
          * @return Builder 实例
          */
         public Builder setSource(InputStream inputStream, long contentLength) {
             Validate.notNull(inputStream, "inputStream must not be null");
-            
+
             // 添加一次性使用保护, 提供友好的错误提示
             AtomicBoolean used = new AtomicBoolean(false);
             this.byteSource = new ByteSource() {
@@ -337,20 +337,20 @@ public final class ByteStreamCopier {
                 public InputStream openStream() {
                     if (!used.compareAndSet(false, true)) {
                         throw new IllegalStateException(
-                            "InputStream source can only be used once. " +
-                            "Use File/Path source for multiple writes, or use setSource(Supplier) to provide fresh streams."
+                                "InputStream source can only be used once. " +
+                                        "Use File/Path source for multiple writes, or use setSource(Supplier) to provide fresh streams."
                         );
                     }
                     return inputStream;
                 }
             };
             this.contentLength = contentLength;
-            
+
             return this;
         }
 
         /**
-         * 设置字符串源 (UTF-8 编码) 
+         * 设置字符串源 (UTF-8 编码)
          *
          * @param string 字符串
          * @return Builder 实例
@@ -360,7 +360,7 @@ public final class ByteStreamCopier {
         }
 
         /**
-         * 设置字符串源 (指定编码) 
+         * 设置字符串源 (指定编码)
          *
          * @param string  字符串
          * @param charset 字符集
@@ -403,9 +403,9 @@ public final class ByteStreamCopier {
         }
 
         /**
-         * 设置文件源 (推荐用于本地文件) 
+         * 设置文件源 (推荐用于本地文件)
          * <p>
-         * 使用文件作为源可以多次调用 write 方法, 每次都会重新打开文件. 
+         * 使用文件作为源可以多次调用 write 方法, 每次都会重新打开文件.
          *
          * @param file 文件
          * @return Builder 实例
@@ -419,10 +419,10 @@ public final class ByteStreamCopier {
         }
 
         /**
-         * 设置字节源 (高级用法) 
+         * 设置字节源 (高级用法)
          * <p>
-         * ByteSource 是 Guava 对字节源的抽象, 可多次调用 openStream(), 
-         * 适合需要重复读取或自定义数据源的场景. 
+         * ByteSource 是 Guava 对字节源的抽象, 可多次调用 openStream(),
+         * 适合需要重复读取或自定义数据源的场景.
          *
          * @param byteSource 字节源
          * @return Builder 实例
@@ -434,11 +434,10 @@ public final class ByteStreamCopier {
         }
 
 
-
         /**
          * 设置进度监听器
          *
-         * @param progressListener 进度监听器 (可为 null 表示不监听) 
+         * @param progressListener 进度监听器 (可为 null 表示不监听)
          * @return Builder 实例
          */
         public Builder setProgressListener(@Nullable ProgressListener progressListener) {

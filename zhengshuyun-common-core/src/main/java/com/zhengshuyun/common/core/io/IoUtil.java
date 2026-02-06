@@ -54,7 +54,7 @@ public final class IoUtil {
     }
 
     /**
-     * 静默关闭资源 (逆序关闭, 忽略异常) 
+     * 静默关闭资源 (逆序关闭, 忽略异常)
      *
      * @param closeables 资源数组
      */

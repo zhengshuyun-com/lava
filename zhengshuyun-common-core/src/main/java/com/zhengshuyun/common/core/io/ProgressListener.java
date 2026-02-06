@@ -26,8 +26,8 @@ package com.zhengshuyun.common.core.io;
  * </ul>
  *
  * @author Toint
- * @since 2026/1/8
  * @see DataTransferUtil 数据传输工具类 - 字节大小格式化、百分比计算、时长格式化等
+ * @since 2026/1/8
  */
 public interface ProgressListener {
 
@@ -49,8 +49,8 @@ public interface ProgressListener {
      *     <li>每次循环读写 ({@link IoUtil#DEFAULT_BUFFER_SIZE}字节) 均会以同步的方式回调本方法, 所以需要自行控制回调内的执行频率, 避免影响写入性能</li>
      * </ul>
      *
-     * @param currentBytes  合计已读取字节数
-     * @param totalBytes    总字节数(-1 表示未知大小)
+     * @param currentBytes 合计已读取字节数
+     * @param totalBytes   总字节数(-1 表示未知大小)
      * @throws RuntimeException 抛异常会中断执行
      */
     void onProgress(long currentBytes, long totalBytes);
@@ -59,7 +59,7 @@ public interface ProgressListener {
      * 完成 (所有数据读取完毕后)
      *
      * @param currentBytes 合计已读取字节数
-     * @param totalBytes 总字节数(-1 表示未知大小)
+     * @param totalBytes   总字节数(-1 表示未知大小)
      * @throws RuntimeException 抛异常会中断执行
      */
     default void onComplete(long currentBytes, long totalBytes) {

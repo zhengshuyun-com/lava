@@ -26,7 +26,8 @@ package com.zhengshuyun.common.http;
  */
 public final class HttpHeaders {
 
-    private HttpHeaders() {}
+    private HttpHeaders() {
+    }
 
     /**
      * Accept: 客户端能够接收的内容类型
@@ -119,7 +120,7 @@ public final class HttpHeaders {
     public static final String IF_NONE_MATCH = "If-None-Match";
 
     /**
-     * Origin: 请求的来源 (用于CORS) 
+     * Origin: 请求的来源 (用于CORS)
      * <p>
      * 例如: https://example.com
      */
@@ -147,17 +148,17 @@ public final class HttpHeaders {
     public static final String X_REQUESTED_WITH = "X-Requested-With";
 
     /**
-     * X-Forwarded-For: 客户端真实IP (通过代理时) 
+     * X-Forwarded-For: 客户端真实IP (通过代理时)
      */
     public static final String X_FORWARDED_FOR = "X-Forwarded-For";
 
     /**
-     * X-Real-IP: 客户端真实IP (Nginx代理) 
+     * X-Real-IP: 客户端真实IP (Nginx代理)
      */
     public static final String X_REAL_IP = "X-Real-IP";
 
     /**
-     * Range: 请求资源的部分内容 (用于断点续传) 
+     * Range: 请求资源的部分内容 (用于断点续传)
      * <p>
      * 例如: bytes=0-1023
      */

@@ -36,27 +36,27 @@ public final class DurationFormatter {
     private final Duration duration;
 
     /**
-     * 最大单位 (默认：小时) 
+     * 最大单位 (默认：小时)
      */
     private ChronoUnit largestUnit = ChronoUnit.HOURS;
 
     /**
-     * 最小单位 (默认：秒) 
+     * 最小单位 (默认：秒)
      */
     private ChronoUnit smallestUnit = ChronoUnit.SECONDS;
 
     /**
-     * 语言环境 (默认：英文) 
+     * 语言环境 (默认：英文)
      */
     private Locale locale = Locale.ENGLISH;
 
     /**
-     * 是否显示零值单位 (默认：false) 
+     * 是否显示零值单位 (默认：false)
      */
     private boolean showZeroValues = false;
 
     /**
-     * 单位之间的分隔符 (默认：空格) 
+     * 单位之间的分隔符 (默认：空格)
      */
     private String separator = " ";
 
@@ -104,7 +104,7 @@ public final class DurationFormatter {
     /**
      * 设置最大单位
      *
-     * @param largestUnit 最大单位 (YEARS/MONTHS/DAYS/HOURS/MINUTES/SECONDS/MILLIS/MICROS/NANOS) 
+     * @param largestUnit 最大单位 (YEARS/MONTHS/DAYS/HOURS/MINUTES/SECONDS/MILLIS/MICROS/NANOS)
      */
     public DurationFormatter setLargestUnit(ChronoUnit largestUnit) {
         this.largestUnit = Validate.notNull(largestUnit, "largestUnit cannot be null");
@@ -114,7 +114,7 @@ public final class DurationFormatter {
     /**
      * 设置最小单位
      *
-     * @param smallestUnit 最小单位 (YEARS/MONTHS/DAYS/HOURS/MINUTES/SECONDS/MILLIS/MICROS/NANOS) 
+     * @param smallestUnit 最小单位 (YEARS/MONTHS/DAYS/HOURS/MINUTES/SECONDS/MILLIS/MICROS/NANOS)
      */
     public DurationFormatter setSmallestUnit(ChronoUnit smallestUnit) {
         this.smallestUnit = Validate.notNull(smallestUnit, "smallestUnit cannot be null");
@@ -144,7 +144,7 @@ public final class DurationFormatter {
     }
 
     /**
-     * 设置语言 (中文/英文等) 
+     * 设置语言 (中文/英文等)
      */
     public DurationFormatter setLocale(Locale locale) {
         this.locale = Validate.notNull(locale, "locale cannot be null");

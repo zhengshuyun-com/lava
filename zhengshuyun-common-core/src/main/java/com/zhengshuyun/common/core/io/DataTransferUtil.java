@@ -144,7 +144,7 @@ public final class DataTransferUtil {
         }
 
         /**
-         * 格式化当前进度 (包含大小、百分比、速率、剩余时间) 
+         * 格式化当前进度 (包含大小、百分比、速率、剩余时间)
          *
          * @param currentBytes 当前已读取字节数
          * @return 进度字符串 (如 "5.50 MB / 10.00 MB (55%) - 2.30 MB/s - 剩余: 2m 15s")

@@ -47,7 +47,7 @@ public final class HttpProxy {
     }
 
     /**
-     * 创建固定代理 (无认证) 
+     * 创建固定代理 (无认证)
      */
     public static HttpProxy of(String host, int port) {
         return builder()
@@ -56,7 +56,7 @@ public final class HttpProxy {
     }
 
     /**
-     * 创建固定代理 (带认证) 
+     * 创建固定代理 (带认证)
      */
     public static HttpProxy of(String host, int port, String username, String password) {
         return builder()

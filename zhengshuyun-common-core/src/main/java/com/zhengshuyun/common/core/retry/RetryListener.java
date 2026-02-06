@@ -19,7 +19,7 @@ package com.zhengshuyun.common.core.retry;
 /**
  * 重试监听器
  * <p>
- * 监听器会在每次重试尝试开始和完成时被调用. 
+ * 监听器会在每次重试尝试开始和完成时被调用.
  * <b>重要：如果监听器方法抛出异常, 会中断整个重试流程. </b>
  *
  * @author Toint
@@ -32,7 +32,7 @@ public interface RetryListener {
      * <p>
      * 注意：此方法抛出异常会中断重试流程
      *
-     * @param attempt     当前尝试次数 (从 1 开始) 
+     * @param attempt     当前尝试次数 (从 1 开始)
      * @param maxAttempts 最大尝试次数
      * @throws RuntimeException 抛出异常会中断重试流程
      */
@@ -43,7 +43,7 @@ public interface RetryListener {
      * <p>
      * 注意：此方法抛出异常会中断重试流程
      *
-     * @param attempt 当前尝试次数 (从 1 开始) 
+     * @param attempt 当前尝试次数 (从 1 开始)
      * @param success 本次尝试是否成功
      * @throws RuntimeException 抛出异常会中断重试流程
      */

@@ -26,7 +26,7 @@ import java.util.concurrent.Callable;
 /**
  * 重试执行器
  * <p>
- * 支持自定义重试次数、延迟策略、重试条件和监听器的任务重试执行器. 
+ * 支持自定义重试次数、延迟策略、重试条件和监听器的任务重试执行器.
  * 当所有尝试都失败时, 会根据异常类型抛出：
  * <ul>
  *   <li>非受检异常 (RuntimeException 及其子类、Error) ：直接抛出原始异常</li>
@@ -39,7 +39,7 @@ import java.util.concurrent.Callable;
 public final class Retrier {
 
     /**
-     * 最大尝试次数 (包含首次执行) 
+     * 最大尝试次数 (包含首次执行)
      */
     private final int maxAttempts;
 
@@ -236,9 +236,9 @@ public final class Retrier {
         }
 
         /**
-         * 设置最大尝试次数 (包含首次执行) 
+         * 设置最大尝试次数 (包含首次执行)
          *
-         * @param maxAttempts 最大尝试次数 (必须 >= 1) 
+         * @param maxAttempts 最大尝试次数 (必须 >= 1)
          * @return this
          */
         public Builder setMaxAttempts(int maxAttempts) {
@@ -258,9 +258,9 @@ public final class Retrier {
         }
 
         /**
-         * 设置固定延迟重试 (毫秒) 
+         * 设置固定延迟重试 (毫秒)
          *
-         * @param delayMillis 延迟时间 (毫秒) 
+         * @param delayMillis 延迟时间 (毫秒)
          * @return this
          */
         public Builder setFixedDelayMillis(long delayMillis) {
@@ -280,11 +280,11 @@ public final class Retrier {
         }
 
         /**
-         * 设置指数退避重试 (毫秒) 
+         * 设置指数退避重试 (毫秒)
          *
-         * @param initialDelay 初始延迟 (毫秒) 
+         * @param initialDelay 初始延迟 (毫秒)
          * @param multiplier   倍数
-         * @param maxDelay     最大延迟 (毫秒) 
+         * @param maxDelay     最大延迟 (毫秒)
          * @return this
          */
         public Builder setExponentialBackoffMillis(long initialDelay, double multiplier, long maxDelay) {

@@ -20,7 +20,7 @@ package com.zhengshuyun.common.json;
  * @author Toint
  * @since 2026/1/2
  */
-public class JsonException extends RuntimeException{
+public class JsonException extends RuntimeException {
 
     public JsonException() {
     }

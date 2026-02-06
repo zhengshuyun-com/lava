@@ -32,7 +32,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * HTTP 客户端封装类
  * <p>
- * 基于 OkHttp 实现的同步 HTTP 客户端, 提供统一的请求执行接口和灵活的配置能力. 
+ * 基于 OkHttp 实现的同步 HTTP 客户端, 提供统一的请求执行接口和灵活的配置能力.
  *
  * @author Toint
  * @since 2026/1/8
@@ -81,7 +81,7 @@ public final class HttpClient {
      * 同步执行请求
      *
      * @param request HTTP 请求
-     * @param config  方法级自定义配置 (仅支持部分配置) 
+     * @param config  方法级自定义配置 (仅支持部分配置)
      * @return HTTP 响应
      * @throws HttpException 请求失败时抛出
      */
@@ -126,10 +126,10 @@ public final class HttpClient {
     }
 
     /**
-     * 获取客户端实例 (支持方法级配置覆盖) 
+     * 获取客户端实例 (支持方法级配置覆盖)
      * <p>
      * 当传入 config 时, 基于基础客户端创建一个新实例并应用配置覆盖；
-     * 否则直接返回基础客户端. 
+     * 否则直接返回基础客户端.
      *
      * @param config 方法级自定义配置, 可能为 null
      * @return OkHttpClient 实例
@@ -145,8 +145,8 @@ public final class HttpClient {
     /**
      * HTTP 客户端构建器
      * <p>
-     * 用于构建 HttpClient 实例, 支持配置超时、连接池、重试、重定向、拦截器、Cookie、代理等. 
-     * 也可作为方法级配置传递给 execute() 方法, 覆盖默认配置. 
+     * 用于构建 HttpClient 实例, 支持配置超时、连接池、重试、重定向、拦截器、Cookie、代理等.
+     * 也可作为方法级配置传递给 execute() 方法, 覆盖默认配置.
      */
     public final static class Builder {
 
@@ -178,7 +178,7 @@ public final class HttpClient {
         /**
          * 总调用超时时间
          * <p>
-         * 整个请求的最长时间 (连接+写入+读取) 
+         * 整个请求的最长时间 (连接+写入+读取)
          * <p>
          * 为什么必须修改：
          * - OkHttp默认0 (不限制) , 可能导致请求永久挂起
@@ -209,32 +209,32 @@ public final class HttpClient {
         private final boolean retryOnConnectionFailure = false;
 
         /**
-         * 是否自动跟随协议内重定向 (如 301, 302, 303 等状态码) 
+         * 是否自动跟随协议内重定向 (如 301, 302, 303 等状态码)
          * <p>
          * 如果为 true, OkHttp 会自动请求 Location 指定的新地址；
-         * 如果为 false, 则将重定向响应当作普通响应直接返回给开发者. 
+         * 如果为 false, 则将重定向响应当作普通响应直接返回给开发者.
          */
         private boolean followRedirects = true;
 
         /**
-         * 是否允许跨协议重定向 (例如从 HTTP 重定向到 HTTPS, 或反之) 
+         * 是否允许跨协议重定向 (例如从 HTTP 重定向到 HTTPS, 或反之)
          * <p>
-         * 仅当 {@link #followRedirects} 为 true 时此配置才生效. 
-         * 出于安全考虑, 建议结合业务场景谨慎开启 (通常建议关闭, 防止 HTTPS 被降级到 HTTP) . 
+         * 仅当 {@link #followRedirects} 为 true 时此配置才生效.
+         * 出于安全考虑, 建议结合业务场景谨慎开启 (通常建议关闭, 防止 HTTPS 被降级到 HTTP) .
          */
         private boolean followSslRedirects = false;
         /**
          * 自定义应用拦截器
          * <p>
-         * 作用：添加通用逻辑 (认证、公共参数、加解密等) 
+         * 作用：添加通用逻辑 (认证、公共参数、加解密等)
          * <p>
          * 为什么必须配置：
          * - 几乎所有生产应用都需要添加认证信息
-         * - 需要统一处理公共Header (User-Agent、Accept-Language等) 
+         * - 需要统一处理公共Header (User-Agent、Accept-Language等)
          * - 需要统一错误处理和重试逻辑
          * <p>
          * 国际主流用途：
-         * - 添加Authorization头 (JWT、OAuth2等) 
+         * - 添加Authorization头 (JWT、OAuth2等)
          * - 添加API Key
          * - 添加请求签名
          * - 添加设备信息
@@ -258,16 +258,16 @@ public final class HttpClient {
          * 作用：自动保存和发送Cookie
          * <p>
          * 为什么需要配置：
-         * - OkHttp默认不管理Cookie (CookieJar.NO_COOKIES) 
+         * - OkHttp默认不管理Cookie (CookieJar.NO_COOKIES)
          * - Web应用几乎都需要会话管理
          * - 移动端可能需要持久化Cookie
          * <p>
          * 国际主流用途：
-         * - Web应用：必须实现 (会话保持) 
-         * - 移动应用：看需求 (登录态保持) 
+         * - Web应用：必须实现 (会话保持)
+         * - 移动应用：看需求 (登录态保持)
          * - 服务端调用：通常不需要
          * <p>
-         * 默认值：NO_COOKIES (不管理Cookie, 适合无状态的API调用) 
+         * 默认值：NO_COOKIES (不管理Cookie, 适合无状态的API调用)
          */
         private CookieJar cookieJar = CookieJar.NO_COOKIES;
 
@@ -368,7 +368,7 @@ public final class HttpClient {
         /**
          * 设置代理配置
          *
-         * @param proxy 代理配置 (包含代理选择器和认证器) 
+         * @param proxy 代理配置 (包含代理选择器和认证器)
          * @return this
          */
         public Builder setProxy(HttpProxy proxy) {

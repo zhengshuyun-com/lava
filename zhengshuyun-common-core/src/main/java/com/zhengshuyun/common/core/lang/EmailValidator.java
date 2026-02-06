@@ -39,10 +39,14 @@ import java.util.regex.Pattern;
  */
 public final class EmailValidator {
 
-    /** 邮箱本地部分最大长度 (RFC 5321) */
+    /**
+     * 邮箱本地部分最大长度 (RFC 5321)
+     */
     private static final int MAX_EMAIL_LOCAL_PART_LENGTH = 64;
 
-    /** 邮箱域名部分最大长度 (RFC 5321) */
+    /**
+     * 邮箱域名部分最大长度 (RFC 5321)
+     */
     private static final int MAX_EMAIL_DOMAIN_PART_LENGTH = 255;
 
     /**

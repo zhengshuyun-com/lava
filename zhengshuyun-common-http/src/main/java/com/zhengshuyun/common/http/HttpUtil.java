@@ -21,7 +21,7 @@ import com.zhengshuyun.common.core.lang.Validate;
 /**
  * HTTP 工具类
  * <p>
- * 提供全局单例 HttpClient 管理和便捷的静态方法执行 HTTP 请求. 
+ * 提供全局单例 HttpClient 管理和便捷的静态方法执行 HTTP 请求.
  *
  * <h2>职责</h2>
  * <ul>
@@ -32,7 +32,7 @@ import com.zhengshuyun.common.core.lang.Validate;
  *
  * <h2>使用方式</h2>
  * <pre>{@code
- * // 方式1：使用默认配置的单例 (推荐, 适用于大多数场景) 
+ * // 方式1：使用默认配置的单例 (推荐, 适用于大多数场景)
  * HttpResponse response = HttpUtil.execute(
  *     HttpRequest.get("https://example.com").build()
  * );
@@ -45,7 +45,7 @@ import com.zhengshuyun.common.core.lang.Validate;
  *         .build()
  * );
  *
- * // 方式3：创建独立的自定义 HttpClient (用于特殊需求) 
+ * // 方式3：创建独立的自定义 HttpClient (用于特殊需求)
  * HttpClient customClient = HttpUtil.createHttpClientBuilder()
  *         .setConnectTimeout(Duration.ofSeconds(5))
  *         .setReadTimeout(Duration.ofSeconds(15))
@@ -54,7 +54,7 @@ import com.zhengshuyun.common.core.lang.Validate;
  * }</pre>
  *
  * <h2>线程安全</h2>
- * 使用双重检查锁 (Double-Checked Locking) 实现懒加载单例, 保证线程安全. 
+ * 使用双重检查锁 (Double-Checked Locking) 实现懒加载单例, 保证线程安全.
  *
  * <h2>设计原则</h2>
  * <ul>
@@ -82,7 +82,8 @@ public final class HttpUtil {
     /**
      * 私有构造函数, 防止实例化
      */
-    private HttpUtil() {}
+    private HttpUtil() {
+    }
 
     /**
      * 初始化全局单例 HttpClient
@@ -147,7 +148,7 @@ public final class HttpUtil {
      *
      * <h3>使用示例</h3>
      * <pre>{@code
-     * // 直接获取单例 (不常用) 
+     * // 直接获取单例 (不常用)
      * HttpClient client = HttpUtil.getHttpClient();
      * HttpResponse response = client.execute(request);
      *
@@ -171,8 +172,8 @@ public final class HttpUtil {
     /**
      * 创建新的 HttpClient.Builder
      * <p>
-     * 用于创建独立的、自定义配置的 HttpClient 实例. 
-     * 每次调用返回一个新的 Builder, 可以链式配置各种参数. 
+     * 用于创建独立的、自定义配置的 HttpClient 实例.
+     * 每次调用返回一个新的 Builder, 可以链式配置各种参数.
      *
      * <h3>使用场景</h3>
      * <ul>
@@ -184,13 +185,13 @@ public final class HttpUtil {
      *
      * <h3>使用示例</h3>
      * <pre>{@code
-     * // 场景1：创建快速接口的客户端 (短超时) 
+     * // 场景1：创建快速接口的客户端 (短超时)
      * HttpClient fastClient = HttpUtil.createHttpClientBuilder()
      *         .setConnectTimeout(Duration.ofSeconds(2))
      *         .setReadTimeout(Duration.ofSeconds(5))
      *         .build();
      *
-     * // 场景2：创建慢速接口的客户端 (长超时) 
+     * // 场景2：创建慢速接口的客户端 (长超时)
      * HttpClient slowClient = HttpUtil.createHttpClientBuilder()
      *         .setConnectTimeout(Duration.ofSeconds(10))
      *         .setReadTimeout(Duration.ofSeconds(60))
@@ -249,7 +250,7 @@ public final class HttpUtil {
      *
      * @param request HTTP 请求对象, 不能为 null
      * @return HTTP 响应对象
-     * @throws HttpException 请求失败时抛出 (网络错误、超时、服务器错误等)
+     * @throws HttpException            请求失败时抛出 (网络错误、超时、服务器错误等)
      * @throws IllegalArgumentException 如果 request 为 null
      */
     public static HttpResponse execute(HttpRequest request) {

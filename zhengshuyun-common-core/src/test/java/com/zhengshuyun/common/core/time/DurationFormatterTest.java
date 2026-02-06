@@ -45,7 +45,7 @@ class DurationFormatterTest {
      * 测试基本格式化功能
      * <p>
      * 输入：3665 秒
-     * 预期输出：1h 1min 5s (1小时 1分钟 5秒) 
+     * 预期输出：1h 1min 5s (1小时 1分钟 5秒)
      * 验证默认情况下时长的正确格式化
      */
     @Test
@@ -87,7 +87,7 @@ class DurationFormatterTest {
     /**
      * 测试显示零值单位
      * <p>
-     * 输入：3605 秒 (1小时 0分钟 5秒) 
+     * 输入：3605 秒 (1小时 0分钟 5秒)
      * 预期输出：1h 0min 5s
      * 验证 setShowZeroValues(true) 会显示数值为0的单位
      */
@@ -102,7 +102,7 @@ class DurationFormatterTest {
     /**
      * 测试隐藏零值单位
      * <p>
-     * 输入：3605 秒 (1小时 0分钟 5秒) 
+     * 输入：3605 秒 (1小时 0分钟 5秒)
      * 预期输出：1h 5s
      * 验证 setShowZeroValues(false) 会自动省略数值为0的单位
      */
@@ -179,12 +179,12 @@ class DurationFormatterTest {
     }
 
     /**
-     * 测试完整时间范围格式化 (英文) 
+     * 测试完整时间范围格式化 (英文)
      * <p>
      * 输入：100亿毫秒 ≈ 115.74天
      * 范围：月到毫秒
      * 预期输出：3mo 25d 17h 46min 40s
-     * 验证能正确处理大时长的完整格式化 (包含月、天、小时、分钟、秒) 
+     * 验证能正确处理大时长的完整格式化 (包含月、天、小时、分钟、秒)
      */
     @Test
     void testFullRange() {
@@ -197,7 +197,7 @@ class DurationFormatterTest {
     }
 
     /**
-     * 测试完整时间范围格式化 (中文) 
+     * 测试完整时间范围格式化 (中文)
      * <p>
      * 输入：100亿毫秒
      * 范围：年到秒
@@ -221,7 +221,7 @@ class DurationFormatterTest {
      * 输入：400天 = 365天 + 30天 + 5天
      * 范围：年到天
      * 预期输出：1y 1mo 5d
-     * 验证能正确计算年、月、天 (注：1年=365天, 1月=30天) 
+     * 验证能正确计算年、月、天 (注：1年=365天, 1月=30天)
      */
     @Test
     void testYearsCalculation() {
@@ -239,7 +239,7 @@ class DurationFormatterTest {
      * 输入：90天 = 3个月
      * 范围：月到天
      * 预期输出：3mo
-     * 验证能正确将天数转换为月份 (注：1月=30天) 
+     * 验证能正确将天数转换为月份 (注：1月=30天)
      */
     @Test
     void testMonthsCalculation() {
@@ -256,7 +256,7 @@ class DurationFormatterTest {
      * <p>
      * 输入：0秒
      * 预期输出：0s
-     * 验证时长的默认格式化 (最小单位为秒) 
+     * 验证时长的默认格式化 (最小单位为秒)
      */
     @Test
     void testZeroDuration() {
@@ -282,7 +282,7 @@ class DurationFormatterTest {
     /**
      * 测试无效范围参数
      * <p>
-     * 尝试设置最大单位小于最小单位 (秒 < 小时) 
+     * 尝试设置最大单位小于最小单位 (秒 < 小时)
      * 预期：抛出 IllegalArgumentException
      * 验证 setRange() 会拒绝非法的范围参数
      */
@@ -325,7 +325,7 @@ class DurationFormatterTest {
     /**
      * 测试 TimeUnit 工厂方法
      * <p>
-     * 输入：5 分钟 (使用 TimeUnit.MINUTES) 
+     * 输入：5 分钟 (使用 TimeUnit.MINUTES)
      * 预期输出：5min
      * 验证 of(long, TimeUnit) 工厂方法能正确创建格式化器
      */
@@ -354,12 +354,12 @@ class DurationFormatterTest {
     }
 
     /**
-     * 测试秒到纳秒的完整精度格式化 (英文) 
+     * 测试秒到纳秒的完整精度格式化 (英文)
      * <p>
      * 输入：1_123_456_789 纳秒 = 1秒 + 123毫秒 + 456微秒 + 789纳秒
      * 范围：秒到纳秒
      * 预期输出：1s 123ms 456μs 789ns
-     * 验证能正确处理从秒到纳秒的完整精度 (包含秒、毫秒、微秒、纳秒) 
+     * 验证能正确处理从秒到纳秒的完整精度 (包含秒、毫秒、微秒、纳秒)
      */
     @Test
     void testSecondsToNanosRange() {
@@ -372,7 +372,7 @@ class DurationFormatterTest {
     }
 
     /**
-     * 测试秒到纳秒的完整精度格式化 (中文) 
+     * 测试秒到纳秒的完整精度格式化 (中文)
      * <p>
      * 输入：1_123_456_789 纳秒
      * 范围：秒到纳秒
@@ -395,7 +395,7 @@ class DurationFormatterTest {
      * 输入：3665 秒
      * 范围：小时到分钟
      * 预期输出：1h 1min
-     * 验证设置范围为 HOURS 到 MINUTES 后, 不显示超出范围的单位 (不显示秒) 
+     * 验证设置范围为 HOURS 到 MINUTES 后, 不显示超出范围的单位 (不显示秒)
      */
     @Test
     void testRangeHoursToMinutes() {

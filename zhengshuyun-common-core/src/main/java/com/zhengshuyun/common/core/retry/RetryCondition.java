@@ -24,7 +24,7 @@ import java.util.Arrays;
 /**
  * 重试条件
  * <p>
- * 判断是否需要重试, 不包含重试次数限制 (由 Retrier.maxAttempts 控制) 
+ * 判断是否需要重试, 不包含重试次数限制 (由 Retrier.maxAttempts 控制)
  *
  * @author Toint
  * @since 2026/1/15
@@ -49,9 +49,9 @@ public interface RetryCondition {
     /**
      * 判断是否需要重试
      *
-     * @param attempt 当前重试次数 (从 1 开始) 
-     * @param error   执行时抛出的异常 (可能为 null) 
-     * @param result  执行结果 (可能为 null) 
+     * @param attempt 当前重试次数 (从 1 开始)
+     * @param error   执行时抛出的异常 (可能为 null)
+     * @param result  执行结果 (可能为 null)
      * @return true 表示需要重试, false 表示停止重试
      */
     boolean shouldRetry(int attempt, @Nullable Throwable error, @Nullable Object result);

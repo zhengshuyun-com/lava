@@ -35,17 +35,17 @@ public final class ZoneIds {
     public static final ZoneId ASIA_SHANGHAI = ZoneId.of("Asia/Shanghai");
 
     /**
-     * 美国东部时间 (纽约) 
+     * 美国东部时间 (纽约)
      */
     public static final ZoneId AMERICA_NEW_YORK = ZoneId.of("America/New_York");
 
     /**
-     * 美国西部时间 (洛杉矶) 
+     * 美国西部时间 (洛杉矶)
      */
     public static final ZoneId AMERICA_LOS_ANGELES = ZoneId.of("America/Los_Angeles");
 
     /**
-     * 美国中部时间 (芝加哥) 
+     * 美国中部时间 (芝加哥)
      */
     public static final ZoneId AMERICA_CHICAGO = ZoneId.of("America/Chicago");
 

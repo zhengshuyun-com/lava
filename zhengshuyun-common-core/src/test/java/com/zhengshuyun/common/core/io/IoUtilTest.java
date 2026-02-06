@@ -19,7 +19,6 @@ package com.zhengshuyun.common.core.io;
 import org.junit.jupiter.api.Test;
 
 import java.io.*;
-import java.io.UncheckedIOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -160,9 +159,9 @@ class IoUtilTest {
     void testWrapIOExceptionSupplierThrowsIOException() {
         String errorMessage = "Test IOException";
         UncheckedIOException exception = assertThrows(UncheckedIOException.class, () ->
-            IoUtil.wrapIOException(() -> {
-                throw new IOException(errorMessage);
-            })
+                IoUtil.wrapIOException(() -> {
+                    throw new IOException(errorMessage);
+                })
         );
 
         assertEquals(errorMessage, exception.getMessage());
@@ -202,7 +201,7 @@ class IoUtilTest {
     void testWrapIOExceptionRunnableSuccess() {
         AtomicBoolean executed = new AtomicBoolean(false);
         assertDoesNotThrow(() ->
-            IoUtil.wrapIOException(() -> executed.set(true))
+                IoUtil.wrapIOException(() -> executed.set(true))
         );
         assertTrue(executed.get());
     }
@@ -214,9 +213,9 @@ class IoUtilTest {
     void testWrapIOExceptionRunnableThrowsIOException() {
         String errorMessage = "Test IOException in Runnable";
         UncheckedIOException exception = assertThrows(UncheckedIOException.class, () ->
-            IoUtil.wrapIOException(() -> {
-                throw new IOException(errorMessage);
-            })
+                IoUtil.wrapIOException(() -> {
+                    throw new IOException(errorMessage);
+                })
         );
 
         assertEquals(errorMessage, exception.getMessage());
@@ -232,11 +231,11 @@ class IoUtilTest {
         tempFile.deleteOnExit();
 
         assertDoesNotThrow(() ->
-            IoUtil.wrapIOException(() -> {
-                try (FileOutputStream fos = new FileOutputStream(tempFile)) {
-                    fos.write("test data".getBytes());
-                }
-            })
+                IoUtil.wrapIOException(() -> {
+                    try (FileOutputStream fos = new FileOutputStream(tempFile)) {
+                        fos.write("test data".getBytes());
+                    }
+                })
         );
 
         assertTrue(tempFile.exists());

@@ -26,8 +26,8 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * Seata改进的雪花算法ID
  *
- * <p>Seata 对传统雪花算法进行了改良, 核心改进是通过 {@link AtomicLong} 实现严格连续递增的 ID 生成, 
- * 相比传统实现具有更好的数据库索引性能和更高的并发吞吐量. 
+ * <p>Seata 对传统雪花算法进行了改良, 核心改进是通过 {@link AtomicLong} 实现严格连续递增的 ID 生成,
+ * 相比传统实现具有更好的数据库索引性能和更高的并发吞吐量.
  *
  * @author Toint
  * @see <a href="https://seata.apache.org/zh-cn/blog/seata-snowflake-explain">关于新版雪花算法的答疑</a>

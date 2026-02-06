@@ -96,7 +96,7 @@ class RetrierTest {
 
     /**
      * 测试固定延迟策略的时间准确性
-     * 验证重试之间的延迟时间符合预期 (延迟50ms, 执行3次共2次延迟, 至少100ms) 
+     * 验证重试之间的延迟时间符合预期 (延迟50ms, 执行3次共2次延迟, 至少100ms)
      */
     @Test
     void testFixedDelayStrategy() {
@@ -294,7 +294,7 @@ class RetrierTest {
 
     /**
      * 测试自定义重试条件
-     * 使用自定义条件判断是否继续重试 (尝试次数小于3次) 
+     * 使用自定义条件判断是否继续重试 (尝试次数小于3次)
      */
     @Test
     void testCustomRetryCondition() {
@@ -631,7 +631,6 @@ class RetrierTest {
 
         assertEquals(4, counter.get());
     }
-
 
 
     /**

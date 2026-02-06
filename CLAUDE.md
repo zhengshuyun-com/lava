@@ -7,6 +7,7 @@
 zhengshuyun-common 是一个 Java 通用工具库集合，采用 Maven 多模块架构。要求 JDK 25。
 
 **Maven 模块结构**:
+
 - `zhengshuyun-common-core` - 核心工具类(重试、IO、时间、ID 生成等)
 - `zhengshuyun-common-json` - JSON 序列化工具(基于 Jackson)
 - `zhengshuyun-common-http` - HTTP 客户端封装(基于 OkHttp)
@@ -15,16 +16,19 @@ zhengshuyun-common 是一个 Java 通用工具库集合，采用 Maven 多模块
 ## 构建与测试命令
 
 ### 完整构建
+
 ```bash
 mvn clean install
 ```
 
 ### 仅编译(跳过测试)
+
 ```bash
 mvn clean install -DskipTests
 ```
 
 ### 运行测试
+
 ```bash
 # 所有测试
 mvn test
@@ -44,7 +48,9 @@ mvn test -pl zhengshuyun-common-json -am
 ```
 
 ### 模块依赖顺序
+
 修改 core 模块后，需要先安装到本地仓库再测试依赖它的模块：
+
 ```bash
 mvn install -pl zhengshuyun-common-core -DskipTests
 mvn test -pl zhengshuyun-common-json
@@ -58,17 +64,20 @@ mvn test -pl zhengshuyun-common-json
 - 方法命名规范: 赋值操作统一使用 `set` 等动词开头；获取操作统一使用 `get` 等动词开头。
 
 ### 时间处理标准
+
 - **格式常量**: 使用 `DateTimePatterns` 统一管理(位于 core 模块)
 - **时区常量**: 使用 `ZoneIds` 统一管理
 - **默认时区**: UTC(通用库标准)
 - **解析工具**: `TimeUtil.parse()` 支持多种格式自动识别
 
 ### 异常处理规范
+
 - 自定义异常继承自 `RuntimeException`
 - 命名规范: `XxxException`(如 `JsonException`, `HttpException`, `RetryException`)
 - 包含详细的错误信息和上下文
 
 ### 测试规范
+
 - 测试类命名: `XxxTest`
 - 测试方法命名: `testXxx` 或 `testXxx_条件`
 - 使用 JUnit 5 (Jupiter)

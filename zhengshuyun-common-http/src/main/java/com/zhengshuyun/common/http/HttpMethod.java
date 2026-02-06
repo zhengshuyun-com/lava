@@ -23,7 +23,7 @@ import java.util.Objects;
 /**
  * HTTP 请求方法
  * <p>
- * 表示 HTTP 请求方法, 参考 Spring Framework 的 HttpMethod 实现. 
+ * 表示 HTTP 请求方法, 参考 Spring Framework 的 HttpMethod 实现.
  *
  * @author Toint
  * @since 2026/1/8
@@ -96,11 +96,11 @@ public final class HttpMethod {
     }
 
     /**
-     * 返回包含所有标准 HTTP 方法的数组. 
+     * 返回包含所有标准 HTTP 方法的数组.
      * <p>
      * 具体来说, 此方法返回包含 {@link #GET}、{@link #HEAD}、
      * {@link #POST}、{@link #PUT}、{@link #PATCH}、{@link #DELETE}、
-     * {@link #OPTIONS} 和 {@link #TRACE} 的数组. 
+     * {@link #OPTIONS} 和 {@link #TRACE} 的数组.
      */
     public static HttpMethod[] values() {
         HttpMethod[] copy = new HttpMethod[values.length];
@@ -109,12 +109,12 @@ public final class HttpMethod {
     }
 
     /**
-     * 根据给定的字符串值返回对应的 {@code HttpMethod} 对象. 
+     * 根据给定的字符串值返回对应的 {@code HttpMethod} 对象.
      * <p>
      * 如果是标准方法 (GET、POST 等) , 返回预定义的实例；
-     * 否则创建一个新的实例. 
+     * 否则创建一个新的实例.
      *
-     * @param method 方法值 (字符串) 
+     * @param method 方法值 (字符串)
      * @return 对应的 {@code HttpMethod}
      * @throws IllegalArgumentException 如果 method 为 blank
      */
@@ -135,7 +135,7 @@ public final class HttpMethod {
     }
 
     /**
-     * 返回此方法的名称, 例如 "GET"、"POST". 
+     * 返回此方法的名称, 例如 "GET"、"POST".
      */
     public String getName() {
         return name;

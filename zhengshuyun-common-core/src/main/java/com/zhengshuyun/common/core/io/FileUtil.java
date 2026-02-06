@@ -22,6 +22,7 @@ package com.zhengshuyun.common.core.io;
  */
 public final class FileUtil {
 
-    private FileUtil() {}
+    private FileUtil() {
+    }
 
 }

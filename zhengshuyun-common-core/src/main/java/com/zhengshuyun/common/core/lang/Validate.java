@@ -40,11 +40,14 @@ public final class Validate {
     private static final String DEFAULT_INVALID_EMAIL_MESSAGE = "The validated value must be a valid email";
     private static final String DEFAULT_INVALID_MOBILE_MESSAGE = "The validated value must be a valid mobile number";
 
-    /** 中国手机号正则, 1开头, 第二位3-9, 共11位 */
+    /**
+     * 中国手机号正则, 1开头, 第二位3-9, 共11位
+     */
     private static final Pattern MOBILE_PATTERN = Pattern.compile("^1[3-9]\\d{9}$");
 
     /*
      * isFalse*/
+
     /**
      * 校验布尔值为 false
      *
@@ -62,7 +65,7 @@ public final class Validate {
     /**
      * 校验布尔值为 false
      *
-     * @param b 待校验值
+     * @param b      待校验值
      * @param errMsg 错误消息
      * @return false
      * @throws IllegalArgumentException 校验失败
@@ -77,9 +80,9 @@ public final class Validate {
     /**
      * 校验布尔值为 false
      *
-     * @param b 待校验值
+     * @param b              待校验值
      * @param errMsgTemplate 错误消息模板
-     * @param errMsgArgs 模板参数
+     * @param errMsgArgs     模板参数
      * @return false
      * @throws IllegalArgumentException 校验失败
      */
@@ -95,6 +98,7 @@ public final class Validate {
 
     /*
      * isTrue*/
+
     /**
      * 校验布尔值为 true
      *
@@ -112,7 +116,7 @@ public final class Validate {
     /**
      * 校验布尔值为 true
      *
-     * @param b 待校验值
+     * @param b      待校验值
      * @param errMsg 错误消息
      * @return true
      * @throws IllegalArgumentException 校验失败
@@ -127,9 +131,9 @@ public final class Validate {
     /**
      * 校验布尔值为 true
      *
-     * @param b 待校验值
+     * @param b              待校验值
      * @param errMsgTemplate 错误消息模板
-     * @param errMsgArgs 模板参数
+     * @param errMsgArgs     模板参数
      * @return true
      * @throws IllegalArgumentException 校验失败
      */
@@ -145,6 +149,7 @@ public final class Validate {
 
     /*
      * notBlank*/
+
     /**
      * 校验字符串非空且非空白
      *
@@ -162,7 +167,7 @@ public final class Validate {
     /**
      * 校验字符串非空且非空白
      *
-     * @param str 待校验字符串
+     * @param str    待校验字符串
      * @param errMsg 错误消息
      * @return 原字符串
      * @throws IllegalArgumentException 校验失败
@@ -177,9 +182,9 @@ public final class Validate {
     /**
      * 校验字符串非空且非空白
      *
-     * @param str 待校验字符串
+     * @param str            待校验字符串
      * @param errMsgTemplate 错误消息模板
-     * @param errMsgArgs 模板参数
+     * @param errMsgArgs     模板参数
      * @return 原字符串
      * @throws IllegalArgumentException 校验失败
      */
@@ -195,6 +200,7 @@ public final class Validate {
 
     /*
      * notNull*/
+
     /**
      * 校验对象非空
      *
@@ -213,9 +219,9 @@ public final class Validate {
     /**
      * 校验对象非空
      *
-     * @param obj 待校验对象
+     * @param obj    待校验对象
      * @param errMsg 错误消息
-     * @param <T> 对象类型
+     * @param <T>    对象类型
      * @return 原对象
      * @throws IllegalArgumentException 校验失败
      */
@@ -229,10 +235,10 @@ public final class Validate {
     /**
      * 校验对象非空
      *
-     * @param obj 待校验对象
+     * @param obj            待校验对象
      * @param errMsgTemplate 错误消息模板
-     * @param errMsgArgs 模板参数
-     * @param <T> 对象类型
+     * @param errMsgArgs     模板参数
+     * @param <T>            对象类型
      * @return 原对象
      * @throws IllegalArgumentException 校验失败
      */
@@ -248,6 +254,7 @@ public final class Validate {
 
     /*
      * isNull*/
+
     /**
      * 校验对象为空
      *
@@ -263,7 +270,7 @@ public final class Validate {
     /**
      * 校验对象为空
      *
-     * @param obj 待校验对象
+     * @param obj    待校验对象
      * @param errMsg 错误消息
      * @throws IllegalArgumentException 校验失败
      */
@@ -276,9 +283,9 @@ public final class Validate {
     /**
      * 校验对象为空
      *
-     * @param obj 待校验对象
+     * @param obj            待校验对象
      * @param errMsgTemplate 错误消息模板
-     * @param errMsgArgs 模板参数
+     * @param errMsgArgs     模板参数
      * @throws IllegalArgumentException 校验失败
      */
     public static void isNull(
@@ -292,11 +299,12 @@ public final class Validate {
 
     /*
      * notEmpty-collection*/
+
     /**
      * 校验集合非空
      *
      * @param collection 待校验集合
-     * @param <T> 集合类型
+     * @param <T>        集合类型
      * @return 原集合
      * @throws IllegalArgumentException 校验失败
      */
@@ -311,8 +319,8 @@ public final class Validate {
      * 校验集合非空
      *
      * @param collection 待校验集合
-     * @param errMsg 错误消息
-     * @param <T> 集合类型
+     * @param errMsg     错误消息
+     * @param <T>        集合类型
      * @return 原集合
      * @throws IllegalArgumentException 校验失败
      */
@@ -326,10 +334,10 @@ public final class Validate {
     /**
      * 校验集合非空
      *
-     * @param collection 待校验集合
+     * @param collection     待校验集合
      * @param errMsgTemplate 错误消息模板
-     * @param errMsgArgs 模板参数
-     * @param <T> 集合类型
+     * @param errMsgArgs     模板参数
+     * @param <T>            集合类型
      * @return 原集合
      * @throws IllegalArgumentException 校验失败
      */
@@ -345,6 +353,7 @@ public final class Validate {
 
     /*
      * notEmpty-map*/
+
     /**
      * 校验 Map 非空
      *
@@ -363,9 +372,9 @@ public final class Validate {
     /**
      * 校验 Map 非空
      *
-     * @param map 待校验 Map
+     * @param map    待校验 Map
      * @param errMsg 错误消息
-     * @param <T> Map 类型
+     * @param <T>    Map 类型
      * @return 原 Map
      * @throws IllegalArgumentException 校验失败
      */
@@ -379,10 +388,10 @@ public final class Validate {
     /**
      * 校验 Map 非空
      *
-     * @param map 待校验 Map
+     * @param map            待校验 Map
      * @param errMsgTemplate 错误消息模板
-     * @param errMsgArgs 模板参数
-     * @param <T> Map 类型
+     * @param errMsgArgs     模板参数
+     * @param <T>            Map 类型
      * @return 原 Map
      * @throws IllegalArgumentException 校验失败
      */
@@ -398,6 +407,7 @@ public final class Validate {
 
     /*
      * isEmail*/
+
     /**
      * 校验邮箱格式
      *
@@ -415,7 +425,7 @@ public final class Validate {
     /**
      * 校验邮箱格式
      *
-     * @param str 待校验字符串
+     * @param str    待校验字符串
      * @param errMsg 错误消息
      * @return 原字符串
      * @throws IllegalArgumentException 校验失败
@@ -430,9 +440,9 @@ public final class Validate {
     /**
      * 校验邮箱格式
      *
-     * @param str 待校验字符串
+     * @param str            待校验字符串
      * @param errMsgTemplate 错误消息模板
-     * @param errMsgArgs 模板参数
+     * @param errMsgArgs     模板参数
      * @return 原字符串
      * @throws IllegalArgumentException 校验失败
      */
@@ -448,6 +458,7 @@ public final class Validate {
 
     /*
      * isMobile*/
+
     /**
      * 校验中国手机号格式
      *
@@ -465,7 +476,7 @@ public final class Validate {
     /**
      * 校验中国手机号格式
      *
-     * @param str 待校验字符串
+     * @param str    待校验字符串
      * @param errMsg 错误消息
      * @return 原字符串
      * @throws IllegalArgumentException 校验失败
@@ -480,9 +491,9 @@ public final class Validate {
     /**
      * 校验中国手机号格式
      *
-     * @param str 待校验字符串
+     * @param str            待校验字符串
      * @param errMsgTemplate 错误消息模板
-     * @param errMsgArgs 模板参数
+     * @param errMsgArgs     模板参数
      * @return 原字符串
      * @throws IllegalArgumentException 校验失败
      */

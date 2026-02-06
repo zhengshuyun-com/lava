@@ -44,7 +44,7 @@ class ByteStreamCopierTest {
     private static final Logger LOGGER = LoggerFactory.getLogger(ByteStreamCopierTest.class);
 
     /**
-     * 测试字符串复制 (UTF-8编码) 
+     * 测试字符串复制 (UTF-8编码)
      */
     @Test
     void testCopyString() {
@@ -57,7 +57,7 @@ class ByteStreamCopierTest {
     }
 
     /**
-     * 测试字符串复制 (指定字符集) 
+     * 测试字符串复制 (指定字符集)
      */
     @Test
     void testCopyStringWithCharset() {
@@ -235,7 +235,7 @@ class ByteStreamCopierTest {
     }
 
     /**
-     * 测试大数据复制 (1MB) 
+     * 测试大数据复制 (1MB)
      */
     @Test
     void testLargeData() {
@@ -535,7 +535,7 @@ class ByteStreamCopierTest {
     @Test
     void testSupplierMultipleWrites(@TempDir Path tempDir) throws IOException {
         String input = "supplier multiple writes";
-        
+
         ByteStreamCopier copier = ByteStreamCopier.builder()
                 .setSource(() -> new ByteArrayInputStream(input.getBytes(StandardCharsets.UTF_8)))
                 .build();
@@ -543,7 +543,7 @@ class ByteStreamCopierTest {
         // 多次写入都应该成功
         Path file1 = tempDir.resolve("output1.txt");
         Path file2 = tempDir.resolve("output2.txt");
-        
+
         copier.write(file1);
         copier.write(file2);
 
@@ -558,7 +558,7 @@ class ByteStreamCopierTest {
     void testSupplierWithLengthMultipleWrites() {
         String input = "supplier with length";
         byte[] bytes = input.getBytes(StandardCharsets.UTF_8);
-        
+
         ByteStreamCopier copier = ByteStreamCopier.builder()
                 .setSource(() -> new ByteArrayInputStream(bytes), bytes.length)
                 .build();
@@ -621,7 +621,7 @@ class ByteStreamCopierTest {
     @Test
     void testDifferentCharsets() {
         String input = "Hello 世界 🎉";
-        
+
         // ISO-8859-1 (会丢失中文和emoji)
         ByteStreamCopier copier1 = ByteStreamCopier.builder()
                 .setSource(input, StandardCharsets.UTF_8)
@@ -754,7 +754,7 @@ class ByteStreamCopierTest {
     @Test
     void testZeroByteArray() {
         byte[] emptyArray = new byte[0];
-        
+
         byte[] result = ByteStreamCopier.builder()
                 .setSource(emptyArray)
                 .build()
@@ -837,8 +837,8 @@ class ByteStreamCopierTest {
         ByteStreamCopier.builder()
                 .setSource(input1)
                 .build()
-                .write(outputFile, java.nio.file.StandardOpenOption.CREATE, 
-                       java.nio.file.StandardOpenOption.WRITE);
+                .write(outputFile, java.nio.file.StandardOpenOption.CREATE,
+                        java.nio.file.StandardOpenOption.WRITE);
 
         // 追加写入
         ByteStreamCopier.builder()
@@ -949,13 +949,13 @@ class ByteStreamCopierTest {
     @Test
     void testWriteBytesAndWriteStringConsistency() {
         String input = "consistency test 测试";
-        
+
         ByteStreamCopier copier = ByteStreamCopier.builder()
                 .setSource(input)
                 .build();
 
         byte[] bytes = copier.writeBytes();
-        
+
         ByteStreamCopier copier2 = ByteStreamCopier.builder()
                 .setSource(input)
                 .build();
@@ -988,7 +988,7 @@ class ByteStreamCopierTest {
     }
 
     /**
-     * 测试进度条监听器 (禁用, 需要手动观察输出) 
+     * 测试进度条监听器 (禁用, 需要手动观察输出)
      * 使用DataTransferUtil进行格式化输出
      */
     @Test

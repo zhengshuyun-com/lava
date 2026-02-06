@@ -195,8 +195,8 @@ class DataTransferUtilTest {
      */
     @Test
     void testCalculatePercentageNegativeCurrent() {
-        assertThrows(IllegalArgumentException.class, () -> 
-            DataTransferUtil.calculatePercentage(-1, 100));
+        assertThrows(IllegalArgumentException.class, () ->
+                DataTransferUtil.calculatePercentage(-1, 100));
     }
 
     /**
@@ -270,7 +270,7 @@ class DataTransferUtilTest {
     void testFormatSpeedNormal() {
         // 1 MB in 1 second = 1 MB/s
         assertEquals("1.00 MB/s", DataTransferUtil.formatSpeed(1024 * 1024, 1000));
-        
+
         // 10 MB in 2 seconds = 5 MB/s
         assertEquals("5.00 MB/s", DataTransferUtil.formatSpeed(10 * 1024 * 1024, 2000));
     }
@@ -338,9 +338,9 @@ class DataTransferUtilTest {
     void testTrackerFormatWithKnownSize() throws InterruptedException {
         DataTransferUtil.Tracker tracker = DataTransferUtil.tracker(1024 * 1024);
         Thread.sleep(10); // 确保有经过时间
-        
+
         String progress = tracker.format(512 * 1024);
-        
+
         // 应包含: 当前大小, 总大小, 百分比, 速率
         assertTrue(progress.contains("KB"));
         assertTrue(progress.contains("MB"));
@@ -355,9 +355,9 @@ class DataTransferUtilTest {
     void testTrackerFormatWithUnknownSize() throws InterruptedException {
         DataTransferUtil.Tracker tracker = DataTransferUtil.tracker(-1);
         Thread.sleep(10);
-        
+
         String progress = tracker.format(512 * 1024);
-        
+
         assertTrue(progress.contains("KB"));
         assertTrue(progress.contains("unknown"));
         assertTrue(progress.contains("/s"));
@@ -371,7 +371,7 @@ class DataTransferUtilTest {
     void testTrackerGetSpeed() throws InterruptedException {
         DataTransferUtil.Tracker tracker = DataTransferUtil.tracker(1024 * 1024);
         Thread.sleep(10);
-        
+
         String speed = tracker.getSpeed(512 * 1024);
         assertTrue(speed.endsWith("/s"));
         assertTrue(speed.contains("B/s") || speed.contains("KB/s") || speed.contains("MB/s"));
@@ -384,7 +384,7 @@ class DataTransferUtilTest {
     void testTrackerGetRemainingTimeKnownSize() throws InterruptedException {
         DataTransferUtil.Tracker tracker = DataTransferUtil.tracker(1024 * 1024);
         Thread.sleep(10);
-        
+
         String remaining = tracker.getRemainingTime(512 * 1024); // 50% 完成
         // 应该返回时间字符串
         if (remaining != null) {
@@ -399,7 +399,7 @@ class DataTransferUtilTest {
     void testTrackerGetRemainingTimeUnknownSize() throws InterruptedException {
         DataTransferUtil.Tracker tracker = DataTransferUtil.tracker(-1);
         Thread.sleep(10);
-        
+
         String remaining = tracker.getRemainingTime(512 * 1024);
         assertNull(remaining); // 未知大小无法计算剩余时间
     }
@@ -411,7 +411,7 @@ class DataTransferUtilTest {
     void testTrackerGetRemainingTimeCompleted() throws InterruptedException {
         DataTransferUtil.Tracker tracker = DataTransferUtil.tracker(1024 * 1024);
         Thread.sleep(10);
-        
+
         String remaining = tracker.getRemainingTime(1024 * 1024); // 100% 完成
         // 剩余时间应为 0 或 null
         if (remaining != null) {
@@ -426,7 +426,7 @@ class DataTransferUtilTest {
     void testTrackerGetRemainingTimeOverflow() throws InterruptedException {
         DataTransferUtil.Tracker tracker = DataTransferUtil.tracker(1024 * 1024);
         Thread.sleep(10);
-        
+
         String remaining = tracker.getRemainingTime(2 * 1024 * 1024); // 超过 100%
         // 应该返回 0 或合理值
         assertNotNull(remaining);
@@ -439,7 +439,7 @@ class DataTransferUtilTest {
     void testTrackerFormatZeroBytes() throws InterruptedException {
         DataTransferUtil.Tracker tracker = DataTransferUtil.tracker(1024 * 1024);
         Thread.sleep(10);
-        
+
         String progress = tracker.format(0);
         assertTrue(progress.contains("0 B"));
     }
@@ -451,7 +451,7 @@ class DataTransferUtilTest {
     void testTrackerFormatFullProgress() throws InterruptedException {
         DataTransferUtil.Tracker tracker = DataTransferUtil.tracker(1024 * 1024);
         Thread.sleep(10);
-        
+
         String progress = tracker.format(1024 * 1024); // 100%
         assertTrue(progress.contains("1.00 MB"));
         assertTrue(progress.contains("100%"));
@@ -463,17 +463,17 @@ class DataTransferUtilTest {
     @Test
     void testTrackerRealtimeProgress() throws InterruptedException {
         DataTransferUtil.Tracker tracker = DataTransferUtil.tracker(10 * 1024 * 1024); // 10 MB
-        
+
         // 模拟分步传输
         Thread.sleep(10);
         String progress1 = tracker.format(2 * 1024 * 1024); // 20%
         assertTrue(progress1.contains("2.00 MB"));
         assertTrue(progress1.contains("10.0 MB"));
-        
+
         Thread.sleep(10);
         String progress2 = tracker.format(5 * 1024 * 1024); // 50%
         assertTrue(progress2.contains("5.00 MB"));
-        
+
         Thread.sleep(10);
         String progress3 = tracker.format(10 * 1024 * 1024); // 100%
         assertTrue(progress3.contains("10.0 MB"));

@@ -18,7 +18,9 @@ package com.zhengshuyun.common.schedule;
 
 import com.zhengshuyun.common.core.lang.Validate;
 import com.zhengshuyun.common.core.time.ZoneIds;
-import org.quartz.*;
+import org.quartz.CronScheduleBuilder;
+import org.quartz.SimpleScheduleBuilder;
+import org.quartz.TriggerBuilder;
 
 import java.util.Date;
 import java.util.TimeZone;

@@ -35,7 +35,7 @@ import java.time.Instant;
 public final class HttpCallMetadata {
 
     /**
-     * 请求唯一标识 (UUID) 
+     * 请求唯一标识 (UUID)
      */
     private final String requestId;
 
@@ -45,7 +45,7 @@ public final class HttpCallMetadata {
     private final String url;
 
     /**
-     * 请求方法 (GET、POST 等) 
+     * 请求方法 (GET、POST 等)
      */
     private final String method;
 
@@ -75,7 +75,7 @@ public final class HttpCallMetadata {
     private final Duration duration;
 
     /**
-     * HTTP 协议版本 (如 HTTP/1.1、HTTP/2) 
+     * HTTP 协议版本 (如 HTTP/1.1、HTTP/2)
      */
     private final @Nullable String protocol;
 
@@ -85,7 +85,7 @@ public final class HttpCallMetadata {
     private final int statusCode;
 
     /**
-     * HTTP 响应状态消息 (如 "OK"、"Not Found") 
+     * HTTP 响应状态消息 (如 "OK"、"Not Found")
      */
     private final @Nullable String statusMessage;
 
@@ -139,7 +139,7 @@ public final class HttpCallMetadata {
     }
 
     /**
-     * 获取请求耗时 (毫秒) 
+     * 获取请求耗时 (毫秒)
      */
     public long getDurationMillis() {
         return duration.toMillis();
@@ -166,7 +166,7 @@ public final class HttpCallMetadata {
     }
 
     /**
-     * 判断响应是否成功 (2xx) 
+     * 判断响应是否成功 (2xx)
      *
      * @return 状态码在 200-299 范围内返回 true
      */
