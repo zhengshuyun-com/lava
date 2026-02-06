@@ -64,6 +64,11 @@ public final class CryptoUtil {
     private static final int PEM_LINE_WIDTH = 64;
 
     /**
+     * 默认参数的密码哈希执行器单例
+     */
+    private static final PasswordHasher DEFAULT_PASSWORD_HASHER = PasswordHasher.builder().build();
+
+    /**
      * BC Provider 注册标志
      */
     private static volatile boolean bcProviderRegistered;
@@ -73,11 +78,25 @@ public final class CryptoUtil {
 
     /**
      * 创建密码哈希执行器构建器
+     * <p>
+     * 适用于需要自定义参数的场景(如 memory/iterations/parallelism).
      *
      * @return PasswordHasher.Builder 实例
      */
     public static PasswordHasher.Builder passwordHasher() {
         return PasswordHasher.builder();
+    }
+
+    /**
+     * 获取默认参数的密码哈希执行器单例
+     * <p>
+     * 默认参数为 {@code m=65536,t=3,p=1,saltLengthBytes=16,hashLengthBytes=32}.
+     * 普通登录场景优先复用该单例即可; 如需特殊参数, 请使用 {@link #passwordHasher()} 自定义构建.
+     *
+     * @return 默认参数的 PasswordHasher 单例
+     */
+    public static PasswordHasher defaultPasswordHasher() {
+        return DEFAULT_PASSWORD_HASHER;
     }
 
     /**

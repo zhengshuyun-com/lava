@@ -39,6 +39,18 @@ class CryptoUtilTest {
      */
     private static final Logger log = LoggerFactory.getLogger(CryptoUtilTest.class);
 
+    @DisplayName("默认 PasswordHasher - 单例复用且可正常校验")
+    @Test
+    void testDefaultPasswordHasher_singletonAndVerify() {
+        PasswordHasher first = CryptoUtil.defaultPasswordHasher();
+        PasswordHasher second = CryptoUtil.defaultPasswordHasher();
+
+        assertSame(first, second);
+
+        String hash = first.hash("myPassword");
+        assertTrue(second.verify("myPassword", hash));
+    }
+
     @DisplayName("Argon2id 哈希与验证 - 正确密码")
     @Test
     void testHash_correctPassword() {
