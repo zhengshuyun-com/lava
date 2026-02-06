@@ -36,19 +36,19 @@ import java.util.concurrent.Executors;
  * 提供 Builder 风格的 API 创建和管理定时任务, 内部使用 Quartz 调度器 + 虚拟线程执行器
  * <pre>{@code
  * // 固定间隔
- * ScheduledTask task = ScheduleUtil.taskBuilder(() -> check())
+ * ScheduledTask task = ScheduleUtil.scheduler(() -> check())
  *     .setId("health-check")
  *     .setTrigger(Trigger.interval(5000).initialDelay(1000).build())
  *     .schedule();
  *
  * // Cron
- * ScheduleUtil.taskBuilder(() -> backup())
+ * ScheduleUtil.scheduler(() -> backup())
  *     .setId("daily-backup")
  *     .setTrigger(Trigger.cron("0 0 2 * * ?").build())
  *     .schedule();
  *
  * // 延迟一次
- * ScheduleUtil.taskBuilder(() -> init())
+ * ScheduleUtil.scheduler(() -> init())
  *     .setTrigger(Trigger.delay(10000).build())
  *     .schedule();
  *
@@ -174,9 +174,8 @@ public final class ScheduleUtil {
      * @param task 任务
      * @return 任务构建器
      */
-    public static TaskBuilder taskBuilder(Runnable task) {
-        Validate.notNull(task, "task must not be null");
-        return new TaskBuilder(task);
+    public static TaskScheduler.Builder scheduler(Runnable task) {
+        return TaskScheduler.builder(task);
     }
 
     // 任务管理

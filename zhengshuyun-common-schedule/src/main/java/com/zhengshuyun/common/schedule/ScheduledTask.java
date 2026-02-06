@@ -30,7 +30,7 @@ import java.util.Date;
  * <p>
  * 提供任务的生命周期管理和状态查询
  * <pre>{@code
- * ScheduledTask task = ScheduleUtil.taskBuilder(() -> check())
+ * ScheduledTask task = ScheduleUtil.scheduler(() -> check())
  *     .setId("health-check")
  *     .setTrigger(Trigger.interval(5000).build())
  *     .schedule();
