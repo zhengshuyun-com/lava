@@ -34,7 +34,6 @@
         <dependency>
             <groupId>com.zhengshuyun</groupId>
             <artifactId>zhengshuyun-common-core</artifactId>
-<!--            <version>${project.version}</version>-->
         </dependency>
 
         <dependency>
