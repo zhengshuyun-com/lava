@@ -30,7 +30,7 @@ import org.quartz.JobExecutionContext;
 public class ExecutorJob implements Job {
 
     /** JobDataMap 中存储 TaskWrapper 的 key */
-    static final String TASK_WRAPPER_KEY = "taskWrapper";
+    static final String TASK_WRAPPER_KEY = "task-wrapper";
 
     @Override
     public void execute(JobExecutionContext context) {
@@ -45,8 +45,6 @@ public class ExecutorJob implements Job {
             ScheduleUtil.getTaskExecutor().execute(wrapper);
         } catch (Exception e) {
             // 捕获 RejectedExecutionException 等异常, 防止影响 Quartz 调度
-            System.err.println("Failed to submit task to executor: " + e.getMessage());
-            e.printStackTrace(System.err);
         }
     }
 }
