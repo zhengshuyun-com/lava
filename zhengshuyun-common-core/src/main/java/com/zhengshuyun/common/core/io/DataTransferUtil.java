@@ -93,11 +93,16 @@ public final class DataTransferUtil {
      * @return 时长字符串 (如 "1h 23m", "45s", "1m 30s")
      * @see DurationFormatter
      */
+    /**
+     * 时长格式化器 (小时到秒, 英文)
+     */
+    private static final DurationFormatter DURATION_FORMATTER = DurationFormatter.builder()
+            .setRange(ChronoUnit.HOURS, ChronoUnit.SECONDS)
+            .setEnglish()
+            .build();
+
     public static String formatDuration(Duration duration) {
-        return DurationFormatter.of(duration)
-                .setRange(ChronoUnit.HOURS, ChronoUnit.SECONDS)
-                .setEnglish()
-                .format();
+        return DURATION_FORMATTER.format(duration);
     }
 
     /**
@@ -118,7 +123,7 @@ public final class DataTransferUtil {
      */
     public static String formatSpeed(long currentBytes, long elapsedMillis) {
         if (elapsedMillis <= 0) {
-            return "unknown/s";
+            return "?/s";
         }
         double bytesPerSecond = (double) currentBytes / elapsedMillis * 1000;
         return DataTransferUtil.formatBytes((long) bytesPerSecond) + "/s";
@@ -147,7 +152,7 @@ public final class DataTransferUtil {
          * 格式化当前进度 (包含大小、百分比、速率、剩余时间)
          *
          * @param currentBytes 当前已读取字节数
-         * @return 进度字符串 (如 "5.50 MB / 10.00 MB (55%) - 2.30 MB/s - 剩余: 2m 15s")
+         * @return 进度字符串 (如 "5.50 MB / 10.00 MB (55%) - 2.30 MB/s - 2min 15s")
          */
         public String format(long currentBytes) {
             long elapsedMillis = getElapsedMillis();
@@ -193,17 +198,17 @@ public final class DataTransferUtil {
                     sb.append(String.format(" (%d%%)", percentage));
                 }
             } else {
-                sb.append(" / unknown");
+                sb.append(" / ?");
             }
 
             // 速率: "- 2.30 MB/s"
             sb.append(" - ").append(formatSpeed(currentBytes, elapsedMillis));
 
-            // 剩余时间: "- 剩余: 2m 15s"
+            // 剩余时间: "- 2m 15s"
             if (totalBytes > 0) {
                 Long remaining = calculateRemainingTime(currentBytes, elapsedMillis);
                 if (remaining != null && remaining > 0) {
-                    sb.append(" - 剩余: ").append(DataTransferUtil.formatDuration(remaining));
+                    sb.append(" - ").append(DataTransferUtil.formatDuration(remaining));
                 }
             }
 

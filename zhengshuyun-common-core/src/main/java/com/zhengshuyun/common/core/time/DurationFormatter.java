@@ -23,199 +23,104 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.concurrent.TimeUnit;
 
 /**
  * 时长格式化器
+ * <p>
+ * 不可变对象, 通过 {@link Builder} 构建, 可复用同一配置格式化不同 Duration.
+ * <p>
+ * 示例:
+ * <pre>{@code
+ * DurationFormatter formatter = DurationFormatter.builder()
+ *     .setLargestUnit(ChronoUnit.HOURS)
+ *     .setChinese()
+ *     .build();
+ *
+ * formatter.format(Duration.ofSeconds(3661)); // "1时 1分 1秒"
+ * formatter.format(Duration.ofSeconds(90));   // "1分 30秒"
+ * }</pre>
  *
  * @author Toint
  * @since 2026/1/11
  */
 public final class DurationFormatter {
 
-    private final Duration duration;
-
     /**
-     * 最大单位 (默认：小时)
+     * 最大单位
      */
-    private ChronoUnit largestUnit = ChronoUnit.HOURS;
+    private final ChronoUnit largestUnit;
 
     /**
-     * 最小单位 (默认：秒)
+     * 最小单位
      */
-    private ChronoUnit smallestUnit = ChronoUnit.SECONDS;
+    private final ChronoUnit smallestUnit;
 
     /**
-     * 语言环境 (默认：英文)
+     * 语言环境
      */
-    private Locale locale = Locale.ENGLISH;
+    private final Locale locale;
 
     /**
-     * 是否显示零值单位 (默认：false)
+     * 是否显示零值单位
      */
-    private boolean showZeroValues = false;
+    private final boolean showZeroValues;
 
     /**
-     * 单位之间的分隔符 (默认：空格)
+     * 单位之间的分隔符
      */
-    private String separator = " ";
+    private final String separator;
 
-    private DurationFormatter(Duration duration) {
-        this.duration = Validate.notNull(duration, "duration cannot be null");
-        Validate.isFalse(duration.isNegative(), "duration cannot be negative");
+    private DurationFormatter(Builder builder) {
+        this.largestUnit = builder.largestUnit;
+        this.smallestUnit = builder.smallestUnit;
+        this.locale = builder.locale;
+        this.showZeroValues = builder.showZeroValues;
+        this.separator = builder.separator;
     }
-
-    // 静态工厂方法
-
-    public static DurationFormatter of(Duration duration) {
-        return new DurationFormatter(duration);
-    }
-
-    public static DurationFormatter of(long value, TimeUnit unit) {
-        return of(Duration.of(value, toChronoUnit(unit)));
-    }
-
-    public static DurationFormatter ofMillis(long millis) {
-        return of(Duration.ofMillis(millis));
-    }
-
-    public static DurationFormatter ofSeconds(long seconds) {
-        return of(Duration.ofSeconds(seconds));
-    }
-
-    public static DurationFormatter ofMinutes(long minutes) {
-        return of(Duration.ofMinutes(minutes));
-    }
-
-    public static DurationFormatter ofHours(long hours) {
-        return of(Duration.ofHours(hours));
-    }
-
-    public static DurationFormatter ofDays(long days) {
-        return of(Duration.ofDays(days));
-    }
-
-    public static DurationFormatter ofNanos(long nanos) {
-        return of(Duration.ofNanos(nanos));
-    }
-
-    // 配置方法
 
     /**
-     * 设置最大单位
+     * 创建 Builder 实例
      *
-     * @param largestUnit 最大单位 (YEARS/MONTHS/DAYS/HOURS/MINUTES/SECONDS/MILLIS/MICROS/NANOS)
+     * @return Builder 实例
      */
-    public DurationFormatter setLargestUnit(ChronoUnit largestUnit) {
-        this.largestUnit = Validate.notNull(largestUnit, "largestUnit cannot be null");
-        return this;
+    public static Builder builder() {
+        return new Builder();
     }
-
-    /**
-     * 设置最小单位
-     *
-     * @param smallestUnit 最小单位 (YEARS/MONTHS/DAYS/HOURS/MINUTES/SECONDS/MILLIS/MICROS/NANOS)
-     */
-    public DurationFormatter setSmallestUnit(ChronoUnit smallestUnit) {
-        this.smallestUnit = Validate.notNull(smallestUnit, "smallestUnit cannot be null");
-        return this;
-    }
-
-    /**
-     * 设置单位范围
-     *
-     * @param largestUnit  最大单位
-     * @param smallestUnit 最小单位
-     * @throws IllegalArgumentException 如果 largestUnit < smallestUnit 或单位不支持
-     */
-    public DurationFormatter setRange(ChronoUnit largestUnit, ChronoUnit smallestUnit) {
-        Validate.notNull(largestUnit, "largestUnit cannot be null");
-        Validate.notNull(smallestUnit, "smallestUnit cannot be null");
-
-        int largestOrder = getUnitOrder(largestUnit);
-        int smallestOrder = getUnitOrder(smallestUnit);
-
-        Validate.isTrue(largestOrder > 0 && smallestOrder > 0,
-                "Unsupported unit: only YEARS/MONTHS/DAYS/HOURS/MINUTES/SECONDS/MILLIS/MICROS/NANOS are supported");
-        Validate.isTrue(largestOrder >= smallestOrder,
-                "largestUnit must be >= smallestUnit");
-
-        return setLargestUnit(largestUnit).setSmallestUnit(smallestUnit);
-    }
-
-    /**
-     * 设置语言 (中文/英文等)
-     */
-    public DurationFormatter setLocale(Locale locale) {
-        this.locale = Validate.notNull(locale, "locale cannot be null");
-        return this;
-    }
-
-    /**
-     * 设置为中文
-     */
-    public DurationFormatter setChinese() {
-        return setLocale(Locale.CHINESE);
-    }
-
-    /**
-     * 设置为英文
-     */
-    public DurationFormatter setEnglish() {
-        return setLocale(Locale.ENGLISH);
-    }
-
-    /**
-     * 设置是否显示零值单位
-     *
-     * @param showZeroValues true: "1h 0m 30s", false: "1h 30s"
-     */
-    public DurationFormatter setShowZeroValues(boolean showZeroValues) {
-        this.showZeroValues = showZeroValues;
-        return this;
-    }
-
-    /**
-     * 设置单位之间的分隔符
-     */
-    public DurationFormatter setSeparator(String separator) {
-        this.separator = Validate.notNull(separator, "separator cannot be null");
-        return this;
-    }
-
-    // 格式化方法
 
     /**
      * 格式化时长
      *
-     * <p><b>注意</b>: 年和月的计算是近似值：
+     * <p><b>注意</b>: 年和月的计算是近似值:
      * <ul>
      *   <li>1年 = 365天 (不考虑闰年) </li>
      *   <li>1月 = 30天 (不考虑实际天数) </li>
      * </ul>
      *
+     * @param duration 时长 (不能为 null 或负数)
      * @return 格式化后的字符串
      */
-    public String format() {
-        List<String> parts = new ArrayList<>();
+    public String format(Duration duration) {
+        Validate.notNull(duration, "duration cannot be null");
+        Validate.isFalse(duration.isNegative(), "duration cannot be negative");
 
-        // 特殊处理：只显示纳秒
+        // 特殊处理: 只显示纳秒
         if (largestUnit == ChronoUnit.NANOS && smallestUnit == ChronoUnit.NANOS) {
             return duration.toNanos() + getUnitSuffix(ChronoUnit.NANOS);
         }
 
-        // 特殊处理：只显示微秒
+        // 特殊处理: 只显示微秒
         if (largestUnit == ChronoUnit.MICROS && smallestUnit == ChronoUnit.MICROS) {
             return duration.toNanos() / 1000 + getUnitSuffix(ChronoUnit.MICROS);
         }
 
-        // 特殊处理：只显示毫秒
+        // 特殊处理: 只显示毫秒
         if (largestUnit == ChronoUnit.MILLIS && smallestUnit == ChronoUnit.MILLIS) {
             return duration.toMillis() + getUnitSuffix(ChronoUnit.MILLIS);
         }
 
+        List<String> parts = new ArrayList<>();
+
         // 计算各个单位的值
-        long totalNanos = duration.toNanos();
         long totalSeconds = duration.getSeconds();
 
         long years = 0, months = 0, days = 0, hours = 0, minutes = 0, seconds = 0;
@@ -253,7 +158,7 @@ public final class DurationFormatter {
         }
 
         // 计算毫秒/微秒/纳秒
-        // 如果 SECONDS 不在范围内，需要将未消费的秒数转换为纳秒
+        // 如果 SECONDS 不在范围内, 需要将未消费的秒数转换为纳秒
         long remainingNanos = totalSeconds * 1_000_000_000L + duration.toNanosPart();
 
         if (shouldInclude(ChronoUnit.MILLIS)) {
@@ -315,7 +220,6 @@ public final class DurationFormatter {
                 default -> "";
             };
         } else {
-            // 英文
             return switch (unit) {
                 case YEARS -> "y";
                 case MONTHS -> "mo";
@@ -331,7 +235,7 @@ public final class DurationFormatter {
         }
     }
 
-    private int getUnitOrder(ChronoUnit unit) {
+    private static int getUnitOrder(ChronoUnit unit) {
         return switch (unit) {
             case YEARS -> 9;
             case MONTHS -> 8;
@@ -346,16 +250,131 @@ public final class DurationFormatter {
         };
     }
 
-    private static ChronoUnit toChronoUnit(TimeUnit timeUnit) {
-        return switch (timeUnit) {
-            case NANOSECONDS -> ChronoUnit.NANOS;
-            case MICROSECONDS -> ChronoUnit.MICROS;
-            case MILLISECONDS -> ChronoUnit.MILLIS;
-            case SECONDS -> ChronoUnit.SECONDS;
-            case MINUTES -> ChronoUnit.MINUTES;
-            case HOURS -> ChronoUnit.HOURS;
-            case DAYS -> ChronoUnit.DAYS;
-            default -> throw new IllegalArgumentException("Unsupported TimeUnit: " + timeUnit);
-        };
+    /**
+     * 时长格式化器构建器
+     *
+     * @author Toint
+     * @since 2026/1/11
+     */
+    public static final class Builder {
+
+        /**
+         * 最大单位 (默认: 小时)
+         */
+        private ChronoUnit largestUnit = ChronoUnit.HOURS;
+
+        /**
+         * 最小单位 (默认: 秒)
+         */
+        private ChronoUnit smallestUnit = ChronoUnit.SECONDS;
+
+        /**
+         * 语言环境 (默认: 英文)
+         */
+        private Locale locale = Locale.ENGLISH;
+
+        /**
+         * 是否显示零值单位 (默认: false)
+         */
+        private boolean showZeroValues = false;
+
+        /**
+         * 单位之间的分隔符 (默认: 空格)
+         */
+        private String separator = " ";
+
+        private Builder() {
+        }
+
+        /**
+         * 设置最大单位
+         *
+         * @param largestUnit 最大单位 (YEARS/MONTHS/DAYS/HOURS/MINUTES/SECONDS/MILLIS/MICROS/NANOS)
+         */
+        public Builder setLargestUnit(ChronoUnit largestUnit) {
+            this.largestUnit = Validate.notNull(largestUnit, "largestUnit cannot be null");
+            return this;
+        }
+
+        /**
+         * 设置最小单位
+         *
+         * @param smallestUnit 最小单位 (YEARS/MONTHS/DAYS/HOURS/MINUTES/SECONDS/MILLIS/MICROS/NANOS)
+         */
+        public Builder setSmallestUnit(ChronoUnit smallestUnit) {
+            this.smallestUnit = Validate.notNull(smallestUnit, "smallestUnit cannot be null");
+            return this;
+        }
+
+        /**
+         * 设置单位范围
+         *
+         * @param largestUnit  最大单位
+         * @param smallestUnit 最小单位
+         * @throws IllegalArgumentException 如果 largestUnit < smallestUnit 或单位不支持
+         */
+        public Builder setRange(ChronoUnit largestUnit, ChronoUnit smallestUnit) {
+            Validate.notNull(largestUnit, "largestUnit cannot be null");
+            Validate.notNull(smallestUnit, "smallestUnit cannot be null");
+
+            int largestOrder = getUnitOrder(largestUnit);
+            int smallestOrder = getUnitOrder(smallestUnit);
+
+            Validate.isTrue(largestOrder > 0 && smallestOrder > 0,
+                    "Unsupported unit: only YEARS/MONTHS/DAYS/HOURS/MINUTES/SECONDS/MILLIS/MICROS/NANOS are supported");
+            Validate.isTrue(largestOrder >= smallestOrder,
+                    "largestUnit must be >= smallestUnit");
+
+            return setLargestUnit(largestUnit).setSmallestUnit(smallestUnit);
+        }
+
+        /**
+         * 设置语言 (中文/英文等)
+         */
+        public Builder setLocale(Locale locale) {
+            this.locale = Validate.notNull(locale, "locale cannot be null");
+            return this;
+        }
+
+        /**
+         * 设置为中文
+         */
+        public Builder setChinese() {
+            return setLocale(Locale.CHINESE);
+        }
+
+        /**
+         * 设置为英文
+         */
+        public Builder setEnglish() {
+            return setLocale(Locale.ENGLISH);
+        }
+
+        /**
+         * 设置是否显示零值单位
+         *
+         * @param showZeroValues true: "1h 0m 30s", false: "1h 30s"
+         */
+        public Builder setShowZeroValues(boolean showZeroValues) {
+            this.showZeroValues = showZeroValues;
+            return this;
+        }
+
+        /**
+         * 设置单位之间的分隔符
+         */
+        public Builder setSeparator(String separator) {
+            this.separator = Validate.notNull(separator, "separator cannot be null");
+            return this;
+        }
+
+        /**
+         * 构建 DurationFormatter 实例
+         *
+         * @return 不可变的 DurationFormatter 实例
+         */
+        public DurationFormatter build() {
+            return new DurationFormatter(this);
+        }
     }
 }

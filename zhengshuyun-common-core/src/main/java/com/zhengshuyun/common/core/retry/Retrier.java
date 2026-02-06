@@ -227,15 +227,6 @@ public final class Retrier {
         }
 
         /**
-         * 创建 RetrierBuilder 实例
-         *
-         * @return RetrierBuilder 实例
-         */
-        public static Builder builder() {
-            return new Builder();
-        }
-
-        /**
          * 设置最大尝试次数 (包含首次执行)
          *
          * @param maxAttempts 最大尝试次数 (必须 >= 1)

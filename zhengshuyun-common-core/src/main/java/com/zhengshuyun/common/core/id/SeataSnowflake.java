@@ -38,27 +38,27 @@ public final class SeataSnowflake {
     /**
      * 起始时间戳 (2020-05-03)
      */
-    private final long twepoch = 1588435200000L;
+    private static final long TWEPOCH = 1588435200000L;
 
     /**
      * workerId 占用的位数
      */
-    private final int workerIdBits = 10;
+    private static final int WORKER_ID_BITS = 10;
 
     /**
      * 时间戳占用的位数
      */
-    private final int timestampBits = 41;
+    private static final int TIMESTAMP_BITS = 41;
 
     /**
      * 序列号占用的位数
      */
-    private final int sequenceBits = 12;
+    private static final int SEQUENCE_BITS = 12;
 
     /**
      * 最大支持的机器ID, 结果是1023
      */
-    private final int maxWorkerId = ~(-1 << workerIdBits);
+    private static final int MAX_WORKER_ID = ~(-1 << WORKER_ID_BITS);
 
     /**
      * 业务含义：机器ID (0 ~ 1023)
@@ -80,7 +80,7 @@ public final class SeataSnowflake {
     /**
      * 用于从long中提取时间戳和序列号的掩码
      */
-    private final long timestampAndSequenceMask = ~(-1L << (timestampBits + sequenceBits));
+    private static final long TIMESTAMP_AND_SEQUENCE_MASK = ~(-1L << (TIMESTAMP_BITS + SEQUENCE_BITS));
 
     /**
      * 使用自动分配的workerId实例化IdWorker
@@ -104,7 +104,7 @@ public final class SeataSnowflake {
      */
     private void initTimestampAndSequence() {
         long timestamp = getNewestTimestamp();
-        long timestampWithSequence = timestamp << sequenceBits;
+        long timestampWithSequence = timestamp << SEQUENCE_BITS;
         this.timestampAndSequence = new AtomicLong(timestampWithSequence);
     }
 
@@ -117,11 +117,11 @@ public final class SeataSnowflake {
         if (workerId == null) {
             workerId = generateWorkerId();
         }
-        if (workerId > maxWorkerId || workerId < 0) {
-            String message = String.format("worker Id can't be greater than %d or less than 0", maxWorkerId);
+        if (workerId > MAX_WORKER_ID || workerId < 0) {
+            String message = String.format("worker Id can't be greater than %d or less than 0", MAX_WORKER_ID);
             throw new IllegalArgumentException(message);
         }
-        this.workerId = workerId << (timestampBits + sequenceBits);
+        this.workerId = workerId << (TIMESTAMP_BITS + SEQUENCE_BITS);
     }
 
     /**
@@ -132,7 +132,7 @@ public final class SeataSnowflake {
     public long nextId() {
         waitIfNecessary();
         long next = timestampAndSequence.incrementAndGet();
-        long timestampWithSequence = next & timestampAndSequenceMask;
+        long timestampWithSequence = next & TIMESTAMP_AND_SEQUENCE_MASK;
         return workerId | timestampWithSequence;
     }
 
@@ -150,7 +150,7 @@ public final class SeataSnowflake {
      */
     private void waitIfNecessary() {
         long currentWithSequence = timestampAndSequence.get();
-        long current = currentWithSequence >>> sequenceBits;
+        long current = currentWithSequence >>> SEQUENCE_BITS;
         long newest = getNewestTimestamp();
         if (current >= newest) {
             try {
@@ -165,7 +165,7 @@ public final class SeataSnowflake {
      * 获取相对于起始时间戳的最新时间戳
      */
     private long getNewestTimestamp() {
-        return System.currentTimeMillis() - twepoch;
+        return System.currentTimeMillis() - TWEPOCH;
     }
 
     /**
@@ -208,6 +208,6 @@ public final class SeataSnowflake {
      * @return workerId
      */
     private long generateRandomWorkerId() {
-        return ThreadLocalRandom.current().nextInt(maxWorkerId + 1);
+        return ThreadLocalRandom.current().nextInt(MAX_WORKER_ID + 1);
     }
 }

@@ -32,7 +32,10 @@ import java.util.List;
  * @author Toint
  * @since 2026/01/17
  */
-public class TimeUtil {
+public final class TimeUtil {
+
+    private TimeUtil() {
+    }
 
     private static final List<DateTimeFormatter> DATE_TIME_FORMATTERS = Arrays.asList(
             DateTimeFormatter.ofPattern(DateTimePatterns.DATE_TIME),

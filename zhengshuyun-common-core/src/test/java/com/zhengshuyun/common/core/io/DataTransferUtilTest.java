@@ -298,8 +298,8 @@ class DataTransferUtilTest {
      */
     @Test
     void testFormatSpeedZeroTime() {
-        assertEquals("unknown/s", DataTransferUtil.formatSpeed(1024, 0));
-        assertEquals("unknown/s", DataTransferUtil.formatSpeed(1024, -1));
+        assertEquals("?/s", DataTransferUtil.formatSpeed(1024, 0));
+        assertEquals("?/s", DataTransferUtil.formatSpeed(1024, -1));
     }
 
     /**
@@ -359,7 +359,7 @@ class DataTransferUtilTest {
         String progress = tracker.format(512 * 1024);
 
         assertTrue(progress.contains("KB"));
-        assertTrue(progress.contains("unknown"));
+        assertTrue(progress.contains("?"));
         assertTrue(progress.contains("/s"));
         assertFalse(progress.contains("%")); // 未知大小不显示百分比
     }
