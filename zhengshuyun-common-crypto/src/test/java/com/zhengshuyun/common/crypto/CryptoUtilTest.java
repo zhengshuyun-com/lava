@@ -34,6 +34,9 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class CryptoUtilTest {
 
+    /**
+     * 测试日志记录器.
+     */
     private static final Logger log = LoggerFactory.getLogger(CryptoUtilTest.class);
 
     @DisplayName("Argon2id 哈希与验证 - 正确密码")
