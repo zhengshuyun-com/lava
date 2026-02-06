@@ -1,7 +1,7 @@
 ---
-name: java-best-practices
+name: zhengshuyun-java
 description: |
-  zhengshuyun Java 开发规范与最佳实践. 涵盖 API 设计哲学、命名约定、Guava 风格、
+  Java 开发规范与最佳实践. 涵盖 API 设计哲学、命名约定、Guava 风格、
   Builder 模式、空值与校验、集合与不可变性、异常、泛型、Modern Java 等.
   编写或审阅 Java 代码时自动加载.
 allowed-tools:
@@ -12,7 +12,7 @@ allowed-tools:
 
 # Java 开发规范
 
-zhengshuyun-java 是 Java 项目的编码规范与最佳实践速查. 以 Guava 风格为基础, 强调正确性、一致性和可维护性.
+Java 项目的编码规范与最佳实践速查. 以 Guava 风格为基础, 强调正确性、一致性和可维护性.
 
 ## 核心原则
 
@@ -358,9 +358,9 @@ public sealed interface Result<T> permits Success, Failure {
 
 ```java
 String label = switch (status) {
-    case RUNNING -> "运行中";
-    case PAUSED -> "已暂停";
-    case STOPPED -> "已停止";
+  case RUNNING -> "运行中";
+  case PAUSED -> "已暂停";
+  case STOPPED -> "已停止";
 };
 ```
 
