@@ -29,7 +29,9 @@ import org.quartz.JobExecutionContext;
  */
 public class ExecutorJob implements Job {
 
-    /** JobDataMap 中存储 TaskWrapper 的 key */
+    /**
+     * JobDataMap 中存储 TaskWrapper 的 key
+     */
     static final String TASK_WRAPPER_KEY = "task-wrapper";
 
     @Override

@@ -42,10 +42,14 @@ import java.util.Date;
  */
 public class ScheduledTask {
 
-    /** 任务 ID */
+    /**
+     * 任务 ID
+     */
     private final String id;
 
-    /** Quartz 调度器 */
+    /**
+     * Quartz 调度器
+     */
     private final Scheduler scheduler;
 
     ScheduledTask(String id, Scheduler scheduler) {

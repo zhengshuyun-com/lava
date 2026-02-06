@@ -37,13 +37,19 @@ import org.quartz.*;
  */
 public class TaskBuilder {
 
-    /** 任务逻辑 */
+    /**
+     * 任务逻辑
+     */
     private final Runnable task;
 
-    /** 任务 ID(可选, schedule 时自动生成) */
+    /**
+     * 任务 ID(可选, schedule 时自动生成)
+     */
     private String id;
 
-    /** 触发器(必填) */
+    /**
+     * 触发器(必填)
+     */
     private Trigger trigger;
 
     TaskBuilder(Runnable task) {

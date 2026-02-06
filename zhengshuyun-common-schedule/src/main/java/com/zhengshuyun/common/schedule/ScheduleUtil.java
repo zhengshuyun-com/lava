@@ -73,10 +73,14 @@ public final class ScheduleUtil {
     private ScheduleUtil() {
     }
 
-    /** Quartz 调度器(负责触发任务) */
+    /**
+     * Quartz 调度器(负责触发任务)
+     */
     private static volatile Scheduler scheduler;
 
-    /** 任务执行器(负责执行任务, 默认虚拟线程) */
+    /**
+     * 任务执行器(负责执行任务, 默认虚拟线程)
+     */
     private static volatile ExecutorService taskExecutor;
 
     static {

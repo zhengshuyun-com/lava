@@ -26,7 +26,9 @@ package com.zhengshuyun.common.schedule;
  */
 class TaskWrapper implements Runnable {
 
-    /** 用户任务 */
+    /**
+     * 用户任务
+     */
     private final Runnable task;
 
     TaskWrapper(Runnable task) {

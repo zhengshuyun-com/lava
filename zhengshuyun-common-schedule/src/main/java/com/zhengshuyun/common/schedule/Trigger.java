@@ -51,10 +51,29 @@ import java.util.TimeZone;
  */
 public final class Trigger {
 
+    /**
+     * Cron 表达式
+     */
     private final String cron;
+
+    /**
+     * 固定间隔(毫秒)
+     */
     private final long intervalMillis;
+
+    /**
+     * 延迟时间(毫秒), 一次性执行
+     */
     private final long delayMillis;
+
+    /**
+     * 初始延迟(毫秒), 仅 interval 模式有效
+     */
     private final long initialDelayMillis;
+
+    /**
+     * 重复次数, -1 表示无限
+     */
     private final int repeatCount;
 
     private Trigger(Builder builder) {
@@ -121,11 +140,30 @@ public final class Trigger {
 
     public static final class Builder {
 
+        /**
+         * Cron 表达式
+         */
         private String cron;
+
+        /**
+         * 固定间隔(毫秒)
+         */
         private long intervalMillis;
+
+        /**
+         * 延迟时间(毫秒), 一次性执行
+         */
         private long delayMillis;
+
+        /**
+         * 初始延迟(毫秒), 仅 interval 模式有效
+         */
         private long initialDelayMillis;
-        private int repeatCount = -1; // -1 表示无限
+
+        /**
+         * 重复次数, -1 表示无限
+         */
+        private int repeatCount = -1;
 
         private Builder() {
         }
