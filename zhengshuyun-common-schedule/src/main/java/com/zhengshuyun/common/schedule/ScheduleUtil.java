@@ -16,12 +16,12 @@
 
 package com.zhengshuyun.common.schedule;
 
+import com.google.common.collect.ImmutableList;
 import com.zhengshuyun.common.core.lang.Validate;
 import org.quartz.*;
 import org.quartz.impl.StdSchedulerFactory;
 import org.quartz.impl.matchers.GroupMatcher;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
@@ -260,16 +260,16 @@ public final class ScheduleUtil {
     /**
      * 获取所有任务
      *
-     * @return 任务列表
+     * @return 不可变任务列表(快照)
      */
     public static List<ScheduledTask> getAllTasks() {
         try {
             Scheduler s = getScheduler();
-            List<ScheduledTask> result = new ArrayList<>();
+            ImmutableList.Builder<ScheduledTask> result = ImmutableList.builder();
             for (JobKey jobKey : s.getJobKeys(GroupMatcher.anyJobGroup())) {
                 result.add(new ScheduledTask(jobKey.getName(), s));
             }
-            return result;
+            return result.build();
         } catch (SchedulerException e) {
             throw new ScheduleException("获取所有任务失败", e);
         }
