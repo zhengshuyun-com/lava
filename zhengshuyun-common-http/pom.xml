@@ -35,7 +35,7 @@
         <dependency>
             <groupId>com.zhengshuyun</groupId>
             <artifactId>zhengshuyun-common-core</artifactId>
-            <version>${project.parent.version}</version>
+<!--            <version>${project.version}</version>-->
         </dependency>
 
         <dependency>
@@ -46,7 +46,7 @@
         <dependency>
             <groupId>com.zhengshuyun</groupId>
             <artifactId>zhengshuyun-common-json</artifactId>
-            <version>${project.parent.version}</version>
+<!--            <version>${project.version}</version>-->
             <scope>test</scope>
         </dependency>
     </dependencies>

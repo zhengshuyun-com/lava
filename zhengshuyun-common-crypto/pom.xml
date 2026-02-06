@@ -34,12 +34,18 @@
         <dependency>
             <groupId>com.zhengshuyun</groupId>
             <artifactId>zhengshuyun-common-core</artifactId>
-            <version>${project.parent.version}</version>
+<!--            <version>${project.version}</version>-->
         </dependency>
 
         <dependency>
             <groupId>org.bouncycastle</groupId>
             <artifactId>bcprov-jdk18on</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.zhengshuyun</groupId>
+            <artifactId>zhengshuyun-common-jwt</artifactId>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 </project>

@@ -135,6 +135,43 @@
                 <artifactId>bcprov-jdk18on</artifactId>
                 <version>${bcprov-jdk18on.version}</version>
             </dependency>
+
+            <!--子模块-->
+            <dependency>
+                <groupId>com.zhengshuyun</groupId>
+                <artifactId>zhengshuyun-common-bom</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.zhengshuyun</groupId>
+                <artifactId>zhengshuyun-common-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.zhengshuyun</groupId>
+                <artifactId>zhengshuyun-common-crypto</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.zhengshuyun</groupId>
+                <artifactId>zhengshuyun-common-http</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.zhengshuyun</groupId>
+                <artifactId>zhengshuyun-common-json</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.zhengshuyun</groupId>
+                <artifactId>zhengshuyun-common-jwt</artifactId>
+                <version>${project.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
