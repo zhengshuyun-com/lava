@@ -211,8 +211,8 @@ public final class DurationFormatter {
                 case YEARS -> "年";
                 case MONTHS -> "月";
                 case DAYS -> "天";
-                case HOURS -> "时";
-                case MINUTES -> "分";
+                case HOURS -> "小时";
+                case MINUTES -> "分钟";
                 case SECONDS -> "秒";
                 case MILLIS -> "毫秒";
                 case MICROS -> "微秒";

@@ -71,7 +71,7 @@ class DurationFormatterTest {
                 .setChinese()
                 .build();
         String result = formatter.format(Duration.ofSeconds(3665));
-        assertEquals("1时 1分 5秒", result);
+        assertEquals("1小时 1分钟 5秒", result);
     }
 
     /**
@@ -206,7 +206,7 @@ class DurationFormatterTest {
      * 输入: 100亿毫秒
      * 范围: 年到秒
      * 格式: 中文, 无分隔符
-     * 验证中文格式下包含"天"和"时"等单位
+     * 验证中文格式下包含"天"和"小时"等单位
      */
     @Test
     void testFullRangeSetChinese() {
@@ -217,7 +217,7 @@ class DurationFormatterTest {
                 .build();
         String result = formatter.format(Duration.ofMillis(10_000_000_000L));
         assertTrue(result.contains("天"));
-        assertTrue(result.contains("时"));
+        assertTrue(result.contains("小时"));
     }
 
     /**
@@ -433,8 +433,8 @@ class DurationFormatterTest {
         DurationFormatter formatter = DurationFormatter.builder()
                 .setChinese()
                 .build();
-        assertEquals("1时 1分 1秒", formatter.format(Duration.ofSeconds(3661)));
-        assertEquals("1分 30秒", formatter.format(Duration.ofSeconds(90)));
+        assertEquals("1小时 1分钟 1秒", formatter.format(Duration.ofSeconds(3661)));
+        assertEquals("1分钟 30秒", formatter.format(Duration.ofSeconds(90)));
         assertEquals("0秒", formatter.format(Duration.ZERO));
     }
 
