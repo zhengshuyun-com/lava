@@ -115,6 +115,32 @@ class CryptoUtilTest {
         assertTrue(newHasher.verify("password123", oldHash));
     }
 
+    @DisplayName("Argon2id 构建器 - 参数边界与验证约束一致")
+    @Test
+    void testBuilder_parameterBoundariesMatchVerifyLimits() {
+        int maxMemoryKiB = getPrivateStaticInt(PasswordHasher.class, "MAX_MEMORY_KIB");
+        int maxIterations = getPrivateStaticInt(PasswordHasher.class, "MAX_ITERATIONS");
+        int maxParallelism = getPrivateStaticInt(PasswordHasher.class, "MAX_PARALLELISM");
+
+        assertDoesNotThrow(() -> CryptoUtil.passwordHasher()
+                .setMemoryKiB(maxMemoryKiB)
+                .setIterations(maxIterations)
+                .setParallelism(maxParallelism)
+                .build());
+
+        assertThrows(IllegalArgumentException.class, () -> CryptoUtil.passwordHasher()
+                .setMemoryKiB(maxMemoryKiB + 1)
+                .build());
+
+        assertThrows(IllegalArgumentException.class, () -> CryptoUtil.passwordHasher()
+                .setIterations(maxIterations + 1)
+                .build());
+
+        assertThrows(IllegalArgumentException.class, () -> CryptoUtil.passwordHasher()
+                .setParallelism(maxParallelism + 1)
+                .build());
+    }
+
     @DisplayName("EC 密钥对生成 - 默认曲线 P-256")
     @Test
     void testEcKeyGenerator_defaultCurve() {

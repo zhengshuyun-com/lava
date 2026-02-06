@@ -58,17 +58,17 @@ public final class PasswordHasher {
     private static final int ARGON2_VERSION = Argon2Parameters.ARGON2_VERSION_13;
 
     /**
-     * verify 时允许的最大内存 (KiB), 防止恶意哈希串导致资源耗尽
+     * verify/hash 时允许的最大内存 (KiB), 防止恶意参数导致资源耗尽
      */
     private static final int MAX_MEMORY_KIB = 4 * 1024 * 1024;
 
     /**
-     * verify 时允许的最大迭代次数
+     * verify/hash 时允许的最大迭代次数
      */
     private static final int MAX_ITERATIONS = 100;
 
     /**
-     * verify 时允许的最大并行度
+     * verify/hash 时允许的最大并行度
      */
     private static final int MAX_PARALLELISM = 128;
 
@@ -131,6 +131,12 @@ public final class PasswordHasher {
         Validate.isTrue(builder.memoryKiB >= 1, "memoryKiB must be >= 1");
         Validate.isTrue(builder.iterations >= 1, "iterations must be >= 1");
         Validate.isTrue(builder.parallelism >= 1, "parallelism must be >= 1");
+        Validate.isTrue(builder.memoryKiB <= MAX_MEMORY_KIB,
+                "memoryKiB must be <= " + MAX_MEMORY_KIB);
+        Validate.isTrue(builder.iterations <= MAX_ITERATIONS,
+                "iterations must be <= " + MAX_ITERATIONS);
+        Validate.isTrue(builder.parallelism <= MAX_PARALLELISM,
+                "parallelism must be <= " + MAX_PARALLELISM);
         Validate.isTrue(builder.saltLengthBytes >= 8, "saltLengthBytes must be >= 8");
         Validate.isTrue(builder.hashLengthBytes >= 4, "hashLengthBytes must be >= 4");
         Validate.isTrue(builder.saltLengthBytes <= MAX_SALT_LENGTH_BYTES,
