@@ -29,7 +29,7 @@ import java.util.Date;
  * <pre>{@code
  * ScheduledTask task = ScheduleUtil.taskBuilder(() -> check())
  *     .setId("health-check")
- *     .setTrigger(Trigger.builder().setInterval(5000).build())
+ *     .setTrigger(Trigger.interval(5000).build())
  *     .schedule();
  *
  * task.pause();

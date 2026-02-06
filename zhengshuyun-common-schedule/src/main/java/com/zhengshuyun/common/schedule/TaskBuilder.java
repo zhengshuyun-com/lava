@@ -28,7 +28,7 @@ import org.quartz.*;
  * <pre>{@code
  * ScheduledTask task = ScheduleUtil.taskBuilder(() -> doWork())
  *     .setId("my-task")
- *     .setTrigger(Trigger.builder().setInterval(5000).build())
+ *     .setTrigger(Trigger.interval(5000).build())
  *     .schedule();
  * }</pre>
  *

@@ -35,25 +35,18 @@ import java.util.concurrent.Executors;
  * // 固定间隔
  * ScheduledTask task = ScheduleUtil.taskBuilder(() -> check())
  *     .setId("health-check")
- *     .setTrigger(Trigger.builder()
- *         .setInterval(5000)
- *         .setInitialDelay(1000)
- *         .build())
+ *     .setTrigger(Trigger.interval(5000).initialDelay(1000).build())
  *     .schedule();
  *
  * // Cron
  * ScheduleUtil.taskBuilder(() -> backup())
  *     .setId("daily-backup")
- *     .setTrigger(Trigger.builder()
- *         .setCron("0 0 2 * * ?")
- *         .build())
+ *     .setTrigger(Trigger.cron("0 0 2 * * ?").build())
  *     .schedule();
  *
  * // 延迟一次
  * ScheduleUtil.taskBuilder(() -> init())
- *     .setTrigger(Trigger.builder()
- *         .setDelay(10000)
- *         .build())
+ *     .setTrigger(Trigger.delay(10000).build())
  *     .schedule();
  *
  * // 管理任务
