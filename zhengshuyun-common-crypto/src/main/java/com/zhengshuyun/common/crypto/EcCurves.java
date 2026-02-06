@@ -24,6 +24,9 @@ package com.zhengshuyun.common.crypto;
  */
 public final class EcCurves {
 
+    private EcCurves() {
+    }
+
     /**
      * P-256 (ES256)
      */

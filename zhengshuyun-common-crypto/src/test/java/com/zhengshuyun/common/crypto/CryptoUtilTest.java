@@ -199,6 +199,68 @@ class CryptoUtilTest {
         }
     }
 
+    @DisplayName("Argon2id 验证 - 格式错误的哈希串")
+    @Test
+    void testVerify_malformedHash() {
+        PasswordHasher hasher = CryptoUtil.passwordHasher()
+                .setMemoryKiB(1024)
+                .setIterations(1)
+                .build();
+
+        assertThrows(CryptoException.class, () -> hasher.verify("password", "not-a-hash"));
+        assertThrows(CryptoException.class, () -> hasher.verify("password", "$argon2id$v=19$m=abc,t=3,p=1$salt$hash"));
+        assertThrows(CryptoException.class, () -> hasher.verify("password", "$argon2id$v=19$m=65536,t=3,p=1$!!!$hash"));
+    }
+
+    @DisplayName("Argon2id 验证 - 不支持的版本号")
+    @Test
+    void testVerify_unsupportedVersion() {
+        PasswordHasher hasher = CryptoUtil.passwordHasher()
+                .setMemoryKiB(1024)
+                .setIterations(1)
+                .build();
+
+        String hash = hasher.hash("password");
+        String tampered = hash.replace("v=19", "v=16");
+
+        CryptoException ex = assertThrows(CryptoException.class, () -> hasher.verify("password", tampered));
+        assertTrue(ex.getMessage().contains("Unsupported Argon2id version"));
+    }
+
+    @DisplayName("Argon2id 验证 - 参数超出上限")
+    @Test
+    void testVerify_parameterOverflow() {
+        PasswordHasher hasher = CryptoUtil.passwordHasher()
+                .setMemoryKiB(1024)
+                .setIterations(1)
+                .build();
+
+        String hash = hasher.hash("password");
+        String tamperedMemory = hash.replaceFirst("m=\\d+", "m=999999999");
+        String tamperedIterations = hash.replaceFirst("t=\\d+", "t=999");
+        String tamperedParallelism = hash.replaceFirst("p=\\d+", "p=999");
+
+        assertThrows(CryptoException.class, () -> hasher.verify("password", tamperedMemory));
+        assertThrows(CryptoException.class, () -> hasher.verify("password", tamperedIterations));
+        assertThrows(CryptoException.class, () -> hasher.verify("password", tamperedParallelism));
+    }
+
+    @DisplayName("PEM 解码 - 格式错误的 PEM")
+    @Test
+    void testReadEcPrivateKey_malformedPem() {
+        assertThrows(CryptoException.class, () -> CryptoUtil.readEcPrivateKey("not-a-pem"));
+        assertThrows(CryptoException.class, () ->
+                CryptoUtil.readEcPrivateKey("-----BEGIN PUBLIC KEY-----\ndata\n-----END PUBLIC KEY-----"));
+    }
+
+    @DisplayName("PEM 解码 - 格式错误的公钥 PEM")
+    @Test
+    void testReadEcPublicKey_malformedPem() {
+        assertThrows(CryptoException.class, () -> CryptoUtil.readEcPublicKey("not-a-pem"));
+        assertThrows(CryptoException.class, () ->
+                CryptoUtil.readEcPublicKey("-----BEGIN PRIVATE KEY-----\ndata\n-----END PRIVATE KEY-----"));
+    }
+
     @DisplayName("集成测试 - EC 密钥对配合 JWT 签名验证")
     @Test
     void testIntegration_ecWithJwt() {

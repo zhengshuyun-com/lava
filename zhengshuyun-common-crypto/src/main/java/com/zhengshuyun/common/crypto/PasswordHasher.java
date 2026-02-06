@@ -53,9 +53,24 @@ public final class PasswordHasher {
     private static final String PHC_PREFIX = "$argon2id$v=";
 
     /**
-     * Argon2 版本号
+     * Argon2 版本号 (0x13 = 19)
      */
     private static final int ARGON2_VERSION = Argon2Parameters.ARGON2_VERSION_13;
+
+    /**
+     * verify 时允许的最大内存 (KiB), 防止恶意哈希串导致资源耗尽
+     */
+    private static final int MAX_MEMORY_KIB = 4 * 1024 * 1024;
+
+    /**
+     * verify 时允许的最大迭代次数
+     */
+    private static final int MAX_ITERATIONS = 100;
+
+    /**
+     * verify 时允许的最大并行度
+     */
+    private static final int MAX_PARALLELISM = 128;
 
     /**
      * Base64 编码器 (无 padding)
@@ -202,9 +217,10 @@ public final class PasswordHasher {
             throw new CryptoException("Invalid Argon2id hash format");
         }
 
-        // 解析版本
-        if (!parts[2].startsWith("v=")) {
-            throw new CryptoException("Invalid Argon2id hash format: missing version");
+        // 解析并校验版本
+        int version = parseParam(parts[2], "v");
+        if (version != ARGON2_VERSION) {
+            throw new CryptoException("Unsupported Argon2id version: " + version + ", expected: " + ARGON2_VERSION);
         }
 
         // 解析参数 m=xxx,t=xxx,p=xxx
@@ -217,10 +233,24 @@ public final class PasswordHasher {
         int iterations = parseParam(paramParts[1], "t");
         int parallelism = parseParam(paramParts[2], "p");
 
-        byte[] salt = BASE64_DECODER.decode(parts[4]);
-        byte[] hash = BASE64_DECODER.decode(parts[5]);
+        // 参数上限保护, 防止恶意哈希串导致资源耗尽
+        if (memoryKiB < 1 || memoryKiB > MAX_MEMORY_KIB) {
+            throw new CryptoException("Argon2id memory out of range: " + memoryKiB);
+        }
+        if (iterations < 1 || iterations > MAX_ITERATIONS) {
+            throw new CryptoException("Argon2id iterations out of range: " + iterations);
+        }
+        if (parallelism < 1 || parallelism > MAX_PARALLELISM) {
+            throw new CryptoException("Argon2id parallelism out of range: " + parallelism);
+        }
 
-        return new ParsedHash(salt, hash, memoryKiB, iterations, parallelism);
+        try {
+            byte[] salt = BASE64_DECODER.decode(parts[4]);
+            byte[] hash = BASE64_DECODER.decode(parts[5]);
+            return new ParsedHash(salt, hash, memoryKiB, iterations, parallelism);
+        } catch (IllegalArgumentException e) {
+            throw new CryptoException("Invalid Argon2id hash format: invalid Base64", e);
+        }
     }
 
     /**

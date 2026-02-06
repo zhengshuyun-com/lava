@@ -68,6 +68,9 @@ public final class CryptoUtil {
      */
     private static volatile boolean bcProviderRegistered;
 
+    private CryptoUtil() {
+    }
+
     /**
      * 创建密码哈希执行器构建器
      *
