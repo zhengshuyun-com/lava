@@ -26,6 +26,8 @@ import java.security.spec.ECGenParameterSpec;
  * EC 密钥对生成执行器
  * <p>
  * 使用 Bouncy Castle Provider 生成 EC 密钥对, 输出标准 JCA {@link KeyPair}.
+ * 生成结果是 EC 密钥材料, 可用于 ECDSA(ES256/ES384/ES512)签名, 也可用于 ECDH 等其他 EC 场景.
+ * EC 是密钥体系, ECDSA 是签名算法.
  * <p>
  * 示例:
  * <pre>{@code
@@ -60,6 +62,8 @@ public final class EcKeyGenerator {
 
     /**
      * 生成 EC 密钥对
+     * <p>
+     * 注意: 该方法生成的是 EC 密钥, 不是"ECDSA 密钥"这一独立算法类型.
      *
      * @return JCA 标准 KeyPair
      * @throws CryptoException 生成失败时抛出

@@ -82,6 +82,8 @@ public final class CryptoUtil {
 
     /**
      * 创建 EC 密钥对生成执行器构建器
+     * <p>
+     * 注意: 这里的 EC 指椭圆曲线密钥体系. 生成的密钥可用于 ECDSA 等算法.
      *
      * @return EcKeyGenerator.Builder 实例
      */
