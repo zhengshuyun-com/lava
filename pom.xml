@@ -83,6 +83,7 @@
         <quartz.version>2.5.2</quartz.version>
         <slf4j.version>2.0.17</slf4j.version>
         <java-jwt.version>4.5.0</java-jwt.version>
+        <bcprov-jdk18on.version>1.83</bcprov-jdk18on.version>
     </properties>
 
     <dependencyManagement>
@@ -127,6 +128,12 @@
                 <groupId>com.auth0</groupId>
                 <artifactId>java-jwt</artifactId>
                 <version>${java-jwt.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.bouncycastle</groupId>
+                <artifactId>bcprov-jdk18on</artifactId>
+                <version>${bcprov-jdk18on.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
