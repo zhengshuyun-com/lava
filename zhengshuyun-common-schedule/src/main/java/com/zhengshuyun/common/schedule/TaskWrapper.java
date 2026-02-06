@@ -37,10 +37,8 @@ class TaskWrapper implements Runnable {
     public void run() {
         try {
             task.run();
-        } catch (Throwable e) {
+        } catch (Throwable ignore) {
             // 捕获所有异常, 防止任务失败影响调度器
-            System.err.println("Task execution failed: " + e.getMessage());
-            e.printStackTrace(System.err);
         }
     }
 }

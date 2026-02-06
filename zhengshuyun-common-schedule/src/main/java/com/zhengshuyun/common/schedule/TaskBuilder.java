@@ -16,6 +16,7 @@
 
 package com.zhengshuyun.common.schedule;
 
+import com.google.common.base.Strings;
 import com.zhengshuyun.common.core.id.IdUtil;
 import com.zhengshuyun.common.core.lang.Validate;
 import org.quartz.*;
@@ -36,23 +37,30 @@ import org.quartz.*;
  */
 public class TaskBuilder {
 
+    /** 任务逻辑 */
     private final Runnable task;
+
+    /** 任务 ID(可选, schedule 时自动生成) */
     private String id;
+
+    /** 触发器(必填) */
     private Trigger trigger;
 
     TaskBuilder(Runnable task) {
+        Validate.notNull(task, "task must not be null");
         this.task = task;
     }
 
     /**
      * 设置任务 ID
      * <p>
-     * 可选, 不调用则自动生成 UUID
+     * 可选, 不调用则自动生成 UUID, 不允许为空
      *
      * @param id 任务 ID
      * @return this
      */
     public TaskBuilder setId(String id) {
+        Validate.notBlank(id, "id must not be blank");
         this.id = id;
         return this;
     }
@@ -64,6 +72,7 @@ public class TaskBuilder {
      * @return this
      */
     public TaskBuilder setTrigger(Trigger trigger) {
+        Validate.notNull(trigger, "trigger must not be null");
         this.trigger = trigger;
         return this;
     }
@@ -76,9 +85,11 @@ public class TaskBuilder {
     public ScheduledTask schedule() {
         Validate.notNull(trigger, "trigger must not be null, call setTrigger() first");
 
-        String taskId = (id != null && !id.isBlank()) ? id : IdUtil.randomUUIDWithoutDash();
+        // schedule 前确保任务 ID 已就绪
+        String taskId = getOrCreateTaskId();
         Scheduler scheduler = ScheduleUtil.getScheduler();
 
+        // 构建 Quartz 任务与触发器并提交调度
         try {
             TaskWrapper wrapper = new TaskWrapper(task);
 
@@ -97,5 +108,12 @@ public class TaskBuilder {
         } catch (SchedulerException e) {
             throw new ScheduleException("调度任务失败: " + taskId, e);
         }
+    }
+
+    private String getOrCreateTaskId() {
+        if (Strings.nullToEmpty(id).isBlank()) {
+            id = IdUtil.randomUUIDWithoutDash();
+        }
+        return id;
     }
 }
