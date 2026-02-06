@@ -57,6 +57,7 @@
         <module>zhengshuyun-common-http</module>
         <module>zhengshuyun-common-schedule</module>
         <module>zhengshuyun-common-bom</module>
+        <module>zhengshuyun-common-jwt</module>
     </modules>
 
     <properties>
@@ -80,6 +81,7 @@
         <okhttp.version>4.12.0</okhttp.version>
         <quartz.version>2.5.2</quartz.version>
         <slf4j.version>2.0.17</slf4j.version>
+        <java-jwt.version>4.5.0</java-jwt.version>
     </properties>
 
     <dependencyManagement>
@@ -118,6 +120,12 @@
                 <groupId>org.quartz-scheduler</groupId>
                 <artifactId>quartz</artifactId>
                 <version>${quartz.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.auth0</groupId>
+                <artifactId>java-jwt</artifactId>
+                <version>${java-jwt.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
