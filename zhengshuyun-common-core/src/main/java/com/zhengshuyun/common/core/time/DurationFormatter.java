@@ -311,7 +311,7 @@ public final class DurationFormatter {
          *
          * @param largestUnit  最大单位
          * @param smallestUnit 最小单位
-         * @throws IllegalArgumentException 如果 largestUnit < smallestUnit 或单位不支持
+         * @throws IllegalArgumentException 如果 largestUnit &lt; smallestUnit 或单位不支持
          */
         public Builder setRange(ChronoUnit largestUnit, ChronoUnit smallestUnit) {
             Validate.notNull(largestUnit, "largestUnit cannot be null");

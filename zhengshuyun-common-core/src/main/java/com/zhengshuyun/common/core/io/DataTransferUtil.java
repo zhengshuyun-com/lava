@@ -61,7 +61,7 @@ public final class DataTransferUtil {
      * 计算百分比
      *
      * @param current 当前值 (必须>=0)
-     * @param total   总值 (-1 或 <=0 表示未知)
+     * @param total   总值 (-1 或 &lt;=0 表示未知)
      * @return 百分比 (0-100), 未知时返回 null
      */
     public static @Nullable Integer calculatePercentage(long current, long total) {
