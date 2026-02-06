@@ -58,6 +58,7 @@
         <module>zhengshuyun-common-schedule</module>
         <module>zhengshuyun-common-bom</module>
         <module>zhengshuyun-common-jwt</module>
+        <module>zhengshuyun-common-crypto</module>
     </modules>
 
     <properties>
