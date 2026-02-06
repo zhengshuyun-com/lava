@@ -183,17 +183,33 @@ public final class ScheduleUtil {
 
     /**
      * 删除任务
+     * <p>
+     * 幂等操作, 任务不存在时返回 false
      *
      * @param taskId 任务 ID
+     * @return true 表示任务存在并已删除, false 表示任务不存在
      */
-    public static void deleteTask(String taskId) {
+    public static boolean deleteTask(String taskId) {
         Validate.notBlank(taskId, "taskId must not be blank");
         try {
-            if (!getScheduler().deleteJob(JobKey.jobKey(taskId))) {
-                throw new ScheduleException("任务不存在: " + taskId);
-            }
+            return getScheduler().deleteJob(JobKey.jobKey(taskId));
         } catch (SchedulerException e) {
             throw new ScheduleException("删除任务失败: " + taskId, e);
+        }
+    }
+
+    /**
+     * 任务是否存在
+     *
+     * @param taskId 任务 ID
+     * @return 存在返回 true
+     */
+    public static boolean hasTask(String taskId) {
+        Validate.notBlank(taskId, "taskId must not be blank");
+        try {
+            return getScheduler().checkExists(JobKey.jobKey(taskId));
+        } catch (SchedulerException e) {
+            throw new ScheduleException("查询任务是否存在失败: " + taskId, e);
         }
     }
 

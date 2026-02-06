@@ -81,14 +81,27 @@ public class ScheduledTask {
 
     /**
      * 删除任务
+     * <p>
+     * 幂等操作, 任务不存在时返回 false
+     *
+     * @return true 表示任务存在并已删除, false 表示任务不存在
      */
-    public void delete() {
+    public boolean delete() {
         try {
-            if (!scheduler.deleteJob(JobKey.jobKey(id))) {
-                throw new ScheduleException("任务不存在: " + id);
-            }
+            return scheduler.deleteJob(JobKey.jobKey(id));
         } catch (SchedulerException e) {
             throw new ScheduleException("删除任务失败: " + id, e);
+        }
+    }
+
+    /**
+     * 任务是否存在于调度器中
+     */
+    public boolean exists() {
+        try {
+            return scheduler.checkExists(JobKey.jobKey(id));
+        } catch (SchedulerException e) {
+            throw new ScheduleException("查询任务是否存在失败: " + id, e);
         }
     }
 

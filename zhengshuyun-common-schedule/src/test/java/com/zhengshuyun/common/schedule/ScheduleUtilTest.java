@@ -199,7 +199,8 @@ class ScheduleUtilTest {
         int countBefore = counter.get();
         assertTrue(countBefore >= 1);
 
-        ScheduleUtil.deleteTask("to-delete");
+        boolean deleted = ScheduleUtil.deleteTask("to-delete");
+        assertTrue(deleted, "删除存在的任务应返回 true");
 
         Thread.sleep(500);
         int countAfter = counter.get();
@@ -207,10 +208,45 @@ class ScheduleUtilTest {
     }
 
     @Test
-    @DisplayName("删除不存在的任务 - 抛出异常")
+    @DisplayName("删除不存在的任务 - 幂等, 返回 false")
     void testDeleteTask_notExists() {
-        assertThrows(ScheduleException.class, () ->
-                ScheduleUtil.deleteTask("not-exists"));
+        boolean deleted = ScheduleUtil.deleteTask("not-exists");
+        assertFalse(deleted, "删除不存在的任务应返回 false");
+    }
+
+    @Test
+    @DisplayName("hasTask - 任务存在/不存在")
+    void testHasTask() {
+        assertFalse(ScheduleUtil.hasTask("has-task-check"));
+
+        ScheduledTask task = ScheduleUtil.newTask(() -> {})
+                .setId("has-task-check")
+                .setTrigger(Trigger.builder().setCron("0 0 2 * * ?").build())
+                .schedule();
+
+        assertTrue(ScheduleUtil.hasTask("has-task-check"));
+
+        task.delete();
+        assertFalse(ScheduleUtil.hasTask("has-task-check"));
+    }
+
+    @Test
+    @DisplayName("ScheduledTask.exists()")
+    void testScheduledTask_exists() {
+        ScheduledTask task = ScheduleUtil.newTask(() -> {})
+                .setId("exists-check")
+                .setTrigger(Trigger.builder().setCron("0 0 2 * * ?").build())
+                .schedule();
+
+        assertTrue(task.exists());
+
+        boolean deleted = task.delete();
+        assertTrue(deleted, "第一次删除应返回 true");
+        assertFalse(task.exists());
+
+        // 再次删除同一任务(幂等)
+        boolean deletedAgain = task.delete();
+        assertFalse(deletedAgain, "第二次删除应返回 false");
     }
 
     @Test
