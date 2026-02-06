@@ -47,10 +47,6 @@ class ScheduleUtilTest {
         Field executorField = ScheduleUtil.class.getDeclaredField("taskExecutor");
         executorField.setAccessible(true);
         executorField.set(null, null);
-
-        Field initializedField = ScheduleUtil.class.getDeclaredField("executorInitialized");
-        initializedField.setAccessible(true);
-        initializedField.set(null, false);
     }
 
     @Test

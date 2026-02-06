@@ -79,9 +79,6 @@ public final class ScheduleUtil {
     /** 任务执行器(负责执行任务, 默认虚拟线程) */
     private static volatile ExecutorService taskExecutor;
 
-    /** 标记执行器是否已初始化(无论是手动还是懒加载) */
-    private static volatile boolean executorInitialized = false;
-
     static {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             Scheduler s = scheduler;
@@ -140,7 +137,6 @@ public final class ScheduleUtil {
             synchronized (ScheduleUtil.class) {
                 if (taskExecutor == null) {
                     taskExecutor = Executors.newVirtualThreadPerTaskExecutor();
-                    executorInitialized = true;
                 }
             }
         }
@@ -165,9 +161,8 @@ public final class ScheduleUtil {
     public static void initTaskExecutor(ExecutorService executor) {
         Validate.notNull(executor, "executor must not be null");
         synchronized (ScheduleUtil.class) {
-            Validate.isTrue(!executorInitialized, "TaskExecutor is already initialized");
+            Validate.isNull(taskExecutor, "TaskExecutor is already initialized");
             taskExecutor = executor;
-            executorInitialized = true;
         }
     }
 
