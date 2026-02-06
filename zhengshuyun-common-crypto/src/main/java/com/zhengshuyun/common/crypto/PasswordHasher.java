@@ -73,6 +73,21 @@ public final class PasswordHasher {
     private static final int MAX_PARALLELISM = 128;
 
     /**
+     * verify 时允许的最大哈希串长度, 防止超长输入耗尽内存
+     */
+    private static final int MAX_ENCODED_HASH_LENGTH = 4096;
+
+    /**
+     * verify/hash 时允许的最大盐长度(字节)
+     */
+    private static final int MAX_SALT_LENGTH_BYTES = 256;
+
+    /**
+     * verify/hash 时允许的最大哈希长度(字节)
+     */
+    private static final int MAX_HASH_LENGTH_BYTES = 256;
+
+    /**
      * Base64 编码器 (无 padding)
      */
     private static final Base64.Encoder BASE64_ENCODER = Base64.getEncoder().withoutPadding();
@@ -118,6 +133,10 @@ public final class PasswordHasher {
         Validate.isTrue(builder.parallelism >= 1, "parallelism must be >= 1");
         Validate.isTrue(builder.saltLengthBytes >= 8, "saltLengthBytes must be >= 8");
         Validate.isTrue(builder.hashLengthBytes >= 4, "hashLengthBytes must be >= 4");
+        Validate.isTrue(builder.saltLengthBytes <= MAX_SALT_LENGTH_BYTES,
+                "saltLengthBytes must be <= " + MAX_SALT_LENGTH_BYTES);
+        Validate.isTrue(builder.hashLengthBytes <= MAX_HASH_LENGTH_BYTES,
+                "hashLengthBytes must be <= " + MAX_HASH_LENGTH_BYTES);
         this.memoryKiB = builder.memoryKiB;
         this.iterations = builder.iterations;
         this.parallelism = builder.parallelism;
@@ -211,6 +230,10 @@ public final class PasswordHasher {
      * 解析 PHC 格式字符串
      */
     private static ParsedHash decode(String encodedHash) {
+        if (encodedHash.length() > MAX_ENCODED_HASH_LENGTH) {
+            throw new CryptoException("Invalid Argon2id hash format: hash string too long");
+        }
+
         // $argon2id$v=19$m=65536,t=3,p=1$<salt>$<hash>
         String[] parts = encodedHash.split("\\$");
         if (parts.length != 6 || !"argon2id".equals(parts[1])) {
@@ -247,6 +270,14 @@ public final class PasswordHasher {
         try {
             byte[] salt = BASE64_DECODER.decode(parts[4]);
             byte[] hash = BASE64_DECODER.decode(parts[5]);
+
+            if (salt.length < 8 || salt.length > MAX_SALT_LENGTH_BYTES) {
+                throw new CryptoException("Argon2id salt length out of range: " + salt.length);
+            }
+            if (hash.length < 4 || hash.length > MAX_HASH_LENGTH_BYTES) {
+                throw new CryptoException("Argon2id hash length out of range: " + hash.length);
+            }
+
             return new ParsedHash(salt, hash, memoryKiB, iterations, parallelism);
         } catch (IllegalArgumentException e) {
             throw new CryptoException("Invalid Argon2id hash format: invalid Base64", e);

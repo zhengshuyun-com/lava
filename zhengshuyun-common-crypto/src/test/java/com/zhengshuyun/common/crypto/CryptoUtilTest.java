@@ -24,9 +24,11 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.Field;
 import java.security.KeyPair;
 import java.security.interfaces.ECPrivateKey;
 import java.security.interfaces.ECPublicKey;
+import java.util.Base64;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -245,6 +247,69 @@ class CryptoUtilTest {
         assertThrows(CryptoException.class, () -> hasher.verify("password", tamperedParallelism));
     }
 
+    @DisplayName("Argon2id 验证 - 超长输入哈希串")
+    @Test
+    void testVerify_oversizedInput() {
+        PasswordHasher hasher = CryptoUtil.passwordHasher()
+                .setMemoryKiB(1024)
+                .setIterations(1)
+                .build();
+
+        int maxEncodedLength = getPrivateStaticInt(PasswordHasher.class, "MAX_ENCODED_HASH_LENGTH");
+        String oversized = "$argon2id$v=19$m=1024,t=1,p=1$" + "A".repeat(maxEncodedLength) + "$AQIDBA";
+
+        CryptoException ex = assertThrows(CryptoException.class, () -> hasher.verify("password", oversized));
+        assertTrue(ex.getMessage().contains("too long"));
+    }
+
+    @DisplayName("Argon2id 验证 - 空 salt/hash")
+    @Test
+    void testVerify_emptySaltAndHash() {
+        PasswordHasher hasher = CryptoUtil.passwordHasher()
+                .setMemoryKiB(1024)
+                .setIterations(1)
+                .build();
+
+        String emptySalt = buildPhc(1024, 1, 1, new byte[0], new byte[32]);
+        assertThrows(CryptoException.class, () -> hasher.verify("password", emptySalt));
+
+        String emptyHash = buildPhc(1024, 1, 1, new byte[16], new byte[0]);
+        assertThrows(CryptoException.class, () -> hasher.verify("password", emptyHash));
+    }
+
+    @DisplayName("Argon2id 验证 - 盐值和哈希长度等于上限")
+    @Test
+    void testVerify_lengthBoundaryAtMax() {
+        PasswordHasher hasher = CryptoUtil.passwordHasher()
+                .setMemoryKiB(1024)
+                .setIterations(1)
+                .build();
+
+        int maxSaltLength = getPrivateStaticInt(PasswordHasher.class, "MAX_SALT_LENGTH_BYTES");
+        int maxHashLength = getPrivateStaticInt(PasswordHasher.class, "MAX_HASH_LENGTH_BYTES");
+
+        String boundary = buildPhc(1024, 1, 1, new byte[maxSaltLength], new byte[maxHashLength]);
+        assertDoesNotThrow(() -> hasher.verify("password", boundary));
+    }
+
+    @DisplayName("Argon2id 验证 - 盐值和哈希长度刚超过上限")
+    @Test
+    void testVerify_lengthJustAboveMax() {
+        PasswordHasher hasher = CryptoUtil.passwordHasher()
+                .setMemoryKiB(1024)
+                .setIterations(1)
+                .build();
+
+        int maxSaltLength = getPrivateStaticInt(PasswordHasher.class, "MAX_SALT_LENGTH_BYTES");
+        int maxHashLength = getPrivateStaticInt(PasswordHasher.class, "MAX_HASH_LENGTH_BYTES");
+
+        String overflowSalt = buildPhc(1024, 1, 1, new byte[maxSaltLength + 1], new byte[32]);
+        assertThrows(CryptoException.class, () -> hasher.verify("password", overflowSalt));
+
+        String overflowHash = buildPhc(1024, 1, 1, new byte[16], new byte[maxHashLength + 1]);
+        assertThrows(CryptoException.class, () -> hasher.verify("password", overflowHash));
+    }
+
     @DisplayName("PEM 解码 - 格式错误的 PEM")
     @Test
     void testReadEcPrivateKey_malformedPem() {
@@ -313,5 +378,22 @@ class CryptoUtilTest {
                 .verify(token);
 
         assertEquals("restored-user", decoded.getSubject());
+    }
+
+    private static int getPrivateStaticInt(Class<?> clazz, String fieldName) {
+        try {
+            Field field = clazz.getDeclaredField(fieldName);
+            field.setAccessible(true);
+            return field.getInt(null);
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError("Failed to access field: " + fieldName, e);
+        }
+    }
+
+    private static String buildPhc(int memoryKiB, int iterations, int parallelism, byte[] salt, byte[] hash) {
+        Base64.Encoder encoder = Base64.getEncoder().withoutPadding();
+        return "$argon2id$v=19$m=" + memoryKiB + ",t=" + iterations + ",p=" + parallelism
+                + "$" + encoder.encodeToString(salt)
+                + "$" + encoder.encodeToString(hash);
     }
 }
