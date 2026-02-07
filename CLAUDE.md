@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-本文件用于指导代码助手在 `zhengshuyun-common` 仓库中的协作.
+本文件用于指导代码助手在 `Lava` 仓库中的协作.
 
 ## 项目概览
 
@@ -27,30 +27,30 @@ mvn clean install -DskipTests
 mvn test
 
 # 单个模块
-mvn test -pl zhengshuyun-common-core
-mvn test -pl zhengshuyun-common-json
+mvn test -pl lava-core
+mvn test -pl lava-json
 
 # 单个测试类
-mvn test -Dtest=JsonUtilTest -pl zhengshuyun-common-json
+mvn test -Dtest=JsonUtilTest -pl lava-json
 
 # 单个测试方法
-mvn test -Dtest=JsonUtilTest#testWriteValueAsString -pl zhengshuyun-common-json
+mvn test -Dtest=JsonUtilTest#testWriteValueAsString -pl lava-json
 
 # 包含依赖模块(-am: also make)
-mvn test -pl zhengshuyun-common-json -am
+mvn test -pl lava-json -am
 ```
 
 ### 模块依赖顺序
 
-修改 zhengshuyun-common-core 模块后, 需要先安装到本地仓库再测试依赖它的模块:
+修改 lava-core 模块后, 需要先安装到本地仓库再测试依赖它的模块:
 
 ```bash
-mvn install -pl zhengshuyun-common-core -DskipTests
-mvn test -pl zhengshuyun-common-json
+mvn install -pl lava-core -DskipTests
+mvn test -pl lava-json
 ```
 
 ## 关键约定
 
-- 复用优先: 复杂方法或逻辑尽量复用 Guava 与 `zhengshuyun-common-core` 模块的工具类.
+- 复用优先: 复杂方法或逻辑尽量复用 Guava 与 `lava-core` 模块的工具类.
 - 时间处理: 使用 `DateTimePatterns` 与 `ZoneIds` 统一管理, 默认时区 UTC, 解析工具 `TimeUtil.parse()`.
 - 文档目录: 本仓库文档集中在 `doc/`.

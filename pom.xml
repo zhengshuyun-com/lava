@@ -22,14 +22,14 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.zhengshuyun</groupId>
-    <artifactId>zhengshuyun-common-parent</artifactId>
+    <artifactId>lava-parent</artifactId>
     <version>1.0.0-SNAPSHOT</version>
 
     <packaging>pom</packaging>
 
-    <name>zhengshuyun-common</name>
-    <description>Java 通用工具库, 基于 Guava/Jackson/OkHttp/BouncyCastle/Quartz 等国际主流框架的易用性封装.</description>
-    <url>https://github.com/zhengshuyun-com/zhengshuyun-common</url>
+    <name>Lava</name>
+    <description>Lava — 让 Java 基础设施开发更简单、更安全、更一致</description>
+    <url>https://github.com/zhengshuyun-com/lava</url>
 
     <developers>
         <developer>
@@ -39,9 +39,9 @@
     </developers>
 
     <scm>
-        <connection>scm:git:https://github.com/zhengshuyun-com/zhengshuyun-common.git</connection>
-        <developerConnection>scm:git:git@github.com:zhengshuyun-com/zhengshuyun-common.git</developerConnection>
-        <url>https://github.com/zhengshuyun-com/zhengshuyun-common</url>
+        <connection>scm:git:https://github.com/zhengshuyun-com/lava.git</connection>
+        <developerConnection>scm:git:git@github.com:zhengshuyun-com/lava.git</developerConnection>
+        <url>https://github.com/zhengshuyun-com/lava</url>
     </scm>
 
     <licenses>
@@ -52,13 +52,13 @@
     </licenses>
 
     <modules>
-        <module>zhengshuyun-common-core</module>
-        <module>zhengshuyun-common-json</module>
-        <module>zhengshuyun-common-http</module>
-        <module>zhengshuyun-common-schedule</module>
-        <module>zhengshuyun-common-bom</module>
-        <module>zhengshuyun-common-jwt</module>
-        <module>zhengshuyun-common-crypto</module>
+        <module>lava-core</module>
+        <module>lava-json</module>
+        <module>lava-http</module>
+        <module>lava-schedule</module>
+        <module>lava-bom</module>
+        <module>lava-jwt</module>
+        <module>lava-crypto</module>
     </modules>
 
     <properties>
@@ -77,7 +77,6 @@
 
         <junit-jupiter.version>6.0.1</junit-jupiter.version>
         <guava.version>33.5.0-jre</guava.version>
-        <commons-lang3.version>3.20.0</commons-lang3.version>
         <jackson.version>2.20.1</jackson.version>
         <okhttp.version>4.12.0</okhttp.version>
         <quartz.version>2.5.2</quartz.version>
@@ -92,12 +91,6 @@
                 <groupId>com.google.guava</groupId>
                 <artifactId>guava</artifactId>
                 <version>${guava.version}</version>
-            </dependency>
-
-            <dependency>
-                <groupId>org.apache.commons</groupId>
-                <artifactId>commons-lang3</artifactId>
-                <version>${commons-lang3.version}</version>
             </dependency>
 
             <dependency>
@@ -139,37 +132,43 @@
             <!--子模块-->
             <dependency>
                 <groupId>com.zhengshuyun</groupId>
-                <artifactId>zhengshuyun-common-bom</artifactId>
+                <artifactId>lava-bom</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
             <dependency>
                 <groupId>com.zhengshuyun</groupId>
-                <artifactId>zhengshuyun-common-core</artifactId>
+                <artifactId>lava-core</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
             <dependency>
                 <groupId>com.zhengshuyun</groupId>
-                <artifactId>zhengshuyun-common-crypto</artifactId>
+                <artifactId>lava-crypto</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
             <dependency>
                 <groupId>com.zhengshuyun</groupId>
-                <artifactId>zhengshuyun-common-http</artifactId>
+                <artifactId>lava-http</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
             <dependency>
                 <groupId>com.zhengshuyun</groupId>
-                <artifactId>zhengshuyun-common-json</artifactId>
+                <artifactId>lava-json</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
             <dependency>
                 <groupId>com.zhengshuyun</groupId>
-                <artifactId>zhengshuyun-common-jwt</artifactId>
+                <artifactId>lava-jwt</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.zhengshuyun</groupId>
+                <artifactId>lava-schedule</artifactId>
                 <version>${project.version}</version>
             </dependency>
         </dependencies>
