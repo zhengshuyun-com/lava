@@ -25,6 +25,7 @@ import org.quartz.TriggerBuilder;
 import java.time.Instant;
 import java.util.Date;
 import java.util.TimeZone;
+import java.util.function.Supplier;
 
 /**
  * 不可变触发器
@@ -44,12 +45,10 @@ import java.util.TimeZone;
  * Trigger trigger = Trigger.delay(10000).build();
  *
  * // 自定义策略
- * Trigger trigger = Trigger.custom(triggerId -> {
- *     return TriggerBuilder.newTrigger()
- *         .withIdentity(triggerId)
+ * Trigger trigger = Trigger.custom(() ->
+ *     TriggerBuilder.newTrigger()
  *         .startNow()
- *         .build();
- * });
+ *         .withSchedule(...));
  * }</pre>
  *
  * @author Toint
@@ -63,7 +62,7 @@ public final class Trigger {
      * 用于扩展自定义触发逻辑, 如动态 cron、条件触发等复杂场景
      */
     @FunctionalInterface
-    public interface TriggerStrategy {
+    interface TriggerStrategy {
 
         /**
          * 转换为 Quartz Trigger
@@ -117,13 +116,17 @@ public final class Trigger {
 
     /**
      * 创建自定义触发器
+     * <p>
+     * 框架自动处理 {@code withIdentity()} 和 {@code build()}, 用户只需提供 {@link TriggerBuilder} 配置
      *
-     * @param strategy 触发器策略
+     * @param triggerBuilder 触发器构建器供应商
      * @return 不可变的 Trigger 实例
      */
-    public static Trigger custom(TriggerStrategy strategy) {
-        Validate.notNull(strategy, "strategy must not be null");
-        return new Trigger(strategy);
+    public static Trigger custom(Supplier<TriggerBuilder<?>> triggerBuilder) {
+        Validate.notNull(triggerBuilder, "triggerBuilder must not be null");
+        return new Trigger(triggerId -> triggerBuilder.get()
+                .withIdentity(triggerId)
+                .build());
     }
 
     /**
