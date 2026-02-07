@@ -214,6 +214,31 @@ class ScheduleUtilTest {
     }
 
     @Test
+    @DisplayName("重复任务 ID 发布抛异常")
+    void testSchedule_duplicateTaskId() {
+        String taskId = "duplicate-task-id";
+        ScheduleUtil.deleteTask(taskId);
+
+        ScheduledTask task = ScheduleUtil.scheduler(() -> {
+                })
+                .setId(taskId)
+                .setTrigger(Trigger.cron("0 0 2 * * ?").build())
+                .schedule();
+
+        try {
+            ScheduleException exception = assertThrows(ScheduleException.class, () ->
+                    ScheduleUtil.scheduler(() -> {
+                            })
+                            .setId(taskId)
+                            .setTrigger(Trigger.cron("0 0 3 * * ?").build())
+                            .schedule());
+            assertTrue(exception.getMessage().contains(taskId));
+        } finally {
+            task.delete();
+        }
+    }
+
+    @Test
     @DisplayName("hasTask - 任务存在/不存在")
     void testHasTask() {
         assertFalse(ScheduleUtil.hasTask("has-task-check"));
