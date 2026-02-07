@@ -84,7 +84,8 @@ public final class TaskScheduler {
         /**
          * 设置任务 ID
          * <p>
-         * 可选, 不调用则自动生成 UUID, 不允许为空
+         * 可选, 不调用则自动生成 UUID, 不允许为空.
+         * 如果该 ID 已存在, 调用 {@link #schedule()} 时会抛出 {@link ScheduleException}, 不会覆盖已有任务.
          *
          * @param id 任务 ID
          * @return this
