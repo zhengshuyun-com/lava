@@ -1,10 +1,10 @@
 # zhengshuyun-common
 
-Java 通用工具库, 基于 Guava/Jackson/OkHttp/BouncyCastle/Quartz 等国际主流框架的易用性封装.
+Java 通用工具库, 基于 Guava/Jackson/OkHttp/BouncyCastle/Quartz/Auth0 等国际主流框架的易用性封装.
 
 - [GitHub](https://github.com/zhengshuyun-com/zhengshuyun-common)
 - [Maven](https://central.sonatype.com/search?q=zhengshuyun-common)
-- [Docs](https://github.com/zhengshuyun-com/zhengshuyun-common/blob/main/docs/index.md)
+- [Docs](docs/index.md)
 
 ## 模块结构
 
