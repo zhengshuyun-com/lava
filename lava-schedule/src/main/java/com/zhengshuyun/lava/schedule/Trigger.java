@@ -22,6 +22,7 @@ import org.quartz.CronScheduleBuilder;
 import org.quartz.SimpleScheduleBuilder;
 import org.quartz.TriggerBuilder;
 
+import java.time.Instant;
 import java.util.Date;
 import java.util.TimeZone;
 
@@ -232,7 +233,7 @@ public final class Trigger {
                         .withIdentity(triggerId);
 
                 if (initialDelay > 0) {
-                    tb.startAt(new Date(System.currentTimeMillis() + initialDelay));
+                    tb.startAt(Date.from(Instant.now().plusMillis(initialDelay)));
                 } else {
                     tb.startNow();
                 }
@@ -274,7 +275,7 @@ public final class Trigger {
         public Trigger build() {
             long delay = this.delayMillis;
             return new Trigger(triggerId -> {
-                Date startTime = new Date(System.currentTimeMillis() + delay);
+                Date startTime = Date.from(Instant.now().plusMillis(delay));
                 return TriggerBuilder.newTrigger()
                         .withIdentity(triggerId)
                         .startAt(startTime)
