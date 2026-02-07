@@ -29,7 +29,7 @@
 
     <artifactId>zhengshuyun-common-core</artifactId>
     <name>${project.artifactId}</name>
-    <description>整数云工具库核心模块</description>
+    <description>核心模块, 基于 Guava 的易用性封装</description>
     <url>https://github.com/zhengshuyun-com/zhengshuyun-common</url>
 
     <dependencies>

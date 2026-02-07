@@ -28,7 +28,7 @@
 
     <artifactId>zhengshuyun-common-jwt</artifactId>
     <name>${project.artifactId}</name>
-    <description>整数云工具库 JWT 模块</description>
+    <description>JWT 模块, 基于 Auth0 的易用性封装</description>
     <url>https://github.com/zhengshuyun-com/zhengshuyun-common</url>
 
     <dependencies>

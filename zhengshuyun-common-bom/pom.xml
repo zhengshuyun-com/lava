@@ -30,7 +30,7 @@
     <packaging>pom</packaging>
 
     <name>${project.artifactId}</name>
-    <description>整数云工具库 BOM 模块</description>
+    <description>BOM模块, 统一管理依赖版本</description>
     <url>https://github.com/zhengshuyun-com/zhengshuyun-common</url>
 
 

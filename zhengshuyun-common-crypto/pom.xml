@@ -27,7 +27,7 @@
 
     <artifactId>zhengshuyun-common-crypto</artifactId>
     <name>${project.artifactId}</name>
-    <description>整数云工具库加密模块</description>
+    <description>加密模块, 基于 BouncyCastle 的易用性封装</description>
     <url>https://github.com/zhengshuyun-com/zhengshuyun-common</url>
 
     <dependencies>

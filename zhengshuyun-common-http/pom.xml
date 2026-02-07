@@ -28,7 +28,7 @@
 
     <artifactId>zhengshuyun-common-http</artifactId>
     <name>${project.artifactId}</name>
-    <description>整数云工具库HTTP模块</description>
+    <description>HTTP模块, 基于 OkHttp 的易用性封装</description>
     <url>https://github.com/zhengshuyun-com/zhengshuyun-common</url>
 
     <dependencies>

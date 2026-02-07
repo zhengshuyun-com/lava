@@ -4,8 +4,6 @@
 
 ## 项目概览
 
-- `zhengshuyun-common` 是 Java 通用工具库集合, 采用 Maven 多模块架构.
-- JDK 要求: 25.
 - 详细信息见 `README.md`.
 
 ## 构建与测试命令

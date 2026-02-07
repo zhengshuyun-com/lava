@@ -28,7 +28,7 @@
 
     <artifactId>zhengshuyun-common-schedule</artifactId>
     <name>${project.artifactId}</name>
-    <description>整数云工具库定时任务模块</description>
+    <description>定时任务模块, 基于 Quartz 的易用性封装</description>
     <url>https://github.com/zhengshuyun-com/zhengshuyun-common</url>
 
     <dependencies>

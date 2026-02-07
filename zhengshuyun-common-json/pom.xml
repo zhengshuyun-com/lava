@@ -28,7 +28,7 @@
 
     <artifactId>zhengshuyun-common-json</artifactId>
     <name>${project.artifactId}</name>
-    <description>整数云工具库JSON模块</description>
+    <description>JSON模块, 基于 Jackson 的易用性封装</description>
     <url>https://github.com/zhengshuyun-com/zhengshuyun-common</url>
 
     <dependencies>

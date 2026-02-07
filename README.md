@@ -1,24 +1,24 @@
 # zhengshuyun-common
 
-zhengshuyun-common 是 Java 通用工具库集合, 使用 JDK 25 编译.
+Java 通用工具库, 基于 Guava/Jackson/OkHttp/BouncyCastle/Quartz 等国际主流框架的易用性封装.
 
-## Maven
-
-- [Maven 中央仓库](https://central.sonatype.com/search?q=zhengshuyun-common)
+- [GitHub](https://github.com/zhengshuyun-com/zhengshuyun-common)
+- [Maven](https://central.sonatype.com/search?q=zhengshuyun-common)
+- [Docs](https://github.com/zhengshuyun-com/zhengshuyun-common/blob/main/docs/index.md)
 
 ## 模块结构
 
 当前仓库包含以下模块:
 
-| 模块                            | 说明                                 |
-|-------------------------------|------------------------------------|
-| `zhengshuyun-common-bom`      | BOM (Bill of Materials), 统一管理依赖版本. |
-| `zhengshuyun-common-core`     | 核心工具类, 包含重试、IO、时间、ID 生成、参数校验等.     |
-| `zhengshuyun-common-crypto`   | 加密工具, 包含密码哈希、对称/非对称加密等.            |
-| `zhengshuyun-common-http`     | HTTP 客户端封装, 基于 OkHttp.             |
-| `zhengshuyun-common-json`     | JSON 序列化工具, 基于 Jackson.            |
-| `zhengshuyun-common-jwt`      | JWT 工具, 支持 HMAC 和 ECDSA 签名.        |
-| `zhengshuyun-common-schedule` | 定时任务工具, 基于 Quartz.                 |
+| 模块                            | 说明                                                                     |
+|-------------------------------|------------------------------------------------------------------------|
+| `zhengshuyun-common-bom`      | BOM模块, 统一管理依赖版本                                                        |
+| `zhengshuyun-common-core`     | 核心模块, 基于 [Guava](https://github.com/google/guava) 的易用性封装               |
+| `zhengshuyun-common-crypto`   | 加密模块, 基于 [BouncyCastle](https://github.com/bcgit/bc-java) 的易用性封装       |
+| `zhengshuyun-common-http`     | HTTP模块, 基于 [OkHttp](https://github.com/square/okhttp) 的易用性封装           |
+| `zhengshuyun-common-json`     | JSON模块, 基于 [Jackson](https://github.com/FasterXML/jackson) 的易用性封装      |
+| `zhengshuyun-common-jwt`      | JWT 模块, 基于 [Auth0](https://github.com/auth0/java-jwt) 的易用性封装           |
+| `zhengshuyun-common-schedule` | 定时任务模块, 基于 [Quartz](https://github.com/quartz-scheduler/quartz) 的易用性封装 |
 
 ## 依赖引入
 

@@ -28,7 +28,7 @@
     <packaging>pom</packaging>
 
     <name>zhengshuyun-common</name>
-    <description>整数云工具库</description>
+    <description>Java 通用工具库, 基于 Guava/Jackson/OkHttp/BouncyCastle/Quartz 等国际主流框架的易用性封装.</description>
     <url>https://github.com/zhengshuyun-com/zhengshuyun-common</url>
 
     <developers>
