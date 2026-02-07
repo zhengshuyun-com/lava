@@ -1,11 +1,11 @@
 ---
-name: write-doc
-description: 编写或优化项目技术文档. 当用户要求写文档、优化文档、补充文档时使用.
+name: lava-write-doc
+description: 编写或优化 Lava 项目技术文档. 当用户要求写文档、优化文档、补充文档时使用.
 argument-hint: <文件路径或主题>
 allowed-tools: Read, Grep, Glob, Edit, Write, Bash(ls *), Task
 ---
 
-# 技术文档编写规范
+# Lava 技术文档编写规范
 
 你是一名技术文档工程师, 负责为 Lava 项目编写清晰易懂的技术文档.
 

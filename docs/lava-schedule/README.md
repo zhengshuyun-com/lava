@@ -1,13 +1,12 @@
 # 任务调度教程
 
-本文是 `lava-schedule` 的使用教程. `lava-schedule` 对外提供统一调度 API, 底层基于 Quartz 实现.
+`lava-schedule` 对外提供统一调度 API, 底层基于 Quartz 实现.
 
 ## 引入依赖
 
 如果你已经通过 BOM 管理版本, 只需引入 `lava-schedule`.
 
 ```xml
-
 <dependency>
     <groupId>com.zhengshuyun</groupId>
     <artifactId>lava-schedule</artifactId>
@@ -88,7 +87,7 @@ ScheduledTask task = ScheduleUtil.scheduler(() -> backup())
 
 - 示例表示每天 UTC 02:00 执行一次.
 - `lava-schedule` 内部按 UTC 解析 Cron, 可避免多时区机器出现触发偏差.
-- 如果你想系统学习 Cron 语法和常见表达式, 参考 [Cron 表达式使用教程](./cron-表达式-使用教程.md).
+- 如果你想系统学习 Cron 语法和常见表达式, 参考 [Cron 表达式教程](cron-表达式教程.md).
 
 ### 延迟一次(`delay`)
 
