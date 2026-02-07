@@ -88,7 +88,7 @@ ScheduledTask task = ScheduleUtil.scheduler(() -> backup())
 
 - 示例表示每天 UTC 02:00 执行一次.
 - `lava-schedule` 内部按 UTC 解析 Cron, 可避免多时区机器出现触发偏差.
-- 如果你想系统学习 Cron 语法和常见表达式, 参考 [Cron 表达式教程](./cron-表达式教程.md).
+- 如果你想系统学习 Cron 语法和常见表达式, 参考 [Cron 表达式使用教程](./cron-表达式-使用教程.md).
 
 ### 延迟一次(`delay`)
 
