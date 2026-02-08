@@ -1,8 +1,9 @@
 # JWT ES256 签发、验证、解析教程
 
-本文演示如何使用 ES256(= ECDSA + P-256)完成 JWT 的签发、验证、解析.
+演示如何使用 ES256（ECDSA + P-256）完成 JWT
+的签发、验证、解析。如果你想先看算法无关的主流程，建议先阅读 [JWT 教程](./README.md)。
 
-## 1. 依赖
+## 依赖
 
 推荐通过 BOM 管理版本, 然后引入 JWT 和 Crypto 模块.
 
@@ -18,7 +19,7 @@
 </dependency>
 ```
 
-## 2. 准备 ES256 所需密钥
+## 准备 ES256 所需密钥
 
 ES256 需要 EC P-256 密钥对. 下面示例用 `CryptoUtil` 生成.
 
@@ -68,11 +69,11 @@ ECPrivateKey privateKey = CryptoUtil.readEcPrivateKey(privatePem);
 ECPublicKey publicKey = CryptoUtil.readEcPublicKey(publicPem);
 ```
 
-## 3. 签发 JWT
+## 签发 JWT
 
 ```java
-import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
+import com.zhengshuyun.lava.jwt.JwtUtil;
 
 import java.security.interfaces.ECPrivateKey;
 import java.security.interfaces.ECPublicKey;
@@ -84,7 +85,7 @@ import java.util.Date;
 Algorithm signAlgorithm = Algorithm.ECDSA256(publicKey, privateKey);
 
 // 构建并签发 JWT
-String token = JWT.create()
+String token = JwtUtil.create()
         // iss: 签发方
         .withIssuer("zhengshuyun")
         // aud: 目标受众
@@ -103,12 +104,12 @@ String token = JWT.create()
         .sign(signAlgorithm);
 ```
 
-## 4. 验证 JWT(验签 + 声明校验)
+## 验证 JWT(验签 + 声明校验)
 
 ```java
-import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.interfaces.DecodedJWT;
+import com.zhengshuyun.lava.jwt.JwtUtil;
 
 import java.util.Date;
 
@@ -116,7 +117,7 @@ import java.util.Date;
 Algorithm verifyAlgorithm = Algorithm.ECDSA256(publicKey, null);
 
 // verify 会同时做: 签名校验 + 你配置的声明校验
-DecodedJWT verified = JWT.require(verifyAlgorithm)
+DecodedJWT verified = JwtUtil.require(verifyAlgorithm)
         // 校验 issuer 必须匹配
         .withIssuer("zhengshuyun")
         // 校验 audience 必须匹配
@@ -144,14 +145,14 @@ Date expiresAt = verified.getExpiresAt();
   - 对 `exp` 来说, 过期后 60 秒内仍可通过.
   - 对 `nbf`/`iat` 来说, 可提前最多 60 秒通过.
 
-## 5. 解析 JWT(仅解码, 不验签)
+## 解析 JWT(仅解码, 不验签)
 
 ```java
-import com.auth0.jwt.JWT;
 import com.auth0.jwt.interfaces.DecodedJWT;
+import com.zhengshuyun.lava.jwt.JwtUtil;
 
 // decode 只解析结构, 不会校验签名和过期时间
-DecodedJWT decoded = JWT.decode(token);
+DecodedJWT decoded = JwtUtil.decode(token);
 String rawIssuer = decoded.getIssuer();
 String rawSubject = decoded.getSubject();
 ```
@@ -161,14 +162,14 @@ String rawSubject = decoded.getSubject();
 - `JWT.decode(...)` 只做结构解析, 不验证签名和有效期.
 - 安全敏感流程必须使用 `verify(...)`, 不能只 `decode(...)`.
 
-## 6. 一段可直接参考的完整示例
+## 一段可直接参考的完整示例
 
 ```java
-import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import com.zhengshuyun.lava.crypto.CryptoUtil;
 import com.zhengshuyun.lava.crypto.EcCurves;
+import com.zhengshuyun.lava.jwt.JwtUtil;
 
 import java.security.KeyPair;
 import java.security.interfaces.ECPrivateKey;
@@ -191,7 +192,7 @@ public class JwtEs256Demo {
 
         // 2) 用私钥签发 JWT
         Algorithm signAlgorithm = Algorithm.ECDSA256(publicKey, privateKey);
-        String token = JWT.create()
+        String token = JwtUtil.create()
                 .withIssuer("zhengshuyun")
                 .withAudience("api")
                 .withSubject("user-1001")
@@ -203,7 +204,7 @@ public class JwtEs256Demo {
 
         // 3) 用公钥验证 JWT
         Algorithm verifyAlgorithm = Algorithm.ECDSA256(publicKey, null);
-        DecodedJWT verified = JWT.require(verifyAlgorithm)
+        DecodedJWT verified = JwtUtil.require(verifyAlgorithm)
                 .withIssuer("zhengshuyun")
                 .withAudience("api")
                 .acceptLeeway(60)
@@ -211,7 +212,7 @@ public class JwtEs256Demo {
                 .verify(token);
 
         // 4) 如需仅查看载荷内容, 可 decode(不验签)
-        DecodedJWT decoded = JWT.decode(token);
+        DecodedJWT decoded = JwtUtil.decode(token);
 
         // 5) 读取业务字段
         String subject = verified.getSubject();
@@ -225,7 +226,7 @@ public class JwtEs256Demo {
 }
 ```
 
-## 7. 注意事项
+## 注意事项
 
 - `EC` 是密钥体系, `ECDSA` 是签名算法. ES256 代表 ECDSA + P-256.
 - ES256 推荐搭配 `EcCurves.SECP256R1`, 与 `Algorithm.ECDSA256(...)` 对应.

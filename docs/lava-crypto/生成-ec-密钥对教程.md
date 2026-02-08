@@ -1,8 +1,8 @@
 # 生成 EC 密钥对教程
 
-本文演示如何在 `lava-crypto` 中生成 EC 密钥对, 并完成 PEM 导出与恢复.
+演示如何在 `lava-crypto` 中生成 EC 密钥对、完成 PEM 导出与恢复。
 
-## 1. 引入依赖
+## 引入依赖
 
 如果你已经使用 BOM, 只需引入 crypto 模块.
 
@@ -13,7 +13,7 @@
 </dependency>
 ```
 
-## 2. 生成 EC 密钥对
+## 生成 EC 密钥对
 
 默认曲线是 `P-256`(`secp256r1`). 也可以显式指定曲线.
 
@@ -48,7 +48,7 @@ public class EcKeyPairDemo {
 - `EcCurves.SECP384R1` (P-384, ES384).
 - `EcCurves.SECP521R1` (P-521, ES512).
 
-## 3. 导出为 PEM 字符串
+## 导出为 PEM 字符串
 
 ```java
 import com.zhengshuyun.lava.crypto.CryptoUtil;
@@ -73,7 +73,7 @@ public class ExportPemDemo {
 - 私钥使用 PKCS#8 PEM 格式.
 - 公钥使用 X.509 PEM 格式.
 
-## 4. PEM 是什么?
+## PEM 是什么?
 
 `PEM`(Privacy-Enhanced Mail)是一种文本封装格式, 常用于保存密钥和证书.
 
@@ -96,7 +96,7 @@ MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAExxx...
 - 私钥即使是 PEM 文本, 也必须按敏感信息管理.
 - 如果你分不清 PEM/DER/JKS/PKCS#12, 可先看 [PEM、DER、JKS、PKCS#12 区别速查表](./pem-der-jks-pkcs12-区别速查表.md).
 
-## 5. 从 PEM 恢复密钥对象
+## 从 PEM 恢复密钥对象
 
 ```java
 import com.zhengshuyun.lava.crypto.CryptoUtil;
@@ -126,12 +126,12 @@ public class RestorePemDemo {
 }
 ```
 
-## 6. 注意事项
+## 注意事项
 
 - `EC` 是椭圆曲线密钥体系, `ECDSA` 是基于 EC 密钥的签名算法, 两者不是同一个概念.
 - 本教程生成的是 EC 密钥对, 可用于 `ECDSA` 签名验签, 例如 `ES256`/`ES384`/`ES512`.
 
-## 7. 实践建议
+## 实践建议
 
 - 推荐优先使用 `SECP256R1`, 兼容性最好.
 - 私钥不要打印到日志, 也不要提交到 Git.

@@ -1,6 +1,6 @@
-# 任务调度教程
+# 任务调度
 
-`lava-schedule` 对外提供统一调度 API, 底层基于 Quartz 实现.
+`lava-schedule` 对外提供统一调度 API，底层基于 Quartz 实现。支持固定间隔、Cron、单次延迟、自定义触发等多种调度模式。
 
 ## 引入依赖
 

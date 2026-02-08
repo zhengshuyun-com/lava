@@ -1,8 +1,8 @@
 # Argon2id 用户登录密码加密落库指南
 
-本文面向初学者, 用最少步骤讲清楚在 `lava-crypto` 里怎么做“注册加密 + 登录校验 + 数据库存储”.
+用最少步骤讲清楚在 `lava-crypto` 里如何做"注册加密 + 登录校验 + 数据库存储"（面向初学者）。
 
-## 1. 先看结论
+## 先看结论
 
 你只需要记住 3 件事:
 
@@ -14,7 +14,7 @@
 
 `$argon2id$v=19$m=65536,t=3,p=1$<salt>$<hash>`
 
-## 2. 模块里已经提供了什么
+## 模块里已经提供了什么
 
 `lava-crypto` 已经内置 `PasswordHasher`(Argon2id), 入口是 `CryptoUtil.passwordHasher()`.
 
@@ -33,7 +33,7 @@
 
 它解决的核心问题是: 即使数据库泄露, 攻击者离线破解口令的速度也会被明显拖慢, 从而降低真实账号被批量撞开的风险.
 
-## 3. 这 5 个参数是什么意思
+## 这 5 个参数是什么意思
 
 | 参数                | 示例值     | 作用                            | 新手建议       |
 |-------------------|---------|-------------------------------|------------|
@@ -53,7 +53,7 @@
 - `saltLengthBytes`: `8 ~ 256`.
 - `hashLengthBytes`: `4 ~ 256`.
 
-## 4. 注册流程(加密并落库)
+## 注册流程(加密并落库)
 
 ```java
 import com.zhengshuyun.lava.crypto.CryptoUtil;
@@ -83,7 +83,7 @@ public final class PasswordService {
 3. 把返回值写入数据库 `password_hash`.
 4. 明文密码不要写日志, 不要入库, 不要发 MQ.
 
-## 5. 登录流程(读取并校验)
+## 登录流程(读取并校验)
 
 ```java
 public boolean verifyLoginPassword(String rawPassword, String storedPasswordHash) {
@@ -99,7 +99,7 @@ public boolean verifyLoginPassword(String rawPassword, String storedPasswordHash
 
 建议对外统一错误文案, 比如“用户名或密码错误”, 不要告诉用户“账号不存在”还是“密码错误”.
 
-## 6. 数据库字段建议
+## 数据库字段建议
 
 建议最少有这两个字段:
 
@@ -114,7 +114,7 @@ ALTER TABLE user_account
     ADD COLUMN password_updated_at DATETIME NOT NULL COMMENT '密码更新时间';
 ```
 
-## 7. 参数升级怎么做
+## 参数升级怎么做
 
 未来你可能把参数从 `m=65536,t=3,p=1` 升级到更高(但不超过上限).
 
@@ -126,14 +126,14 @@ ALTER TABLE user_account
 
 因为 `verify(...)` 使用的是“哈希串内的历史参数”, 所以迁移期间不会影响老用户登录.
 
-## 8. 新手最常见误区
+## 新手最常见误区
 
 - 误区 1: 把密码做 AES 加密后落库. 错, 密码应使用单向哈希, 不应可逆.
 - 误区 2: 盐值单独一列存库. 不需要, PHC 已包含盐和参数.
 - 误区 3: 每次请求都创建新的 `PasswordHasher`. 没必要, 单例复用即可.
 - 误区 4: 把明文密码或完整哈希打印到日志. 高风险, 必须避免.
 
-## 9. 除了登录密码, 还能用于哪些场景?
+## 除了登录密码, 还能用于哪些场景?
 
 本质上, Argon2id 适用于"只需要校验是否一致, 不需要还原明文"的秘密值.
 
@@ -154,7 +154,7 @@ ALTER TABLE user_account
 - `$argon2id$v=19$m=65536,t=3,p=4$<salt>$<hash>`
 - 不拆列, 不改写, 不二次编码.
 
-## 10. 一句话总结
+## 一句话总结
 
 用户密码场景下, 用 `PasswordHasher.hash()` 生成 PHC 全串直接落库, 用 `PasswordHasher.verify()` 登录校验,
 就是最稳妥且实现成本最低的方案.
