@@ -123,14 +123,6 @@ public final class HttpUtil {
     }
 
     /**
-     * @deprecated 使用 {@link #initHttpClient(HttpClient)} 代替
-     */
-    @Deprecated(since = "1.0.0", forRemoval = true)
-    public static void init(HttpClient httpClient) {
-        initHttpClient(httpClient);
-    }
-
-    /**
      * 获取全局单例 HttpClient
      * <p>
      * 使用双重检查锁 (Double-Checked Locking) 实现懒加载：
