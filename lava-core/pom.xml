@@ -29,7 +29,7 @@
 
     <artifactId>lava-core</artifactId>
     <name>${project.artifactId}</name>
-    <description>核心工具, 基于 Guava 扩展</description>
+    <description>核心工具, 基于 Guava</description>
     <url>https://github.com/zhengshuyun-com/lava</url>
 
     <dependencies>

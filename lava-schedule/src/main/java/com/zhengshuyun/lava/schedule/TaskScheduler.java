@@ -112,6 +112,8 @@ public final class TaskScheduler {
          * 提交任务到调度器
          *
          * @return 已调度任务的句柄
+         * @throws IllegalArgumentException 未调用 {@link #setTrigger(Trigger)}
+         * @throws ScheduleException 调度失败(包括任务 ID 冲突)
          */
         public ScheduledTask schedule() {
             Validate.notNull(trigger, "trigger must not be null, call setTrigger() first");
