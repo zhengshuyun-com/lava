@@ -37,6 +37,11 @@ import com.zhengshuyun.lava.core.lang.Validate;
  *     HttpRequest.get("https://example.com").build()
  * );
  *
+ * // 方式1.1：请求对象实例入口 (与 HttpUtil.execute 等价)
+ * HttpResponse response = HttpRequest.get("https://example.com")
+ *         .build()
+ *         .execute();
+ *
  * // 方式2：自定义单例配置 (应用启动时调用一次)
  * HttpUtil.initHttpClient(
  *     HttpClient.builder()
@@ -58,7 +63,7 @@ import com.zhengshuyun.lava.core.lang.Validate;
  *
  * <h2>设计原则</h2>
  * <ul>
- *   <li><b>职责分离</b>：HttpUtil 管理客户端, HttpRequest 构建请求</li>
+ *   <li><b>职责分离</b>：HttpUtil 管理客户端与静态执行入口, HttpRequest 负责请求构建并提供实例执行入口</li>
  *   <li><b>单例模式</b>：全局共享一个 HttpClient, 避免资源浪费</li>
  *   <li><b>灵活性</b>：支持创建独立实例, 满足特殊需求</li>
  * </ul>

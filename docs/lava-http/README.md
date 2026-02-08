@@ -18,7 +18,6 @@
 ```java
 import com.zhengshuyun.lava.http.HttpRequest;
 import com.zhengshuyun.lava.http.HttpResponse;
-import com.zhengshuyun.lava.http.HttpUtil;
 
 public class HttpQuickStartDemo {
 
@@ -30,7 +29,7 @@ public class HttpQuickStartDemo {
                 .build();
 
         // 2) 执行请求并及时关闭响应
-        try (HttpResponse response = HttpUtil.execute(request)) {
+        try (HttpResponse response = request.execute()) {
             int statusCode = response.getCode();
             String body = response.getBodyAsString();
 
@@ -41,7 +40,8 @@ public class HttpQuickStartDemo {
 ```
 
 - `HttpRequest.get(...)`: 创建请求构建器.
-- `HttpUtil.execute(...)`: 使用全局单例 `HttpClient` 执行请求.
+- `HttpRequest.execute()`: 实例入口, 内部使用全局单例 `HttpClient` 执行请求.
+- `HttpUtil.execute(...)`: 静态入口, 与 `request.execute()` 等价.
 - `HttpResponse` 必须关闭, 推荐固定用 `try-with-resources`.
 
 ## 请求构建

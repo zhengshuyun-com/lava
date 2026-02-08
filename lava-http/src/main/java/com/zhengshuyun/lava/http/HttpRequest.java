@@ -29,7 +29,7 @@ import java.util.Map;
 /**
  * HTTP 请求封装
  * <p>
- * 提供简洁的Builder API构建HTTP请求, 支持GET、POST、PUT、DELETE等方法
+ * 提供简洁的 Builder API 构建和执行 HTTP 请求, 支持 GET、POST、PUT、DELETE 等方法
  *
  * @author Toint
  * @since 2026/1/8
@@ -69,6 +69,8 @@ public final class HttpRequest {
 
     /**
      * 使用全局单例 HttpClient 执行请求
+     * <p>
+     * 返回的 {@link HttpResponse} 使用完后必须关闭, 推荐使用 try-with-resources
      *
      * @return HTTP 响应
      * @throws HttpException 请求失败时抛出
@@ -80,13 +82,17 @@ public final class HttpRequest {
 
     /**
      * 使用指定的 HttpClient 执行请求
+     * <p>
+     * 返回的 {@link HttpResponse} 使用完后必须关闭, 推荐使用 try-with-resources
      *
      * @param httpClient HTTP 客户端
      * @return HTTP 响应
-     * @throws HttpException 请求失败时抛出
+     * @throws IllegalArgumentException httpClient 为 null
+     * @throws HttpException            请求失败时抛出
      */
     public HttpResponse execute(HttpClient httpClient) {
-        return Validate.notNull(httpClient, "httpClient must not be null").execute(this);
+        return Validate.notNull(httpClient, "httpClient must not be null")
+                .execute(this);
     }
 
     /**
