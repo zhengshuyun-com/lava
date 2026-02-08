@@ -68,6 +68,28 @@ public final class HttpRequest {
     }
 
     /**
+     * 使用全局单例 HttpClient 执行请求
+     *
+     * @return HTTP 响应
+     * @throws HttpException 请求失败时抛出
+     * @see HttpUtil#execute(HttpRequest)
+     */
+    public HttpResponse execute() {
+        return HttpUtil.execute(this);
+    }
+
+    /**
+     * 使用指定的 HttpClient 执行请求
+     *
+     * @param httpClient HTTP 客户端
+     * @return HTTP 响应
+     * @throws HttpException 请求失败时抛出
+     */
+    public HttpResponse execute(HttpClient httpClient) {
+        return Validate.notNull(httpClient, "httpClient must not be null").execute(this);
+    }
+
+    /**
      * 转换为 OkHttp Request
      * <p>
      * 框架层面处理请求体的合法性：

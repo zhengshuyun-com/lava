@@ -802,6 +802,120 @@ class HttpUtilTest {
                 assertEquals(GET_URL, metadata.getUrl(), "URL 应该正确");
             }
         }
+
+        @Test
+        @DisplayName("HttpRequest.execute() - 链式调用使用全局单例")
+        void testHttpRequestExecuteUsesGlobalSingleton() {
+            HttpRequest request = HttpRequest.get(GET_URL).build();
+
+            try (HttpResponse response = request.execute()) {
+                assertNotNull(response, "响应不应该为 null");
+                assertTrue(response.isSuccessful(), "请求应该成功");
+                String body = response.getBodyAsString();
+                assertNotNull(body, "响应体不应该为 null");
+            }
+        }
+
+        @Test
+        @DisplayName("HttpRequest.execute() - POST 请求链式调用")
+        void testHttpRequestExecutePost() {
+            String jsonData = "{\"test\":\"data\"}";
+
+            try (HttpResponse response = HttpRequest.post(POST_URL)
+                    .setJsonBody(jsonData)
+                    .build()
+                    .execute()) {
+                assertNotNull(response, "响应不应该为 null");
+                assertTrue(response.isSuccessful(), "请求应该成功");
+                String body = response.getBodyAsString();
+                assertTrue(body.contains("\"test\""), "响应应该包含发送的数据");
+            }
+        }
+
+        @Test
+        @DisplayName("HttpRequest.execute(HttpClient) - 使用自定义 HttpClient")
+        void testHttpRequestExecuteWithCustomClient() {
+            HttpClient customClient = HttpUtil.httpClientBuilder()
+                    .setConnectTimeout(Duration.ofSeconds(5))
+                    .build();
+
+            try (HttpResponse response = HttpRequest.get(GET_URL)
+                    .build()
+                    .execute(customClient)) {
+                assertNotNull(response, "响应不应该为 null");
+                assertTrue(response.isSuccessful(), "请求应该成功");
+            }
+        }
+
+        @Test
+        @DisplayName("HttpRequest.execute(HttpClient) - 传入 null 应该抛出异常")
+        void testHttpRequestExecuteWithNullClient() {
+            HttpRequest request = HttpRequest.get(GET_URL).build();
+
+            assertThrows(
+                    IllegalArgumentException.class,
+                    () -> request.execute(null),
+                    "传入 null HttpClient 应该抛出 IllegalArgumentException"
+            );
+        }
+
+        @Test
+        @DisplayName("HttpRequest.execute() - 多次调用同一请求")
+        void testHttpRequestExecuteMultipleTimes() {
+            HttpRequest request = HttpRequest.get(GET_URL).build();
+
+            try (HttpResponse response1 = request.execute()) {
+                assertNotNull(response1, "第一次响应不应该为 null");
+                assertTrue(response1.isSuccessful(), "第一次请求应该成功");
+            }
+
+            try (HttpResponse response2 = request.execute()) {
+                assertNotNull(response2, "第二次响应不应该为 null");
+                assertTrue(response2.isSuccessful(), "第二次请求应该成功");
+            }
+        }
+
+        @Test
+        @DisplayName("HttpRequest.execute() - 完整链式调用示例")
+        void testHttpRequestExecuteFullChain() {
+            try (HttpResponse response = HttpRequest.get(GET_URL)
+                    .setHeader("X-Custom-Header", "test-value")
+                    .setUserAgentBrowser()
+                    .build()
+                    .execute()) {
+
+                assertNotNull(response, "响应不应该为 null");
+                assertTrue(response.isSuccessful(), "请求应该成功");
+                assertEquals(200, response.getCode(), "状态码应该是 200");
+
+                String body = response.getBodyAsString();
+                assertTrue(body.contains("\"x-custom-header\""), "服务器应该接收到自定义请求头");
+            }
+        }
+
+        @Test
+        @DisplayName("HttpRequest.execute(HttpClient) - 不同客户端配置对比")
+        void testHttpRequestExecuteWithDifferentClients() {
+            HttpRequest request = HttpRequest.get(GET_URL).build();
+
+            HttpClient client1 = HttpUtil.httpClientBuilder()
+                    .setConnectTimeout(Duration.ofSeconds(5))
+                    .build();
+
+            HttpClient client2 = HttpUtil.httpClientBuilder()
+                    .setConnectTimeout(Duration.ofSeconds(10))
+                    .build();
+
+            try (HttpResponse response1 = request.execute(client1)) {
+                assertNotNull(response1, "使用 client1 的响应不应该为 null");
+                assertTrue(response1.isSuccessful(), "使用 client1 的请求应该成功");
+            }
+
+            try (HttpResponse response2 = request.execute(client2)) {
+                assertNotNull(response2, "使用 client2 的响应不应该为 null");
+                assertTrue(response2.isSuccessful(), "使用 client2 的请求应该成功");
+            }
+        }
     }
 
     // 配置验证测试
