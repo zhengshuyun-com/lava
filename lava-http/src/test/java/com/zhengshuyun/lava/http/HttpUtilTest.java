@@ -294,9 +294,9 @@ class HttpUtilTest {
     class StaticFactoryHttpMethodTest {
 
         @Test
-        @DisplayName("createHttpClientBuilder() - 创建 Builder 实例")
+        @DisplayName("httpClientBuilder() - 创建 Builder 实例")
         void testCreateDefaultInstance() {
-            HttpClient.Builder builder = HttpUtil.createHttpClientBuilder();
+            HttpClient.Builder builder = HttpUtil.httpClientBuilder();
             assertNotNull(builder, "应该成功创建 Builder");
 
             // 验证可以构建出 HttpClient
@@ -305,11 +305,11 @@ class HttpUtilTest {
         }
 
         @Test
-        @DisplayName("createHttpClientBuilder() - 每次创建不同的 HttpClient 实例")
+        @DisplayName("httpClientBuilder() - 每次创建不同的 HttpClient 实例")
         void testCreateMultipleDifferentInstances() {
-            HttpClient client1 = HttpUtil.createHttpClientBuilder().build();
-            HttpClient client2 = HttpUtil.createHttpClientBuilder().build();
-            HttpClient client3 = HttpUtil.createHttpClientBuilder().build();
+            HttpClient client1 = HttpUtil.httpClientBuilder().build();
+            HttpClient client2 = HttpUtil.httpClientBuilder().build();
+            HttpClient client3 = HttpUtil.httpClientBuilder().build();
 
             // 验证都不是同一个实例
             assertNotSame(client1, client2, "不同调用应该创建不同实例");
@@ -318,20 +318,20 @@ class HttpUtilTest {
         }
 
         @Test
-        @DisplayName("createHttpClientBuilder() - 创建的实例与单例无关")
+        @DisplayName("httpClientBuilder() - 创建的实例与单例无关")
         void testCreateInstanceIsIndependent() {
             // 先获取单例
             HttpClient singleton = HttpUtil.getHttpClient();
 
             // 创建独立实例
-            HttpClient independent = HttpUtil.createHttpClientBuilder().build();
+            HttpClient independent = HttpUtil.httpClientBuilder().build();
 
             // 验证不是同一个实例
             assertNotSame(singleton, independent, "创建的实例应该独立于单例");
         }
 
         @Test
-        @DisplayName("createHttpClientBuilder() - 多线程创建不同实例")
+        @DisplayName("httpClientBuilder() - 多线程创建不同实例")
         void testConcurrentCreateDifferentInstances() throws InterruptedException {
             int threadCount = 20;
             CountDownLatch startLatch = new CountDownLatch(1);
@@ -343,7 +343,7 @@ class HttpUtilTest {
                 new Thread(() -> {
                     try {
                         startLatch.await();
-                        HttpClient client = HttpUtil.createHttpClientBuilder().build();
+                        HttpClient client = HttpUtil.httpClientBuilder().build();
                         clients.add(client);
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
@@ -369,10 +369,10 @@ class HttpUtilTest {
         }
 
         @Test
-        @DisplayName("createHttpClientBuilder() - 支持自定义配置")
+        @DisplayName("httpClientBuilder() - 支持自定义配置")
         void testCreateWithCustomConfig() {
             // 创建自定义配置的客户端
-            HttpClient client = HttpUtil.createHttpClientBuilder()
+            HttpClient client = HttpUtil.httpClientBuilder()
                     .setConnectTimeout(Duration.ofSeconds(5))
                     .setReadTimeout(Duration.ofSeconds(10))
                     .build();
@@ -483,8 +483,8 @@ class HttpUtilTest {
             assertNotNull(getSingletonInstance(), "获取单例应该触发单例初始化");
 
             // 3. 创建独立实例
-            HttpClient independent1 = HttpUtil.createHttpClientBuilder().build();
-            HttpClient independent2 = HttpUtil.createHttpClientBuilder().build();
+            HttpClient independent1 = HttpUtil.httpClientBuilder().build();
+            HttpClient independent2 = HttpUtil.httpClientBuilder().build();
 
             // 4. 再次创建请求
             HttpRequest request2 = HttpRequest.post(POST_URL).build();
@@ -501,21 +501,21 @@ class HttpUtilTest {
         void testDifferentOrderOfCalls() throws Exception {
             // 顺序1: 先创建独立实例, 再获取单例
             resetHttpUtilSingleton();
-            HttpClient independent1 = HttpUtil.createHttpClientBuilder().build();
+            HttpClient independent1 = HttpUtil.httpClientBuilder().build();
             HttpClient singleton1 = HttpUtil.getHttpClient();
             assertNotSame(independent1, singleton1);
 
             // 顺序2: 先获取单例, 再创建独立实例
             resetHttpUtilSingleton();
             HttpClient singleton2 = HttpUtil.getHttpClient();
-            HttpClient independent2 = HttpUtil.createHttpClientBuilder().build();
+            HttpClient independent2 = HttpUtil.httpClientBuilder().build();
             assertNotSame(singleton2, independent2);
 
             // 顺序3: 先创建请求, 再获取单例
             resetHttpUtilSingleton();
             HttpRequest.get(GET_URL).build();
             HttpClient singleton3 = HttpUtil.getHttpClient();
-            HttpClient independent3 = HttpUtil.createHttpClientBuilder().build();
+            HttpClient independent3 = HttpUtil.httpClientBuilder().build();
             assertNotSame(singleton3, independent3);
         }
 
@@ -537,7 +537,7 @@ class HttpUtilTest {
                         if (index % 2 == 0) {
                             singletons.add(HttpUtil.getHttpClient());
                         } else {
-                            independents.add(HttpUtil.createHttpClientBuilder().build());
+                            independents.add(HttpUtil.httpClientBuilder().build());
                         }
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
@@ -901,7 +901,7 @@ class HttpUtilTest {
 
             HttpClient singleton = HttpUtil.getHttpClient();
 
-            HttpClient independent = HttpUtil.createHttpClientBuilder()
+            HttpClient independent = HttpUtil.httpClientBuilder()
                     .setConnectTimeout(Duration.ofSeconds(1))
                     .setReadTimeout(Duration.ofSeconds(1))
                     .build();
@@ -1017,7 +1017,7 @@ class HttpUtilTest {
                     .build();
             HttpUtil.initHttpClient(singletonClient);
 
-            HttpClient independentClient = HttpUtil.createHttpClientBuilder()
+            HttpClient independentClient = HttpUtil.httpClientBuilder()
                     .addInterceptor(chain -> {
                         independentInterceptorCalled[0] = true;
                         return chain.proceed(chain.request());
@@ -1108,14 +1108,14 @@ class HttpUtilTest {
         void testCreateInstancePerformance() {
             // 预热
             for (int i = 0; i < 100; i++) {
-                HttpUtil.createHttpClientBuilder().build();
+                HttpUtil.httpClientBuilder().build();
             }
 
             int iterations = 10_000;
             long startTime = System.nanoTime();
 
             for (int i = 0; i < iterations; i++) {
-                HttpUtil.createHttpClientBuilder().build();
+                HttpUtil.httpClientBuilder().build();
             }
 
             long endTime = System.nanoTime();
@@ -1190,7 +1190,7 @@ class HttpUtilTest {
             // 测试创建实例性能 (使用 Builder 方式) 
             long createStart = System.nanoTime();
             for (int i = 0; i < iterations; i++) {
-                HttpUtil.createHttpClientBuilder().build();
+                HttpUtil.httpClientBuilder().build();
             }
             long createEnd = System.nanoTime();
             long createDuration = (createEnd - createStart) / 1_000_000;

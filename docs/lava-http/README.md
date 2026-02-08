@@ -102,7 +102,7 @@ import com.zhengshuyun.lava.http.HttpUtil;
 import java.time.Duration;
 
 // 1) 在应用启动阶段初始化全局客户端(只能初始化一次)
-HttpClient client = HttpUtil.createHttpClientBuilder()
+HttpClient client = HttpUtil.httpClientBuilder()
         .setConnectTimeout(Duration.ofSeconds(3))
         .setReadTimeout(Duration.ofSeconds(10))
         .setWriteTimeout(Duration.ofSeconds(10))

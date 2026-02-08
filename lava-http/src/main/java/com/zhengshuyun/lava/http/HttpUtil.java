@@ -46,7 +46,7 @@ import com.zhengshuyun.lava.core.lang.Validate;
  * );
  *
  * // 方式3：创建独立的自定义 HttpClient (用于特殊需求)
- * HttpClient customClient = HttpUtil.createHttpClientBuilder()
+ * HttpClient customClient = HttpUtil.httpClientBuilder()
  *         .setConnectTimeout(Duration.ofSeconds(5))
  *         .setReadTimeout(Duration.ofSeconds(15))
  *         .build();
@@ -178,19 +178,19 @@ public final class HttpUtil {
      * <h3>使用示例</h3>
      * <pre>{@code
      * // 场景1：创建快速接口的客户端 (短超时)
-     * HttpClient fastClient = HttpUtil.createHttpClientBuilder()
+     * HttpClient fastClient = HttpUtil.httpClientBuilder()
      *         .setConnectTimeout(Duration.ofSeconds(2))
      *         .setReadTimeout(Duration.ofSeconds(5))
      *         .build();
      *
      * // 场景2：创建慢速接口的客户端 (长超时)
-     * HttpClient slowClient = HttpUtil.createHttpClientBuilder()
+     * HttpClient slowClient = HttpUtil.httpClientBuilder()
      *         .setConnectTimeout(Duration.ofSeconds(10))
      *         .setReadTimeout(Duration.ofSeconds(60))
      *         .build();
      *
      * // 场景3：创建带自定义拦截器的客户端
-     * HttpClient customClient = HttpUtil.createHttpClientBuilder()
+     * HttpClient customClient = HttpUtil.httpClientBuilder()
      *         .addInterceptor(new LoggingInterceptor())
      *         .addInterceptor(new RetryInterceptor())
      *         .build();
@@ -205,7 +205,7 @@ public final class HttpUtil {
      *
      * @return HttpClient.Builder 实例, 用于链式配置
      */
-    public static HttpClient.Builder createHttpClientBuilder() {
+    public static HttpClient.Builder httpClientBuilder() {
         return HttpClient.builder();
     }
 
