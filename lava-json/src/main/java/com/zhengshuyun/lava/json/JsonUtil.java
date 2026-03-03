@@ -54,14 +54,6 @@ public final class JsonUtil {
         }
     }
 
-    /**
-     * @deprecated 使用 {@link #initObjectMapper(ObjectMapper)} 代替
-     */
-    @Deprecated(since = "1.0.0", forRemoval = true)
-    public static void init(ObjectMapper newObjectMapper) {
-        initObjectMapper(newObjectMapper);
-    }
-
     private static ObjectMapper getObjectMapper() {
         if (objectMapper == null) {
             synchronized (JsonUtil.class) {

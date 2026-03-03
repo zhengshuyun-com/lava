@@ -489,17 +489,6 @@ class JsonUtilTest {
         });
     }
 
-    @DisplayName("废弃方法 init() 兼容性测试")
-    @Test
-    @SuppressWarnings("deprecation")
-    void testDeprecatedInit() {
-        // 测试废弃方法仍然可用
-        assertThrows(IllegalArgumentException.class, () -> {
-            JsonUtil.writeValueAsString(Map.of("test", "value"));
-            JsonUtil.init(JsonUtil.builder().build());
-        });
-    }
-
     @DisplayName("格式化序列化异常路径")
     @Test
     void testWriteValueAsPrettyString_Exception() {
