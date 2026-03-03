@@ -23,7 +23,6 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 
 import java.io.IOException;
 import java.time.Instant;
-import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Date;
 
@@ -37,23 +36,16 @@ import java.util.Date;
  */
 final class IsoDateModule extends SimpleModule {
 
-    IsoDateModule(ZoneId zoneId) {
+    IsoDateModule() {
         super("IsoDateModule");
-        addSerializer(Date.class, new IsoDateSerializer(zoneId));
+        addSerializer(Date.class, new IsoDateSerializer());
     }
 
     private static class IsoDateSerializer extends JsonSerializer<Date> {
-        private final ZoneId zoneId;
-
-        IsoDateSerializer(ZoneId zoneId) {
-            this.zoneId = zoneId;
-        }
-
         @Override
         public void serialize(Date value, JsonGenerator gen, SerializerProvider serializers)
                 throws IOException {
-            // 转换为指定时区的 Instant，然后格式化为 ISO 8601
-            Instant instant = value.toInstant().atZone(zoneId).toInstant();
+            Instant instant = value.toInstant();
             gen.writeString(DateTimeFormatter.ISO_INSTANT.format(instant));
         }
     }

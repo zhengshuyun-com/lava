@@ -146,7 +146,7 @@ public final class JsonBuilder {
                 .defaultTimeZone(timeZone)
                 .defaultLocale(locale)
                 // 添加 Date ISO 8601 序列化支持
-                .addModule(new IsoDateModule(zone))
+                .addModule(new IsoDateModule())
                 // 添加Java8时间模块支持
                 .addModule(createJavaTimeModule());
 
