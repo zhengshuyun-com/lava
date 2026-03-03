@@ -145,8 +145,7 @@ public final class JsonBuilder {
                 // 序列化空对象时不抛异常
                 .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
                 // 设置时区和地区
-                .defaultTimeZone(timeZone)
-                .defaultLocale(locale)
+                .defaultTimeZone(timeZone).defaultLocale(locale)
                 // 添加 Date ISO 8601 序列化支持
                 .addModule(new IsoDateModule())
                 // 添加Java8时间模块支持
