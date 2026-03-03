@@ -131,6 +131,8 @@ public final class JsonBuilder {
         Validate.notNull(locale, "Locale must not be null");
         Validate.notNull(zone, "ZoneId must not be null");
         Validate.notBlank(dateTimeFormat, "dateTimeFormat must not be blank");
+        Validate.notBlank(dateFormat, "dateFormat must not be blank");
+        Validate.notBlank(timeFormat, "timeFormat must not be blank");
 
         TimeZone timeZone = TimeZone.getTimeZone(zone);
 
@@ -172,13 +174,11 @@ public final class JsonBuilder {
         module.addDeserializer(LocalDateTime.class, new LocalDateTimeDeserializer(dateTimeFormatter));
 
         // LocalDate
-        Validate.notBlank(dateFormat, "dateFormat must not be blank");
         DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern(dateFormat, locale);
         module.addSerializer(LocalDate.class, new LocalDateSerializer(dateFormatter));
         module.addDeserializer(LocalDate.class, new LocalDateDeserializer(dateFormatter));
 
         // LocalTime
-        Validate.notBlank(timeFormat, "timeFormat must not be blank");
         DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern(timeFormat, locale);
         module.addSerializer(LocalTime.class, new LocalTimeSerializer(timeFormatter));
         module.addDeserializer(LocalTime.class, new LocalTimeDeserializer(timeFormatter));
