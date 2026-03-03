@@ -59,7 +59,7 @@ class JsonUtilTest {
     @Test
     void testWriteValueAsString() {
         String expected = """
-                {"id":"1234567890123456789","name":"lava","age":18,"birthDateTime":"2026-01-01T00:00:00Z","birthLocalDate":"2026-01-01","birthLocalTime":"00:00:00","birthDate":"2026-01-01T00:00:00Z"}""";
+                {"id":1234567890123456789,"name":"lava","age":18,"birthDateTime":"2026-01-01T00:00:00Z","birthLocalDate":"2026-01-01","birthLocalTime":"00:00:00","birthDate":"2026-01-01T00:00:00Z"}""";
         User user = User.create();
         assertEquals(expected, JsonUtil.writeValueAsString(user));
     }
@@ -68,7 +68,7 @@ class JsonUtilTest {
     @Test
     void testWriteValueAsBytes() {
         String expected = """
-                {"id":"1234567890123456789","name":"lava","age":18,"birthDateTime":"2026-01-01T00:00:00Z","birthLocalDate":"2026-01-01","birthLocalTime":"00:00:00","birthDate":"2026-01-01T00:00:00Z"}""";
+                {"id":1234567890123456789,"name":"lava","age":18,"birthDateTime":"2026-01-01T00:00:00Z","birthLocalDate":"2026-01-01","birthLocalTime":"00:00:00","birthDate":"2026-01-01T00:00:00Z"}""";
         User user = User.create();
         byte[] bytes = JsonUtil.writeValueAsBytes(user);
         assertEquals(expected, new String(bytes, StandardCharsets.UTF_8));
@@ -114,7 +114,7 @@ class JsonUtilTest {
     @Test
     void testReadValue_String_Class() {
         String json = """
-                {"id":"1234567890123456789","name":"lava","age":18,"birthDateTime":"2026-01-01T00:00:00Z","birthLocalDate":"2026-01-01","birthLocalTime":"00:00:00","birthDate":"2026-01-01T00:00:00Z"}""";
+                {"id":1234567890123456789,"name":"lava","age":18,"birthDateTime":"2026-01-01T00:00:00Z","birthLocalDate":"2026-01-01","birthLocalTime":"00:00:00","birthDate":"2026-01-01T00:00:00Z"}""";
         User user = JsonUtil.readValue(json, User.class);
 
         assertEquals(1234567890123456789L, user.getId());

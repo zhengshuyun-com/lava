@@ -51,7 +51,6 @@ import java.util.function.Consumer;
  *   <li>时间格式: ISO 8601 ({@code HH:mm:ss})</li>
  *   <li>时区: UTC</li>
  *   <li>地区: Locale.ROOT (无地区特定格式)</li>
- *   <li>Long 类型: JS 安全序列化 (超出范围转字符串)</li>
  * </ul>
  *
  * <p>日期时间类型序列化示例:
@@ -62,15 +61,6 @@ import java.util.function.Consumer;
  *   <li>{@code LocalDate}: {@code "2026-01-01"}</li>
  *   <li>{@code LocalTime}: {@code "12:30:00"}</li>
  * </ul>
- *
- * <p><strong>迁移指南 (保持旧格式)</strong>:
- * <pre>{@code
- * ObjectMapper mapper = new JsonBuilder()
- *     .setDateTimeFormat(DateTimePatterns.DATE_TIME)  // "yyyy-MM-dd HH:mm:ss"
- *     .setZone(ZoneIds.ASIA_SHANGHAI)
- *     .setLocale(Locale.CHINA)
- *     .build();
- * }</pre>
  *
  * @author Toint
  * @since 2025/12/29
@@ -100,12 +90,6 @@ public final class JsonBuilder {
      * 地区, 默认{@link Locale#ROOT}
      */
     private Locale locale = Locale.ROOT;
-
-    /**
-     * Long值JS安全序列化
-     */
-    @Nullable
-    private SafeLongModule safeLongModule = new SafeLongModule();
 
     /**
      * 自定义
@@ -138,11 +122,6 @@ public final class JsonBuilder {
         return this;
     }
 
-    public JsonBuilder setSafeLongModule(@Nullable SafeLongModule val) {
-        safeLongModule = val;
-        return this;
-    }
-
     public JsonBuilder setCustomizer(@Nullable Consumer<JsonMapper.Builder> val) {
         customizer = val;
         return this;
@@ -170,11 +149,6 @@ public final class JsonBuilder {
                 .addModule(new IsoDateModule(zone))
                 // 添加Java8时间模块支持
                 .addModule(createJavaTimeModule());
-
-        // 安全Long, 解决JS精度丢失问题
-        if (safeLongModule != null) {
-            builder.addModule(safeLongModule);
-        }
 
         // 自定义
         if (customizer != null) {
