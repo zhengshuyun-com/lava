@@ -1,6 +1,6 @@
 # JSON 编解码教程
 
-`lava-json` 提供统一 JSON 序列化与反序列化 API, 底层基于 Jackson, 默认内置长整型安全序列化和 ISO 时间格式.
+`lava-json` 提供统一 JSON 序列化与反序列化 API, 底层基于 Jackson, 默认输出 UTC 时间格式.
 
 ## 引入依赖
 
@@ -21,71 +21,97 @@ import com.zhengshuyun.lava.json.JsonUtil;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 public class JsonQuickStartDemo {
 
     public static void main(String[] args) {
-        // 1) 对象序列化为 JSON 字符串
-        User user = new User(9007199254740993L, "alice", Instant.parse("2026-02-08T10:00:00Z"));
+        // 1. 准备业务对象
+        User user = new User(1001L, "alice", Instant.parse("2026-02-08T10:00:00Z"), Map.of("source", "api"));
+
+        // 2. 序列化为 JSON 字符串
         String json = JsonUtil.writeValueAsString(user);
 
-        // 2) JSON 字符串反序列化为对象
+        // 3. 反序列化为对象
         User parsed = JsonUtil.readValue(json, User.class);
 
-        // 3) JSON 数组反序列化为泛型集合
+        // 4. 反序列化为泛型集合
         List<User> users = JsonUtil.readValue("[" + json + "]", new TypeReference<List<User>>() {
         });
 
         // TODO: 按业务处理 json/parsed/users
     }
 
-    public record User(long id, String name, Instant createdAt) {
+    public record User(long id, String name, Instant createdAt, Map<String, String> ext) {
     }
 }
 ```
 
-- `writeValueAsString(...)`: 默认使用模块内置 `ObjectMapper`.
-- `readValue(..., TypeReference<T>)`: 处理泛型场景, 避免类型擦除问题.
-- `id` 超过 JS 安全范围时会序列化为字符串, 减少前端精度丢失风险.
+- `writeValueAsString(...)`: 使用模块默认 `ObjectMapper` 完成序列化.
+- `readValue(..., TypeReference<T>)`: 处理泛型集合, 避免类型擦除.
+- `createdAt` 默认输出 `ISO 8601 + Z` UTC 格式.
 
-## 常用编解码操作
+## 核心能力
 
-### 对象与集合
+### 对象与集合编解码
 
 ```java
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.zhengshuyun.lava.json.JsonUtil;
-
+// 1. 对象反序列化
 Order order = JsonUtil.readValue(jsonStr, Order.class);
+
+// 2. 集合反序列化
 List<Order> list = JsonUtil.readValue(jsonArr, new TypeReference<List<Order>>() {
 });
+
+// 3. 序列化为字节数组
 byte[] bytes = JsonUtil.writeValueAsBytes(order);
 ```
 
-- `readValue(...)`: 统一入口, 覆盖 `String`/`byte[]`/`File`/`InputStream`.
-- `writeValueAsBytes(...)`: 适合 RPC 或缓存场景.
+- `readValue(...)` 支持 `String`/`byte[]`/`File`/`InputStream` 多种输入.
+- `writeValueAsBytes(...)` 适合 RPC, 消息队列, 缓存等场景.
 
-### Tree 模型
+### Tree 模型处理
 
 ```java
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.zhengshuyun.lava.json.JsonUtil;
-
-// 1) 创建可变 JSON 对象
+// 1. 动态构建 JSON
 ObjectNode root = JsonUtil.createObjectNode();
 root.put("traceId", "req-20260208");
 root.put("success", true);
 
-// 2) 序列化与反序列化
-String json = JsonUtil.writeValueAsString(root);
-JsonNode tree = JsonUtil.readTree(json);
+// 2. 按需读取局部字段
+JsonNode tree = JsonUtil.readTree(JsonUtil.writeValueAsString(root));
+String traceId = tree.path("traceId").asText();
 ```
 
-- `createObjectNode()` 和 `createArrayNode()` 适合动态字段场景.
-- `readTree(...)` 适合只读部分字段, 不必定义完整 Java 类型.
+- `createObjectNode()`/`createArrayNode()` 适合动态字段.
+- `readTree(...)` 适合只关心部分字段, 不需要完整 Java 类型.
 
-## 自定义序列化配置
+### 类型转换
+
+```java
+// 1. Map 转对象
+User user = JsonUtil.convertValue(payloadMap, User.class);
+
+// 2. 对象转 JsonNode
+JsonNode node = JsonUtil.valueToTree(user);
+```
+
+- `convertValue(...)` 适合 DTO 与领域对象之间转换.
+- `valueToTree(...)` 适合在规则引擎或网关中做轻量结构处理.
+
+## 时间格式规范
+
+框架层统一输出 UTC 时间, 业务层或前端按用户时区做展示转换.
+
+| 类型 | 默认输出示例 | 说明 |
+|------|--------------|------|
+| `LocalDateTime` | `2026-01-01T12:30:00Z` | 无时区类型, 框架统一补 `Z` 以保持格式一致 |
+| `Date` | `2026-01-01T12:30:00Z` | 按 UTC 格式输出 |
+| `Instant` | `2026-01-01T12:30:00Z` | 按 UTC 格式输出 |
+| `LocalDate` | `2026-01-01` | 日期类型 |
+| `LocalTime` | `12:30:00` | 时间类型 |
+
+## 生命周期管理与自定义配置
 
 ```java
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -93,32 +119,34 @@ import com.zhengshuyun.lava.core.time.DateTimePatterns;
 import com.zhengshuyun.lava.core.time.ZoneIds;
 import com.zhengshuyun.lava.json.JsonBuilder;
 import com.zhengshuyun.lava.json.JsonUtil;
+import com.zhengshuyun.lava.json.SafeLongModule;
 
 import java.util.Locale;
 
-// 1) 构建自定义 ObjectMapper
+// 1. 构建自定义 ObjectMapper
 ObjectMapper mapper = new JsonBuilder()
         .setDateTimeFormat(DateTimePatterns.DATE_TIME)
         .setZone(ZoneIds.ASIA_SHANGHAI)
         .setLocale(Locale.CHINA)
+        .setCustomizer(builder -> builder.addModule(new SafeLongModule()))
         .build();
 
-// 2) 在首次使用 JsonUtil 前注入
+// 2. 在首次使用 JsonUtil 前初始化
 JsonUtil.initObjectMapper(mapper);
 ```
 
-- `initObjectMapper(...)` 只能初始化一次.
-- 必须在首次调用 `JsonUtil` 任何读写方法前执行.
+- `initObjectMapper(...)` 只能调用一次, 且必须在首次读写前执行.
+- 默认不启用长整型安全序列化, 需要时可通过 `SafeLongModule` 手动开启.
+- 修改时间格式会影响 API 兼容性, 建议团队统一约定后再调整.
 
 ## 常见坑与排查建议
 
-- 使用了不存在的方法名(如 `parseObject`), 请统一改为 `readValue`.
-- `initObjectMapper(...)` 在首次读写后再调用会抛异常, 建议在应用启动阶段统一初始化.
-- 反序列化失败通常是字段类型不匹配, 先输出原始 JSON 再核对目标类型.
-- 超大响应体不要直接 `readValue(String, ...)`, 可优先用 `InputStream` 版本降低内存峰值.
+- 使用了不存在的方法名 (如 `parseObject`) 时, 统一改为 `readValue(...)`.
+- 首次读写后再调用 `initObjectMapper(...)` 会抛异常, 请在应用启动阶段初始化.
+- 反序列化失败多数是字段类型不匹配, 先记录原始 JSON 再核对目标类型.
+- 超大响应体优先使用 `InputStream` 版本, 降低内存峰值.
 
 ## 实践建议
 
-- API 边界统一使用 `JsonUtil`, 避免多套 `ObjectMapper` 配置不一致.
-- 面向前端的 `long` 字段默认保留安全序列化, 除非前后端已统一 `BigInt` 方案.
-- 时间字段建议统一 UTC 入库, 展示层再做时区转换.
+- API 边界统一使用 `JsonUtil`, 避免多套 `ObjectMapper` 配置漂移.
+- 生产环境建议统一 UTC 入库, 展示层再做时区转换.
