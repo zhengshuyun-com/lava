@@ -410,13 +410,15 @@ class ScheduleUtilTest {
 
         ScheduledTask task = ScheduleUtil.scheduler(latch::countDown)
                 .setId("fire-times")
-                .setTrigger(Trigger.cron("* * * * * ?").build())
+                .setTrigger(Trigger.interval(200)
+                        .initialDelay(1000)
+                        .build())
                 .schedule();
 
         assertNotNull(task.getNextFireTime());
         assertNull(task.getPreviousFireTime()); // 还没执行过
 
-        latch.await(2, TimeUnit.SECONDS);
+        assertTrue(latch.await(3, TimeUnit.SECONDS));
         Thread.sleep(100);
 
         assertNotNull(task.getPreviousFireTime());
