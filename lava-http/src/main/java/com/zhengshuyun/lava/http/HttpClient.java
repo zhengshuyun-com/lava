@@ -20,6 +20,9 @@ import com.zhengshuyun.lava.core.id.IdUtil;
 import com.zhengshuyun.lava.core.io.IoUtil;
 import com.zhengshuyun.lava.core.lang.Validate;
 import okhttp3.*;
+import okhttp3.sse.EventSource;
+import okhttp3.sse.EventSourceListener;
+import okhttp3.sse.EventSources;
 import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
@@ -122,6 +125,85 @@ public final class HttpClient {
         } catch (RuntimeException e) {
             IoUtil.closeQuietly(response);
             throw e;
+        }
+    }
+
+    /**
+     * 执行 SSE 请求.
+     *
+     * @param request  HTTP 请求
+     * @param listener SSE 监听器
+     * @return SSE 会话
+     */
+    public HttpSseSession executeSse(HttpRequest request, HttpSseListener listener) {
+        return executeSse(request, listener, null);
+    }
+
+    /**
+     * 执行 SSE 请求.
+     *
+     * @param request  HTTP 请求
+     * @param listener SSE 监听器
+     * @param config   方法级自定义配置
+     * @return SSE 会话
+     */
+    public HttpSseSession executeSse(HttpRequest request, HttpSseListener listener, @Nullable Builder config) {
+        Validate.notNull(request, "HttpRequest must not be null");
+        Validate.notNull(listener, "HttpSseListener must not be null");
+
+        final OkHttpClient client = getClient(config);
+        final HttpSseSession session = new HttpSseSession();
+
+        try {
+            EventSource.Factory factory = EventSources.createFactory(client);
+            EventSource eventSource = factory.newEventSource(request.toOkHttpRequest(), new EventSourceListener() {
+                @Override
+                public void onOpen(EventSource eventSource, Response response) {
+                    // SSE 握手已经成功建立, 这里通常用于感知建连成功并暴露响应头、状态码等元信息.
+                    listener.onOpen(session, new HttpSseOpen(response.code(), response.headers()));
+                }
+
+                @Override
+                public void onEvent(EventSource eventSource, String id, String type, String data) {
+                    // 每收到一条完整 SSE 事件就回调一次, 框架层负责把 OkHttp 原生参数收敛成稳定事件对象.
+                    HttpSseEvent event = new HttpSseEvent(id, type, data);
+                    listener.onEvent(session, event);
+                }
+
+                @Override
+                public void onClosed(EventSource eventSource) {
+                    // 服务端正常结束流或客户端正常关闭时回调, 这里统一更新会话关闭状态.
+                    session.markClosed();
+                    listener.onClosed(session);
+                }
+
+                @Override
+                public void onFailure(EventSource eventSource, Throwable throwable, Response response) {
+                    // 建连失败、HTTP 非 2xx、流中断等异常场景都会进入这里, 尽量补齐状态码和错误响应体.
+                    session.markClosed();
+
+                    Integer statusCode = null;
+                    Headers headers = null;
+                    String responseBody = null;
+                    if (response != null) {
+                        statusCode = response.code();
+                        headers = response.headers();
+                        if (response.body() != null) {
+                            try {
+                                responseBody = response.peekBody(1024 * 1024L).string();
+                            } catch (IOException ignored) {
+                                // 忽略错误响应体读取失败, 交给调用方处理主异常.
+                            }
+                        }
+                    }
+                    HttpSseFailure failure = new HttpSseFailure(throwable, statusCode, headers, responseBody);
+                    listener.onFailure(session, failure);
+                }
+            });
+            session.bind(eventSource);
+            return session;
+        } catch (RuntimeException exception) {
+            throw new HttpException("HTTP SSE request failed: " + exception.getMessage(), exception);
         }
     }
 

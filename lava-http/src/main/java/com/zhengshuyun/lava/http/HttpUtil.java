@@ -253,4 +253,15 @@ public final class HttpUtil {
     public static HttpResponse execute(HttpRequest request) {
         return getHttpClient().execute(request);
     }
+
+    /**
+     * 使用全局单例 HttpClient 执行 SSE 请求.
+     *
+     * @param request  HTTP 请求
+     * @param listener SSE 监听器
+     * @return SSE 会话
+     */
+    public static HttpSseSession executeSse(HttpRequest request, HttpSseListener listener) {
+        return getHttpClient().executeSse(request, listener);
+    }
 }

@@ -96,6 +96,28 @@ public final class HttpRequest {
     }
 
     /**
+     * 使用全局单例 HttpClient 执行 SSE 请求.
+     *
+     * @param listener SSE 监听器
+     * @return SSE 会话
+     */
+    public HttpSseSession executeSse(HttpSseListener listener) {
+        return HttpUtil.executeSse(this, listener);
+    }
+
+    /**
+     * 使用指定的 HttpClient 执行 SSE 请求.
+     *
+     * @param httpClient HTTP 客户端
+     * @param listener   SSE 监听器
+     * @return SSE 会话
+     */
+    public HttpSseSession executeSse(HttpClient httpClient, HttpSseListener listener) {
+        return Validate.notNull(httpClient, "httpClient must not be null")
+                .executeSse(this, listener);
+    }
+
+    /**
      * 转换为 OkHttp Request
      * <p>
      * 框架层面处理请求体的合法性：
