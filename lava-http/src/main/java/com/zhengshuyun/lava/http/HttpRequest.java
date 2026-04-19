@@ -81,6 +81,17 @@ public final class HttpRequest {
     }
 
     /**
+     * 使用全局单例 HttpClient 执行请求, 并应用方法级配置覆盖.
+     *
+     * @param config 方法级自定义配置, 允许为 null
+     * @return HTTP 响应
+     * @throws HttpException 请求失败时抛出
+     */
+    public HttpResponse execute(HttpClient.@Nullable Builder config) {
+        return HttpUtil.execute(this, config);
+    }
+
+    /**
      * 使用指定的 HttpClient 执行请求
      * <p>
      * 返回的 {@link HttpResponse} 使用完后必须关闭, 推荐使用 try-with-resources
@@ -96,6 +107,20 @@ public final class HttpRequest {
     }
 
     /**
+     * 使用指定的 HttpClient 执行请求, 并应用方法级配置覆盖.
+     *
+     * @param httpClient HTTP 客户端
+     * @param config     方法级自定义配置, 允许为 null
+     * @return HTTP 响应
+     * @throws IllegalArgumentException httpClient 为 null
+     * @throws HttpException            请求失败时抛出
+     */
+    public HttpResponse execute(HttpClient httpClient, HttpClient.@Nullable Builder config) {
+        return Validate.notNull(httpClient, "httpClient must not be null")
+                .execute(this, config);
+    }
+
+    /**
      * 使用全局单例 HttpClient 执行 SSE 请求.
      *
      * @param listener SSE 监听器
@@ -103,6 +128,17 @@ public final class HttpRequest {
      */
     public HttpSseSession executeSse(HttpSseListener listener) {
         return HttpUtil.executeSse(this, listener);
+    }
+
+    /**
+     * 使用全局单例 HttpClient 执行 SSE 请求, 并应用方法级配置覆盖.
+     *
+     * @param listener SSE 监听器
+     * @param config   方法级自定义配置, 允许为 null
+     * @return SSE 会话
+     */
+    public HttpSseSession executeSse(HttpSseListener listener, HttpClient.@Nullable Builder config) {
+        return HttpUtil.executeSse(this, listener, config);
     }
 
     /**
@@ -115,6 +151,21 @@ public final class HttpRequest {
     public HttpSseSession executeSse(HttpClient httpClient, HttpSseListener listener) {
         return Validate.notNull(httpClient, "httpClient must not be null")
                 .executeSse(this, listener);
+    }
+
+    /**
+     * 使用指定的 HttpClient 执行 SSE 请求, 并应用方法级配置覆盖.
+     *
+     * @param httpClient HTTP 客户端
+     * @param listener   SSE 监听器
+     * @param config     方法级自定义配置, 允许为 null
+     * @return SSE 会话
+     */
+    public HttpSseSession executeSse(HttpClient httpClient,
+                                     HttpSseListener listener,
+                                     HttpClient.@Nullable Builder config) {
+        return Validate.notNull(httpClient, "httpClient must not be null")
+                .executeSse(this, listener, config);
     }
 
     /**

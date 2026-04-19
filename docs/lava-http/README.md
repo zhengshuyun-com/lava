@@ -42,6 +42,7 @@ public class HttpQuickStartDemo {
 - `HttpRequest.get(...)`: 创建请求构建器.
 - `HttpRequest.execute()`: 实例入口, 内部使用全局单例 `HttpClient` 执行请求.
 - `HttpUtil.execute(...)`: 静态入口, 与 `request.execute()` 等价.
+- 方法级临时配置可通过 `request.execute(config)` 或 `HttpUtil.execute(request, config)` 覆盖本次调用.
 - `HttpResponse` 必须关闭, 推荐固定用 `try-with-resources`.
 
 ## 请求构建
@@ -109,10 +110,22 @@ HttpClient client = HttpUtil.httpClientBuilder()
         .setCallTimeout(Duration.ofSeconds(20))
         .build();
 HttpUtil.initHttpClient(client);
+
+// 2) 单次请求临时覆盖超时, 不影响全局单例
+HttpClient.Builder requestConfig = HttpClient.builder()
+        .setReadTimeout(Duration.ofSeconds(30))
+        .setCallTimeout(Duration.ofSeconds(30));
+
+try (HttpResponse response = HttpRequest.get("https://api.example.com/slow-task")
+        .build()
+        .execute(requestConfig)) {
+    // TODO: 按业务处理 response
+}
 ```
 
 - `callTimeout` 建议始终设置, 避免请求长时间挂起.
 - `initHttpClient(...)` 只能调用一次, 需要在首次请求前完成.
+- 方法级 `config` 是在基础客户端上做本次覆盖, 不会修改全局单例本身.
 
 ## 生命周期管理与高级用法
 

@@ -147,6 +147,108 @@ class HttpSseTest {
     }
 
     @Test
+    @DisplayName("HttpUtil.executeSse(request, listener, config) - 使用全局单例并覆盖方法级配置")
+    void testExecuteSseByHttpUtilWithMethodLevelConfig() throws Exception {
+        HttpRequest request = HttpRequest.get(baseUrl + "/success")
+                .setHeader(HttpHeaders.ACCEPT, "text/event-stream")
+                .build();
+        HttpClient.Builder config = HttpClient.builder()
+                .setReadTimeout(Duration.ofSeconds(5))
+                .setCallTimeout(Duration.ofSeconds(5));
+
+        CountDownLatch latch = new CountDownLatch(1);
+        AtomicReference<HttpSseEvent> resultEventRef = new AtomicReference<>();
+
+        HttpSseSession session = HttpUtil.executeSse(request, new HttpSseListener() {
+            @Override
+            public void onEvent(HttpSseSession session, HttpSseEvent event) {
+                if ("result".equals(event.type())) {
+                    resultEventRef.set(event);
+                }
+            }
+
+            @Override
+            public void onClosed(HttpSseSession session) {
+                latch.countDown();
+            }
+        }, config);
+
+        assertTrue(latch.await(3, TimeUnit.SECONDS), "SSE 应该在 3 秒内完成");
+        assertNotNull(resultEventRef.get(), "应该收到 result 事件");
+        assertEquals("{\"ok\":true}", resultEventRef.get().data());
+        assertTrue(session.isClosed(), "SSE 结束后会话应该关闭");
+    }
+
+    @Test
+    @DisplayName("HttpRequest.executeSse(listener, config) - 使用全局单例并覆盖方法级配置")
+    void testExecuteSseByRequestWithMethodLevelConfig() throws Exception {
+        HttpRequest request = HttpRequest.get(baseUrl + "/success")
+                .setHeader(HttpHeaders.ACCEPT, "text/event-stream")
+                .build();
+        HttpClient.Builder config = HttpClient.builder()
+                .setReadTimeout(Duration.ofSeconds(5))
+                .setCallTimeout(Duration.ofSeconds(5));
+
+        CountDownLatch latch = new CountDownLatch(1);
+        AtomicReference<HttpSseEvent> resultEventRef = new AtomicReference<>();
+
+        HttpSseSession session = request.executeSse(new HttpSseListener() {
+            @Override
+            public void onEvent(HttpSseSession session, HttpSseEvent event) {
+                if ("result".equals(event.type())) {
+                    resultEventRef.set(event);
+                }
+            }
+
+            @Override
+            public void onClosed(HttpSseSession session) {
+                latch.countDown();
+            }
+        }, config);
+
+        assertTrue(latch.await(3, TimeUnit.SECONDS), "SSE 应该在 3 秒内完成");
+        assertNotNull(resultEventRef.get(), "应该收到 result 事件");
+        assertEquals("{\"ok\":true}", resultEventRef.get().data());
+        assertTrue(session.isClosed(), "SSE 结束后会话应该关闭");
+    }
+
+    @Test
+    @DisplayName("HttpRequest.executeSse(httpClient, listener, config) - 使用指定客户端并覆盖方法级配置")
+    void testExecuteSseByRequestWithClientAndMethodLevelConfig() throws Exception {
+        HttpClient httpClient = HttpClient.builder()
+                .setConnectTimeout(Duration.ofSeconds(3))
+                .build();
+        HttpRequest request = HttpRequest.get(baseUrl + "/success")
+                .setHeader(HttpHeaders.ACCEPT, "text/event-stream")
+                .build();
+        HttpClient.Builder config = HttpClient.builder()
+                .setReadTimeout(Duration.ofSeconds(5))
+                .setCallTimeout(Duration.ofSeconds(5));
+
+        CountDownLatch latch = new CountDownLatch(1);
+        AtomicReference<HttpSseEvent> resultEventRef = new AtomicReference<>();
+
+        HttpSseSession session = request.executeSse(httpClient, new HttpSseListener() {
+            @Override
+            public void onEvent(HttpSseSession session, HttpSseEvent event) {
+                if ("result".equals(event.type())) {
+                    resultEventRef.set(event);
+                }
+            }
+
+            @Override
+            public void onClosed(HttpSseSession session) {
+                latch.countDown();
+            }
+        }, config);
+
+        assertTrue(latch.await(3, TimeUnit.SECONDS), "SSE 应该在 3 秒内完成");
+        assertNotNull(resultEventRef.get(), "应该收到 result 事件");
+        assertEquals("{\"ok\":true}", resultEventRef.get().data());
+        assertTrue(session.isClosed(), "SSE 结束后会话应该关闭");
+    }
+
+    @Test
     @DisplayName("HttpClient.executeSse() - HTTP 非 2xx 时触发失败回调")
     void testExecuteSseFailure() throws Exception {
         HttpClient httpClient = HttpClient.builder().build();

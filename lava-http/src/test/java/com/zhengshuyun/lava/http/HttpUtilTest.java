@@ -854,7 +854,7 @@ class HttpUtilTest {
 
             assertThrows(
                     IllegalArgumentException.class,
-                    () -> request.execute(null),
+                    () -> request.execute((HttpClient) null),
                     "传入 null HttpClient 应该抛出 IllegalArgumentException"
             );
         }
@@ -914,6 +914,53 @@ class HttpUtilTest {
             try (HttpResponse response2 = request.execute(client2)) {
                 assertNotNull(response2, "使用 client2 的响应不应该为 null");
                 assertTrue(response2.isSuccessful(), "使用 client2 的请求应该成功");
+            }
+        }
+
+        @Test
+        @DisplayName("HttpUtil.execute(request, config) - 使用全局单例并覆盖方法级配置")
+        void testHttpUtilExecuteWithMethodLevelConfig() {
+            HttpRequest request = HttpRequest.get(GET_URL).build();
+            HttpClient.Builder config = HttpClient.builder()
+                    .setReadTimeout(Duration.ofSeconds(5))
+                    .setCallTimeout(Duration.ofSeconds(5));
+
+            try (HttpResponse response = HttpUtil.execute(request, config)) {
+                assertNotNull(response, "响应不应该为 null");
+                assertTrue(response.isSuccessful(), "请求应该成功");
+            }
+        }
+
+        @Test
+        @DisplayName("HttpRequest.execute(config) - 使用全局单例并覆盖方法级配置")
+        void testHttpRequestExecuteWithMethodLevelConfig() {
+            HttpClient.Builder config = HttpClient.builder()
+                    .setReadTimeout(Duration.ofSeconds(5))
+                    .setCallTimeout(Duration.ofSeconds(5));
+
+            try (HttpResponse response = HttpRequest.get(GET_URL)
+                    .build()
+                    .execute(config)) {
+                assertNotNull(response, "响应不应该为 null");
+                assertTrue(response.isSuccessful(), "请求应该成功");
+            }
+        }
+
+        @Test
+        @DisplayName("HttpRequest.execute(HttpClient, config) - 使用指定客户端并覆盖方法级配置")
+        void testHttpRequestExecuteWithClientAndMethodLevelConfig() {
+            HttpClient httpClient = HttpUtil.httpClientBuilder()
+                    .setConnectTimeout(Duration.ofSeconds(3))
+                    .build();
+            HttpClient.Builder config = HttpClient.builder()
+                    .setReadTimeout(Duration.ofSeconds(5))
+                    .setCallTimeout(Duration.ofSeconds(5));
+
+            try (HttpResponse response = HttpRequest.get(GET_URL)
+                    .build()
+                    .execute(httpClient, config)) {
+                assertNotNull(response, "响应不应该为 null");
+                assertTrue(response.isSuccessful(), "请求应该成功");
             }
         }
     }

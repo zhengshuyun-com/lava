@@ -17,6 +17,7 @@
 package com.zhengshuyun.lava.http;
 
 import com.zhengshuyun.lava.core.lang.Validate;
+import org.jspecify.annotations.Nullable;
 
 /**
  * HTTP 工具类
@@ -255,6 +256,17 @@ public final class HttpUtil {
     }
 
     /**
+     * 使用全局单例 HttpClient 执行 HTTP 请求, 并应用方法级配置覆盖.
+     *
+     * @param request HTTP 请求对象, 不能为 null
+     * @param config  方法级自定义配置, 允许为 null
+     * @return HTTP 响应对象
+     */
+    public static HttpResponse execute(HttpRequest request, HttpClient.@Nullable Builder config) {
+        return getHttpClient().execute(request, config);
+    }
+
+    /**
      * 使用全局单例 HttpClient 执行 SSE 请求.
      *
      * @param request  HTTP 请求
@@ -263,5 +275,19 @@ public final class HttpUtil {
      */
     public static HttpSseSession executeSse(HttpRequest request, HttpSseListener listener) {
         return getHttpClient().executeSse(request, listener);
+    }
+
+    /**
+     * 使用全局单例 HttpClient 执行 SSE 请求, 并应用方法级配置覆盖.
+     *
+     * @param request  HTTP 请求
+     * @param listener SSE 监听器
+     * @param config   方法级自定义配置, 允许为 null
+     * @return SSE 会话
+     */
+    public static HttpSseSession executeSse(HttpRequest request,
+                                            HttpSseListener listener,
+                                            HttpClient.@Nullable Builder config) {
+        return getHttpClient().executeSse(request, listener, config);
     }
 }
