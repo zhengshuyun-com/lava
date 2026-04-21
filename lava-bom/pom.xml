@@ -23,7 +23,7 @@
     <parent>
         <groupId>com.zhengshuyun</groupId>
         <artifactId>lava-parent</artifactId>
-        <version>1.0.2</version>
+        <version>1.0.3</version>
     </parent>
 
     <packaging>pom</packaging>
@@ -33,13 +33,4 @@
     <description>Lava 依赖版本清单</description>
     <url>https://github.com/zhengshuyun-com/lava</url>
 
-    <dependencyManagement>
-        <dependencies>
-            <dependency>
-                <groupId>com.zhengshuyun</groupId>
-                <artifactId>lava-mail</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-        </dependencies>
-    </dependencyManagement>
 </project>
