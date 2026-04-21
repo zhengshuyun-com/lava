@@ -33,5 +33,13 @@
     <description>Lava 依赖版本清单</description>
     <url>https://github.com/zhengshuyun-com/lava</url>
 
-
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>com.zhengshuyun</groupId>
+                <artifactId>lava-mail</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 </project>

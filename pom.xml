@@ -59,6 +59,7 @@
         <module>lava-bom</module>
         <module>lava-jwt</module>
         <module>lava-crypto</module>
+        <module>lava-mail</module>
     </modules>
 
     <properties>
@@ -83,6 +84,7 @@
         <slf4j.version>2.0.17</slf4j.version>
         <java-jwt.version>4.5.0</java-jwt.version>
         <bcprov-jdk18on.version>1.83</bcprov-jdk18on.version>
+        <angus-mail.version>2.0.5</angus-mail.version>
     </properties>
 
     <dependencyManagement>
@@ -135,7 +137,19 @@
                 <version>${bcprov-jdk18on.version}</version>
             </dependency>
 
+            <dependency>
+                <groupId>org.eclipse.angus</groupId>
+                <artifactId>angus-mail</artifactId>
+                <version>${angus-mail.version}</version>
+            </dependency>
+
             <!--子模块-->
+            <dependency>
+                <groupId>com.zhengshuyun</groupId>
+                <artifactId>lava-mail</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
             <dependency>
                 <groupId>com.zhengshuyun</groupId>
                 <artifactId>lava-bom</artifactId>

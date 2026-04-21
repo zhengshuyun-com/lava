@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.zhengshuyun</groupId>
+        <artifactId>lava-parent</artifactId>
+        <version>1.0.2</version>
+    </parent>
+
+    <artifactId>lava-mail</artifactId>
+    <name>${project.artifactId}</name>
+    <description>邮件收发封装, 基于 Angus Mail</description>
+    <url>https://github.com/zhengshuyun-com/lava</url>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.zhengshuyun</groupId>
+            <artifactId>lava-core</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.zhengshuyun</groupId>
+            <artifactId>lava-http</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.eclipse.angus</groupId>
+            <artifactId>angus-mail</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.zhengshuyun</groupId>
+            <artifactId>lava-json</artifactId>
+        </dependency>
+    </dependencies>
+</project>
