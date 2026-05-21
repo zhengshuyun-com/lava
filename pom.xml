@@ -28,7 +28,7 @@
     <packaging>pom</packaging>
 
     <name>Lava</name>
-    <description>Lava — 让 Java 基础设施开发更简单、更安全、更一致</description>
+    <description>一套一致, 安全, 开箱即用的 Java 基础设施工具库</description>
     <url>https://github.com/zhengshuyun-com/lava</url>
 
     <developers>
