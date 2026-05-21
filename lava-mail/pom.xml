@@ -12,7 +12,7 @@
 
     <artifactId>lava-mail</artifactId>
     <name>${project.artifactId}</name>
-    <description>邮件收发封装, 基于 Angus Mail</description>
+    <description>Lava 邮件模块, 提供统一的邮件收发能力</description>
     <url>https://github.com/zhengshuyun-com/lava</url>
 
     <dependencies>

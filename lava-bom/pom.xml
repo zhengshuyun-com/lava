@@ -30,7 +30,7 @@
 
     <artifactId>lava-bom</artifactId>
     <name>${project.artifactId}</name>
-    <description>Lava 依赖版本清单</description>
+    <description>Lava 依赖版本清单, 用于统一管理 Lava 模块及其依赖版本</description>
     <url>https://github.com/zhengshuyun-com/lava</url>
 
 </project>

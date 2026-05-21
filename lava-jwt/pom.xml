@@ -28,7 +28,7 @@
 
     <artifactId>lava-jwt</artifactId>
     <name>${project.artifactId}</name>
-    <description>JWT 生成与验证, 基于 Auth0</description>
+    <description>Lava JWT 模块, 提供统一的 Token 签发, 验证和解析能力</description>
     <url>https://github.com/zhengshuyun-com/lava</url>
 
     <dependencies>

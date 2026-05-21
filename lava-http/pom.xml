@@ -28,7 +28,7 @@
 
     <artifactId>lava-http</artifactId>
     <name>${project.artifactId}</name>
-    <description>>HTTP 客户端封装, 基于 OkHttp</description>
+    <description>Lava HTTP 模块, 提供统一的同步 HTTP 客户端能力</description>
     <url>https://github.com/zhengshuyun-com/lava</url>
 
     <dependencies>
