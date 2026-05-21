@@ -78,11 +78,11 @@
 
         <junit-jupiter.version>6.0.3</junit-jupiter.version>
         <guava.version>33.6.0-jre</guava.version>
-        <jackson.version>2.21.2</jackson.version>
+        <jackson.version>2.21.3</jackson.version>
         <okhttp.version>4.12.0</okhttp.version>
         <quartz.version>2.5.2</quartz.version>
         <slf4j.version>2.0.17</slf4j.version>
-        <java-jwt.version>4.5.1</java-jwt.version>
+        <java-jwt.version>4.5.2</java-jwt.version>
         <bcprov-jdk18on.version>1.84</bcprov-jdk18on.version>
         <angus-mail.version>2.0.5</angus-mail.version>
     </properties>
