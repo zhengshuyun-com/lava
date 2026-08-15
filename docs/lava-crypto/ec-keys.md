@@ -1,4 +1,4 @@
-# 生成 EC 密钥对教程
+# EC 密钥生成与读取
 
 本教程面向需要落地 `ES256/ES384/ES512` 或其他 EC 场景的开发者, 重点覆盖生成, 导出, 恢复三步.
 
@@ -45,11 +45,11 @@ public class EcKeyPairDemo {
 
 ## 可以直接复用的曲线配置
 
-| 曲线常量 | 别名 | 典型算法 | 说明 |
-|----------|------|----------|------|
-| `EcCurves.SECP256R1` | P-256 | `ES256` | 默认推荐, 兼容性最佳 |
-| `EcCurves.SECP384R1` | P-384 | `ES384` | 安全强度更高, 签名更大 |
-| `EcCurves.SECP521R1` | P-521 | `ES512` | 强度更高, 计算和传输成本更高 |
+| 曲线常量             | 别名  | 典型算法 | 说明                         |
+|----------------------|-------|----------|------------------------------|
+| `EcCurves.SECP256R1` | P-256 | `ES256`  | 默认推荐, 兼容性最佳         |
+| `EcCurves.SECP384R1` | P-384 | `ES384`  | 安全强度更高, 签名更大       |
+| `EcCurves.SECP521R1` | P-521 | `ES512`  | 强度更高, 计算和传输成本更高 |
 
 ## 从已有 PEM 文本恢复
 
@@ -75,7 +75,7 @@ ECPublicKey publicKey = CryptoUtil.readEcPublicKey(publicPem);
 ```
 
 - PEM 头尾必须匹配, 否则会抛 `CryptoException`.
-- 如果你在排查格式问题, 建议先对照 [pem-der-jks-pkcs12-区别速查表](./pem-der-jks-pkcs12-区别速查表.md).
+- 如果你在排查格式问题, 建议先对照 [PEM/DER/JKS/PKCS12 速查](./key-format-cheatsheet.md).
 
 ## 常见错误与排查
 

@@ -1,4 +1,4 @@
-# JWT ES256 签发-验证-解析教程
+# JWT ES256 签发与验证
 
 本教程面向已经理解 JWT 基础流程的开发者, 重点讲清楚如何在 `lava-jwt` 中正确落地 `ES256`.
 
@@ -97,21 +97,21 @@ ECPrivateKey privateKey = CryptoUtil.readEcPrivateKey(privatePem);
 ECPublicKey publicKey = CryptoUtil.readEcPublicKey(publicPem);
 ```
 
-- PEM 教程见 [生成-ec-密钥对教程](../lava-crypto/生成-ec-密钥对教程.md).
+- EC 密钥教程见 [EC 密钥生成与读取](../lava-crypto/ec-keys.md).
 - PEM 文本中的私钥仍是敏感信息, 需要和明文密钥同级保护.
 
 ## 可以直接复用的配置
 
-| 项目 | 建议值 | 说明 |
-|------|--------|------|
-| `curve` | `EcCurves.SECP256R1` | 与 `ES256` 对应 |
-| `acceptLeeway` | `30~60` 秒 | 处理机器时钟轻微漂移 |
-| access token 过期 | `15~30` 分钟 | 降低泄露后可利用窗口 |
-| 必校验声明 | `iss`,`aud`,`exp`,`nbf` | 保证 token 来源和时效 |
+| 项目              | 建议值                  | 说明                  |
+|-------------------|-------------------------|-----------------------|
+| `curve`           | `EcCurves.SECP256R1`    | 与 `ES256` 对应       |
+| `acceptLeeway`    | `30~60` 秒              | 处理机器时钟轻微漂移  |
+| access token 过期 | `15~30` 分钟            | 降低泄露后可利用窗口  |
+| 必校验声明        | `iss`,`aud`,`exp`,`nbf` | 保证 token 来源和时效 |
 
 ## 常见错误与排查
 
-- 使用了错误曲线(如 `SECP384R1`)却按 `ES256` 验签, 会导致签名校验失败.
+- 使用了错误曲线 (如 `SECP384R1`)却按 `ES256` 验签, 会导致签名校验失败.
 - 只调用 `decode(...)` 不调用 `verify(...)`, 属于高风险实现.
 - 签发和验签使用不同公私钥对, 会出现稳定验签失败.
 - 明文私钥写入配置文件和日志, 需要立刻下线并轮转密钥.
