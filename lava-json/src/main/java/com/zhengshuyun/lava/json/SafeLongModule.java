@@ -21,6 +21,11 @@ import tools.jackson.databind.module.SimpleModule;
 /**
  * Long值JS安全序列化
  *
+ * <p>覆盖 {@code Long}, {@code long}, {@code long[]} 以及以 {@code Long} 为元素的集合.
+ * {@code Map} 的 key 不受影响, JSON 对象的 key 本身就是字符串, 不存在精度问题.
+ *
+ * <p>字段上的 {@code @JsonFormat(shape = ...)} 优先于安全范围规则.
+ *
  * @author Toint
  * @since 2026/1/2
  */
@@ -29,5 +34,7 @@ public class SafeLongModule extends SimpleModule {
         super(SafeLongModule.class.getName());
         addSerializer(Long.class, new SafeLongSerializer());
         addSerializer(Long.TYPE, new SafeLongSerializer());
+        // long[] 走 Jackson 专用数组序列化器, 不查元素序列化器, 必须单独注册
+        addSerializer(long[].class, new SafeLongArraySerializer());
     }
 }
