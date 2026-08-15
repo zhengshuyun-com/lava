@@ -139,6 +139,27 @@ class DataTransferUtilTest {
     }
 
     /**
+     * 测试百分比 - 超大数值不因乘 100 溢出而给出错误答案
+     * <p>
+     * current * 100 在 current &gt; Long.MAX_VALUE / 100 (约 9.2e16) 时溢出.
+     * 常规字节数不会触及, 但本方法是公开的通用计算, 溢出会静默返回错误值
+     */
+    @Test
+    void testCalculatePercentageNoOverflow() {
+        assertEquals(5, DataTransferUtil.calculatePercentage(500_000_000_000_000_000L, 9_000_000_000_000_000_000L));
+        assertEquals(50, DataTransferUtil.calculatePercentage(4_500_000_000_000_000_000L, 9_000_000_000_000_000_000L));
+        // MAX/2 精确值为 49.999...%, 按截断语义应为 49
+        assertEquals(49, DataTransferUtil.calculatePercentage(Long.MAX_VALUE / 2, Long.MAX_VALUE));
+        assertEquals(99, DataTransferUtil.calculatePercentage(Long.MAX_VALUE - 1, Long.MAX_VALUE));
+        assertEquals(100, DataTransferUtil.calculatePercentage(Long.MAX_VALUE, Long.MAX_VALUE));
+
+        // 溢出阈值两侧行为一致
+        long threshold = Long.MAX_VALUE / 100;
+        assertEquals(50, DataTransferUtil.calculatePercentage(threshold / 2, threshold));
+        assertEquals(50, DataTransferUtil.calculatePercentage((threshold + 2) / 2, threshold + 2));
+    }
+
+    /**
      * 测试格式化字节 - 紧贴单位边界下方时统一进位
      * <p>
      * 1024^n - 1 除完是 1023.999..., 渲染成 "1024 KB" 不如进位成 "1.00 MB".

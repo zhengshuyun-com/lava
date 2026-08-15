@@ -158,8 +158,11 @@ public final class DurationFormatter {
         }
 
         // 计算毫秒/微秒/纳秒
-        // 如果 SECONDS 不在范围内, 需要将未消费的秒数转换为纳秒
-        long remainingNanos = totalSeconds * 1_000_000_000L + duration.toNanosPart();
+        // 如果 SECONDS 不在范围内, 需要将未消费的秒数转换为纳秒.
+        // 用 multiplyExact 而非裸乘: 当 largestUnit 为 MILLIS 及以下时 totalSeconds 是完整秒数,
+        // 超过约 292 年就会溢出. 溢出时抛 ArithmeticException, 与 NANOS 特例路径
+        // (duration.toNanos() 同样抛该异常) 行为一致, 而不是静默返回 "0ns"
+        long remainingNanos = Math.multiplyExact(totalSeconds, 1_000_000_000L) + duration.toNanosPart();
 
         if (shouldInclude(ChronoUnit.MILLIS)) {
             millis = remainingNanos / 1_000_000;
@@ -308,24 +311,37 @@ public final class DurationFormatter {
 
         /**
          * 设置单位范围
+         * <p>
+         * 参数在此立即校验; 单独调用 {@link #setLargestUnit} / {@link #setSmallestUnit}
+         * 时无法在设值点判断区间方向, 由 {@link #build()} 兜底校验
          *
          * @param largestUnit  最大单位
          * @param smallestUnit 最小单位
          * @throws IllegalArgumentException 如果 largestUnit &lt; smallestUnit 或单位不支持
          */
         public Builder setRange(ChronoUnit largestUnit, ChronoUnit smallestUnit) {
-            Validate.notNull(largestUnit, "largestUnit cannot be null");
-            Validate.notNull(smallestUnit, "smallestUnit cannot be null");
+            setLargestUnit(largestUnit).setSmallestUnit(smallestUnit);
+            validateRange();
+            return this;
+        }
 
+        /**
+         * 校验单位合法性与区间方向
+         *
+         * @throws IllegalArgumentException 如果单位不受支持, 或 largestUnit &lt; smallestUnit
+         */
+        private void validateRange() {
             int largestOrder = getUnitOrder(largestUnit);
             int smallestOrder = getUnitOrder(smallestUnit);
 
+            // 不受支持的单位 order 为 0, 会让 shouldInclude 的区间判断失去意义:
+            // largestUnit 非法时所有单位都被排除 (格式化结果恒为 "0"),
+            // smallestUnit 非法时所有单位都被包含 (整点时长会渲染出 "1h 5ns")
             Validate.isTrue(largestOrder > 0 && smallestOrder > 0,
                     "Unsupported unit: only YEARS/MONTHS/DAYS/HOURS/MINUTES/SECONDS/MILLIS/MICROS/NANOS are supported");
+            // 区间反向时没有任何单位落在范围内, 时长会被静默丢弃
             Validate.isTrue(largestOrder >= smallestOrder,
                     "largestUnit must be >= smallestUnit");
-
-            return setLargestUnit(largestUnit).setSmallestUnit(smallestUnit);
         }
 
         /**
@@ -370,10 +386,15 @@ public final class DurationFormatter {
 
         /**
          * 构建 DurationFormatter 实例
+         * <p>
+         * 单位合法性与区间方向在此统一校验, 因此无论通过 {@link #setRange} 还是
+         * 单独调用 {@link #setLargestUnit} / {@link #setSmallestUnit} 都无法绕过
          *
          * @return 不可变的 DurationFormatter 实例
+         * @throws IllegalArgumentException 如果单位不受支持, 或 largestUnit &lt; smallestUnit
          */
         public DurationFormatter build() {
+            validateRange();
             return new DurationFormatter(this);
         }
     }

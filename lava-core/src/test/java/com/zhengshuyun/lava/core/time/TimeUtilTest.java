@@ -103,4 +103,32 @@ class TimeUtilTest {
         assertNull(TimeUtil.parse("not a date"));
         assertNull(TimeUtil.parse("123"));
     }
+
+    /**
+     * 日期与时间之间必须且只能有一个分隔符 (空格或 T)
+     * <p>
+     * 若把两个分隔符各自放进独立的可选段, 两者都可跳过, 会连带接受
+     * "无分隔符" 和 "两个分隔符" 两种畸形输入
+     */
+    @Test
+    void testSeparatorMustBeExactlyOne() {
+        // 合法: 恰好一个分隔符
+        assertEquals(DATE_TIME, TimeUtil.parse("2026-01-01 12:30:00"));
+        assertEquals(DATE_TIME, TimeUtil.parse("2026-01-01T12:30:00"));
+        assertEquals(DATE_TIME, TimeUtil.parse("2026/01/01 12:30:00"));
+        assertEquals(DATE_TIME, TimeUtil.parse("2026/01/01T12:30:00"));
+
+        // 非法: 无分隔符
+        assertNull(TimeUtil.parse("2026-01-0112:30:00"));
+        assertNull(TimeUtil.parse("2026/01/0112:30:00"));
+
+        // 非法: 两个分隔符
+        assertNull(TimeUtil.parse("2026-01-01 T12:30:00"));
+        assertNull(TimeUtil.parse("2026-01-01T 12:30:00"));
+        assertNull(TimeUtil.parse("2026/01/01 T12:30:00"));
+
+        // 中文格式同理: 分隔符与时间部分绑定
+        assertEquals(DATE_TIME, TimeUtil.parse("2026年01月01日 12时30分00秒"));
+        assertNull(TimeUtil.parse("2026年01月01日12时30分00秒"));
+    }
 }

@@ -21,6 +21,7 @@ import com.zhengshuyun.lava.core.lang.Validate;
 import com.zhengshuyun.lava.core.time.DurationFormatter;
 import org.jspecify.annotations.Nullable;
 
+import java.math.BigInteger;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.Locale;
@@ -93,10 +94,21 @@ public final class DataTransferUtil {
         if (total <= 0) {
             return null;
         }
-        // 使用分解计算避免 current * 100 溢出
-        long q = current / total;
-        long r = current % total;
-        return (int) Math.min(100, q * 100 + r * 100 / total);
+        // current >= total 一律封顶 100, 顺带把后续计算限制在 current < total,
+        // 此时商为 0, 只需算余数部分
+        if (current >= total) {
+            return 100;
+        }
+        // current * 100 在 current > Long.MAX_VALUE / 100 (约 9.2e16) 时溢出.
+        // 常规字节数不会触及, 但本方法是公开的通用计算, 溢出会静默给出错误答案,
+        // 因此超阈值时退回 BigInteger 精确计算. 两条路径都按截断取整, 保持一致
+        if (current <= Long.MAX_VALUE / 100) {
+            return (int) (current * 100 / total);
+        }
+        return BigInteger.valueOf(current)
+                .multiply(BigInteger.valueOf(100))
+                .divide(BigInteger.valueOf(total))
+                .intValueExact();
     }
 
     /**

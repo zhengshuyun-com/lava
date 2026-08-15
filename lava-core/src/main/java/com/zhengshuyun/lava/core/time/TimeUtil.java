@@ -38,6 +38,18 @@ public final class TimeUtil {
     }
 
     /**
+     * 时间部分: {@code HH:mm:ss}, 可选 1~9 位小数秒
+     * <p>
+     * 必须在 {@link #DASH} / {@link #SLASH} 之前声明, 静态初始化按声明顺序执行
+     */
+    private static final DateTimeFormatter TIME_PART = new DateTimeFormatterBuilder()
+            .appendPattern("HH:mm:ss")
+            .optionalStart()
+            .appendFraction(ChronoField.NANO_OF_SECOND, 1, 9, true)
+            .optionalEnd()
+            .toFormatter();
+
+    /**
      * 横杠分隔: {@code yyyy-MM-dd}, 可选 {@code (空格|T)HH:mm:ss}, 可选小数秒
      * <p>
      * 模式里用 {@code uuuu} (纪年年份) 而非 {@code yyyy} (纪元内年份),
@@ -105,15 +117,12 @@ public final class TimeUtil {
     private static DateTimeFormatter dateTimeFormatter(String datePattern) {
         return new DateTimeFormatterBuilder()
                 .appendPattern(datePattern)
-                .optionalStart()
-                // 空格分隔或 ISO 的 T 分隔
-                .optionalStart().appendLiteral(' ').optionalEnd()
-                .optionalStart().appendLiteral('T').optionalEnd()
-                .appendPattern("HH:mm:ss")
-                .optionalStart()
-                .appendFraction(ChronoField.NANO_OF_SECOND, 1, 9, true)
-                .optionalEnd()
-                .optionalEnd()
+                // 两个互斥的可选分支, 每个分支都把"分隔符 + 时间"绑在一起,
+                // 因此分隔符必须且只能出现一个. 若把分隔符各自放进独立的 optional 段,
+                // 两者都可跳过, 会连带接受 "2026-01-0112:30:00" (无分隔符) 和
+                // "2026-01-01 T12:30:00" (两个分隔符)
+                .optionalStart().appendLiteral(' ').append(TIME_PART).optionalEnd()
+                .optionalStart().appendLiteral('T').append(TIME_PART).optionalEnd()
                 // 只有日期时补齐时间部分, 使其可直接解析为 LocalDateTime
                 // parseDefaulting 仅在字段未被解析到时生效, 因此不会与显式时间冲突
                 .parseDefaulting(ChronoField.HOUR_OF_DAY, 0)

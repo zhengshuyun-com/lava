@@ -78,6 +78,7 @@
 
         <junit-jupiter.version>6.0.3</junit-jupiter.version>
         <guava.version>33.6.0-jre</guava.version>
+        <jspecify.version>1.0.0</jspecify.version>
         <jackson.version>3.2.1</jackson.version>
         <okhttp.version>4.12.0</okhttp.version>
         <quartz.version>2.5.2</quartz.version>
@@ -93,6 +94,17 @@
                 <groupId>com.google.guava</groupId>
                 <artifactId>guava</artifactId>
                 <version>${guava.version}</version>
+            </dependency>
+
+            <!--
+              各模块直接使用 @Nullable 等注解, 必须显式声明.
+              此前仅靠 guava 的传递依赖引入, guava 升级后若移除或改变其 scope,
+              或使用方 exclude 了它, 会直接导致编译失败.
+            -->
+            <dependency>
+                <groupId>org.jspecify</groupId>
+                <artifactId>jspecify</artifactId>
+                <version>${jspecify.version}</version>
             </dependency>
 
             <dependency>

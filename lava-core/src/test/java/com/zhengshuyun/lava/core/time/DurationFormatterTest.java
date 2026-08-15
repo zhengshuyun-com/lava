@@ -297,6 +297,82 @@ class DurationFormatterTest {
     }
 
     /**
+     * 测试单独设置单位时 build() 兜底校验区间方向
+     * <p>
+     * setRange 会立即校验, 但单独调用 setLargestUnit/setSmallestUnit 时无法在设值点判断.
+     * 若不在 build() 兜底, 反向区间会让所有单位都被排除, 时长被静默丢弃
+     * (如只设 smallestUnit=DAYS 时 10 天会格式化成 "0d")
+     */
+    @Test
+    void testInvalidRangeViaIndividualSettersRejectedAtBuild() {
+        // 只设 smallestUnit, largestUnit 保持默认 HOURS, 形成 HOURS < DAYS 的反向区间
+        assertThrows(IllegalArgumentException.class, () ->
+                DurationFormatter.builder().setSmallestUnit(ChronoUnit.DAYS).build());
+
+        // 只设 largestUnit 到 smallestUnit 默认值 SECONDS 之下
+        assertThrows(IllegalArgumentException.class, () ->
+                DurationFormatter.builder().setLargestUnit(ChronoUnit.MILLIS).build());
+
+        // 先设合法区间, 再用单个 setter 破坏它
+        assertThrows(IllegalArgumentException.class, () ->
+                DurationFormatter.builder()
+                        .setRange(ChronoUnit.HOURS, ChronoUnit.MINUTES)
+                        .setSmallestUnit(ChronoUnit.DAYS)
+                        .build());
+    }
+
+    /**
+     * 测试不受支持的单位被拒绝
+     * <p>
+     * getUnitOrder 对未知单位返回 0, 会让区间判断失去意义:
+     * largestUnit 非法时结果恒为 "0s", smallestUnit 非法时整点时长会渲染出 "1h 5ns"
+     */
+    @Test
+    void testUnsupportedUnitRejected() {
+        for (ChronoUnit unit : new ChronoUnit[]{
+                ChronoUnit.WEEKS, ChronoUnit.DECADES, ChronoUnit.CENTURIES,
+                ChronoUnit.HALF_DAYS, ChronoUnit.FOREVER, ChronoUnit.ERAS, ChronoUnit.MILLENNIA}) {
+            assertThrows(IllegalArgumentException.class,
+                    () -> DurationFormatter.builder().setLargestUnit(unit).build(),
+                    () -> "largestUnit=" + unit + " should be rejected");
+            assertThrows(IllegalArgumentException.class,
+                    () -> DurationFormatter.builder().setSmallestUnit(unit).build(),
+                    () -> "smallestUnit=" + unit + " should be rejected");
+        }
+    }
+
+    /**
+     * 测试纳秒换算溢出时抛异常而非静默返回错误结果
+     * <p>
+     * largestUnit 为 MILLIS 及以下时, totalSeconds 保留完整秒数,
+     * 乘 1e9 在约 292 年后溢出. 溢出必须抛出, 与 NANOS 单一单位特例路径
+     * (duration.toNanos() 同样抛 ArithmeticException) 保持一致
+     */
+    @Test
+    void testNanosOverflowThrows() {
+        Duration threeHundredYears = Duration.ofDays(365L * 300);
+
+        assertThrows(ArithmeticException.class, () ->
+                DurationFormatter.builder()
+                        .setRange(ChronoUnit.MILLIS, ChronoUnit.NANOS)
+                        .build()
+                        .format(threeHundredYears));
+
+        // 对照: NANOS 单一单位走特例路径, 同样抛出
+        assertThrows(ArithmeticException.class, () ->
+                DurationFormatter.builder()
+                        .setRange(ChronoUnit.NANOS, ChronoUnit.NANOS)
+                        .build()
+                        .format(threeHundredYears));
+
+        // 正常范围内不受影响
+        assertEquals("1500ms", DurationFormatter.builder()
+                .setRange(ChronoUnit.MILLIS, ChronoUnit.NANOS)
+                .build()
+                .format(Duration.ofMillis(1500)));
+    }
+
+    /**
      * 测试负时长异常
      * <p>
      * 尝试格式化负数时长: -100秒
