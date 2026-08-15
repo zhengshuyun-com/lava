@@ -5,8 +5,8 @@
 ## 最小可运行示例
 
 ```java
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.zhengshuyun.lava.json.JsonUtil;
+import tools.jackson.core.type.TypeReference;
 
 import java.time.Instant;
 import java.util.List;

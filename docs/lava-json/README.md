@@ -26,8 +26,8 @@
 ## 快速示例
 
 ```java
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.zhengshuyun.lava.json.JsonUtil;
+import tools.jackson.core.type.TypeReference;
 
 import java.time.Instant;
 import java.util.List;
@@ -58,4 +58,4 @@ public class JsonQuickStartDemo {
 
 - API 边界统一使用 `JsonUtil`, 避免多套 `ObjectMapper` 配置漂移.
 - 如果需要调整默认时间格式或扩展 Jackson 模块, 在应用启动阶段初始化一次.
-- 生产环境建议统一 UTC 入库, 展示层再按用户时区转换.
+- 表示时刻用 `Instant`, 默认输出 ISO-8601 UTC, 展示层再按用户时区转换.

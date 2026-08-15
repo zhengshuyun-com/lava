@@ -20,7 +20,6 @@ import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
-import com.zhengshuyun.lava.core.time.DateTimePatterns;
 import com.zhengshuyun.lava.core.time.ZoneIds;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -36,7 +35,6 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -64,10 +62,12 @@ class JsonUtilTest {
         assertTrue(result.contains("\"id\":1234567890123456789"));
         assertTrue(result.contains("\"name\":\"lava\""));
         assertTrue(result.contains("\"age\":18"));
-        assertTrue(result.contains("\"birthDateTime\":\"2026-01-01T00:00:00Z\""));
+        // LocalDateTime 是本地时间, 不带时区后缀
+        assertTrue(result.contains("\"birthDateTime\":\"2026-01-01T00:00:00\""));
         assertTrue(result.contains("\"birthLocalDate\":\"2026-01-01\""));
         assertTrue(result.contains("\"birthLocalTime\":\"00:00:00\""));
-        assertTrue(result.contains("\"birthDate\":\"2026-01-01T00:00:00Z\""));
+        // Date 是绝对时刻, 按 Jackson 默认输出 ISO-8601 UTC
+        assertTrue(result.contains("\"birthDate\":\"2026-01-01T00:00:00.000Z\""));
     }
 
     @DisplayName("序列化对象为字节数组")
@@ -78,8 +78,8 @@ class JsonUtilTest {
         String result = new String(bytes, StandardCharsets.UTF_8);
         assertTrue(result.contains("\"id\":1234567890123456789"));
         assertTrue(result.contains("\"name\":\"lava\""));
-        assertTrue(result.contains("\"birthDateTime\":\"2026-01-01T00:00:00Z\""));
-        assertTrue(result.contains("\"birthDate\":\"2026-01-01T00:00:00Z\""));
+        assertTrue(result.contains("\"birthDateTime\":\"2026-01-01T00:00:00\""));
+        assertTrue(result.contains("\"birthDate\":\"2026-01-01T00:00:00.000Z\""));
     }
 
     @DisplayName("序列化对象为格式化字符串")
@@ -113,7 +113,7 @@ class JsonUtilTest {
 
         String json = JsonUtil.writeValueAsString(Map.of("time", date));
         // 期望输出 UTC 时间
-        assertTrue(json.contains("2026-01-01T00:00:00Z"));
+        assertTrue(json.contains("2026-01-01T00:00:00.000Z"));
     }
 
     // 反序列化测试 - String
@@ -122,14 +122,14 @@ class JsonUtilTest {
     @Test
     void testReadValue_String_Class() {
         String json = """
-                {"id":1234567890123456789,"name":"lava","age":18,"birthDateTime":"2026-01-01T00:00:00Z","birthLocalDate":"2026-01-01","birthLocalTime":"00:00:00","birthDate":"2026-01-01T00:00:00Z"}""";
+                {"id":1234567890123456789,"name":"lava","age":18,"birthDateTime":"2026-01-01T00:00:00","birthLocalDate":"2026-01-01","birthLocalTime":"00:00:00","birthDate":"2026-01-01T00:00:00Z"}""";
         User user = JsonUtil.readValue(json, User.class);
 
         assertEquals(1234567890123456789L, user.getId());
         assertEquals("lava", user.getName());
         assertEquals(18, user.getAge());
-        assertEquals("2026-01-01T00:00:00Z",
-                user.getBirthDateTime().format(DateTimeFormatter.ofPattern(DateTimePatterns.ISO_INSTANT)));
+        assertEquals(LocalDateTime.of(2026, 1, 1, 0, 0, 0), user.getBirthDateTime());
+        assertEquals(Instant.parse("2026-01-01T00:00:00Z"), user.getBirthDate().toInstant());
     }
 
     @DisplayName("字符串反序列化为集合(TypeReference)")

@@ -1,13 +1,13 @@
 # SafeLong 长整型安全序列化
 
-`SafeLongModule` 用于把 Java `long` 和 `Long` 序列化为字符串, 避免前端 JavaScript 数字精度丢失.
+`SafeLongModule` 用于把超出 JavaScript 安全整数范围的 `long` 和 `Long` 序列化为字符串, 避免前端数字精度丢失.
 
 ## 最小可运行示例
 
 ```java
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhengshuyun.lava.json.JsonUtil;
 import com.zhengshuyun.lava.json.SafeLongModule;
+import tools.jackson.databind.ObjectMapper;
 
 public class SafeLongDemo {
 
@@ -29,8 +29,15 @@ public class SafeLongDemo {
 ```
 
 - 默认不启用长整型安全序列化.
-- 启用后 `long` 和 `Long` 会输出为 JSON 字符串.
+- 启用后只有超出安全范围的值输出为字符串, 范围内的值仍然输出为数字.
+- 安全范围为 `-(2^53 - 1)` 到 `2^53 - 1`, 即 `-9007199254740991` 到 `9007199254740991`.
 - 适合对外接口返回雪花 ID, 数据库主键等长整型字段.
+
+| 示例值                | 输出                    |
+|-----------------------|-------------------------|
+| `42`                  | `42`                    |
+| `9007199254740991`    | `9007199254740991`      |
+| `9223372036854775807` | `"9223372036854775807"` |
 
 ## 常见坑与排查建议
 

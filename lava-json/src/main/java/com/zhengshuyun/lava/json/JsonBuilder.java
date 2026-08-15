@@ -16,28 +16,18 @@
 
 package com.zhengshuyun.lava.json;
 
-import tools.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.SerializationFeature;
-import tools.jackson.databind.cfg.DateTimeFeature;
 import tools.jackson.databind.json.JsonMapper;
-import tools.jackson.databind.module.SimpleModule;
-import tools.jackson.databind.ext.javatime.deser.LocalDateDeserializer;
-import tools.jackson.databind.ext.javatime.deser.LocalDateTimeDeserializer;
-import tools.jackson.databind.ext.javatime.deser.LocalTimeDeserializer;
-import tools.jackson.databind.ext.javatime.ser.LocalDateSerializer;
-import tools.jackson.databind.ext.javatime.ser.LocalDateTimeSerializer;
-import tools.jackson.databind.ext.javatime.ser.LocalTimeSerializer;
 import com.zhengshuyun.lava.core.lang.Validate;
-import com.zhengshuyun.lava.core.time.DateTimePatterns;
-import com.zhengshuyun.lava.core.time.ZoneIds;
 import org.jspecify.annotations.Nullable;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
+import java.util.Date;
 import java.util.Locale;
 import java.util.TimeZone;
 import java.util.function.Consumer;
@@ -45,50 +35,68 @@ import java.util.function.Consumer;
 /**
  * JSON 序列化配置构建器
  *
- * <p>默认配置 (适合通用库/框架场景):
- * <ul>
- *   <li>日期时间格式: ISO 8601 UTC 时间 ({@code yyyy-MM-dd'T'HH:mm:ss'Z'})</li>
- *   <li>日期格式: ISO 8601 ({@code yyyy-MM-dd})</li>
- *   <li>时间格式: ISO 8601 ({@code HH:mm:ss})</li>
- *   <li>时区: UTC</li>
- *   <li>地区: Locale.ROOT (无地区特定格式)</li>
- * </ul>
+ * <p>设计原则: <b>不改 Jackson 的核心行为, 只提供简化配置的入口</b>.
+ * 不配置任何参数时, 行为与裸 Jackson 3 一致, 也与 Spring Boot 的默认值一致,
+ * 因此 {@code @JsonFormat}, {@code @JsonSerialize} 等注解全部照常生效.
  *
- * <p>日期时间类型序列化示例:
+ * <p>Jackson 3 的时间类型默认输出 (无需本类干预):
  * <ul>
- *   <li>{@code Date}: {@code "2026-01-01T12:30:00Z"} (UTC 时间, 带 Z 后缀)</li>
- *   <li>{@code Instant}: {@code "2026-01-01T12:30:00Z"} (UTC 时间, 带 Z 后缀)</li>
- *   <li>{@code LocalDateTime}: {@code "2026-01-01T12:30:00Z"} (作为 UTC 时间, 带 Z 后缀)</li>
- *   <li>{@code LocalDate}: {@code "2026-01-01"}</li>
- *   <li>{@code LocalTime}: {@code "12:30:00"}</li>
+ *   <li>{@link Instant}: {@code "2026-01-01T12:30:00Z"} (ISO-8601 UTC)</li>
+ *   <li>{@link Date}, {@link java.sql.Timestamp}, {@link java.util.Calendar}: {@code "2026-01-01T12:30:00.000Z"}</li>
+ *   <li>{@link java.time.OffsetDateTime}, {@link java.time.ZonedDateTime}: {@code "2026-01-01T20:30:00+08:00"} (保留原偏移量)</li>
+ *   <li>{@link LocalDateTime}: {@code "2026-01-01T12:30:00"}</li>
+ *   <li>{@link LocalDate}: {@code "2026-01-01"}</li>
+ *   <li>{@link LocalTime}: {@code "12:30:00"}</li>
  * </ul>
+ * 默认时区为 UTC. {@link Instant} 和本地时间类型按实际亚秒精度输出,
+ * {@link Date} 及其子类固定输出三位毫秒并截断更高精度.
+ *
+ * <p>本类只在一处偏离 Jackson 默认值: {@link #setLocale(Locale)} 默认改为
+ * {@link Locale#ROOT}. Jackson 取 JVM 默认地区, 会导致同一份代码在不同机器上输出不同结果.
+ *
+ * <p>其余配置项一律默认不生效, 只在显式调用对应 setter 后才覆盖 Jackson 行为.
+ * 需要 Jackson 未暴露的能力时用 {@link #setCustomizer(Consumer)} 直接操作
+ * {@link JsonMapper.Builder}.
+ *
+ * <p>类型选择建议: 表示"某个时刻"用 {@link Instant}, 表示"日历上的某天"用 {@link LocalDate},
+ * 表示"一天中的某个钟点"用 {@link LocalTime}. {@link LocalDateTime} 不含时区,
+ * 语义模糊, 不建议出现在对外接口上.
+ *
+ * <p>不要在对外接口上用 {@link java.sql.Date}. Jackson 按其父类 {@link Date} 当作绝对时刻
+ * 处理, 会做时区换算, {@code 2026-01-01} 会输出成 {@code "2025-12-31T16:00:00.000Z"},
+ * 跨时区读回还会变成前一天. 该类型请在持久层就转成 {@link LocalDate}.
  *
  * @author Toint
  * @since 2025/12/29
  */
 public final class JsonBuilder {
-    /**
-     * 日期时间格式, 默认{@link DateTimePatterns#ISO_INSTANT}
-     */
-    private String dateTimeFormat = DateTimePatterns.ISO_INSTANT;
 
     /**
-     * 日期格式, 默认{@link DateTimePatterns#DATE}
+     * {@link LocalDateTime} 格式, 默认 null 表示沿用 Jackson 的 ISO-8601 输出
      */
-    private String dateFormat = DateTimePatterns.DATE;
+    @Nullable
+    private String dateTimeFormat;
 
     /**
-     * 时间格式, 默认{@link DateTimePatterns#TIME}
+     * {@link LocalDate} 格式, 默认 null 表示沿用 Jackson 的 ISO-8601 输出
      */
-    private String timeFormat = DateTimePatterns.TIME;
+    @Nullable
+    private String dateFormat;
 
     /**
-     * 时区, 默认{@link ZoneIds#UTC}
+     * {@link LocalTime} 格式, 默认 null 表示沿用 Jackson 的 ISO-8601 输出
      */
-    private ZoneId zone = ZoneIds.UTC;
+    @Nullable
+    private String timeFormat;
 
     /**
-     * 地区, 默认{@link Locale#ROOT}
+     * 时区, 默认 null 表示沿用 Jackson 默认值 UTC
+     */
+    @Nullable
+    private ZoneId zone;
+
+    /**
+     * 地区, 默认 {@link Locale#ROOT}
      */
     private Locale locale = Locale.ROOT;
 
@@ -98,27 +106,62 @@ public final class JsonBuilder {
     @Nullable
     private Consumer<JsonMapper.Builder> customizer;
 
+    /**
+     * 设置 {@link LocalDateTime} 格式, 默认沿用 Jackson 的 ISO-8601 输出
+     *
+     * <p>只影响 {@link LocalDateTime}. {@link Instant} 和 {@link Date} 这类绝对时刻
+     * 保持 Jackson 默认行为, 需要单独定制时用字段上的 {@code @JsonFormat}.
+     *
+     * <p>格式中不要写偏移量 ({@code XXX}, {@code Z}), {@link LocalDateTime} 不含时区信息,
+     * 带偏移量的格式会在序列化时抛 {@code DatabindException},
+     * cause 为 {@link java.time.temporal.UnsupportedTemporalTypeException}.
+     */
     public JsonBuilder setDateTimeFormat(String val) {
+        Validate.notBlank(val, "dateTimeFormat must not be blank");
         dateTimeFormat = val;
         return this;
     }
 
+    /**
+     * 设置 {@link LocalDate} 格式, 默认沿用 Jackson 的 ISO-8601 输出
+     */
     public JsonBuilder setDateFormat(String val) {
+        Validate.notBlank(val, "dateFormat must not be blank");
         dateFormat = val;
         return this;
     }
 
+    /**
+     * 设置 {@link LocalTime} 格式, 默认沿用 Jackson 的 ISO-8601 输出
+     */
     public JsonBuilder setTimeFormat(String val) {
+        Validate.notBlank(val, "timeFormat must not be blank");
         timeFormat = val;
         return this;
     }
 
+    /**
+     * 设置时区, 默认沿用 Jackson 默认值 UTC
+     *
+     * <p>作用于 {@link Date}, {@link java.util.Calendar} 这类绝对时刻的渲染时区.
+     * 注意显式设置后, {@link java.time.OffsetDateTime} 和 {@link java.time.ZonedDateTime}
+     * 会被归一到该时区而不再保留原有偏移量, 这是 Jackson 自身的行为.
+     *
+     * <p>本地时间类型不含时区, 不受本项影响.
+     */
     public JsonBuilder setZone(ZoneId val) {
+        Validate.notNull(val, "zone must not be null");
         zone = val;
         return this;
     }
 
+    /**
+     * 设置地区, 默认 {@link Locale#ROOT}
+     *
+     * <p>影响含文本的格式, 例如月份名和星期名
+     */
     public JsonBuilder setLocale(Locale val) {
+        Validate.notNull(val, "locale must not be null");
         locale = val;
         return this;
     }
@@ -129,28 +172,20 @@ public final class JsonBuilder {
     }
 
     public ObjectMapper build() {
-        Validate.notNull(locale, "Locale must not be null");
-        Validate.notNull(zone, "ZoneId must not be null");
-        Validate.notBlank(dateTimeFormat, "dateTimeFormat must not be blank");
-        Validate.notBlank(dateFormat, "dateFormat must not be blank");
-        Validate.notBlank(timeFormat, "timeFormat must not be blank");
-
-        TimeZone timeZone = TimeZone.getTimeZone(zone);
-
-        // 使用 Builder 模式创建 ObjectMapper
         JsonMapper.Builder builder = JsonMapper.builder()
-                // 禁用将日期类型序列化为数字时间戳 (Jackson 3 改用 DateTimeFeature)
-                .disable(DateTimeFeature.WRITE_DATES_AS_TIMESTAMPS)
-                // 反序列化时忽略未知字段
-                .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
-                // 序列化空对象时不抛异常
-                .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
-                // 设置时区和地区
-                .defaultTimeZone(timeZone).defaultLocale(locale)
-                // 添加 Date ISO 8601 序列化支持
-                .addModule(new IsoDateModule())
-                // 添加Java8时间模块支持 (Jackson 3 内置, 用 SimpleModule 注册自定义格式)
-                .addModule(createJavaTimeModule());
+                // Jackson 取 JVM 默认地区, 会让同一份代码在不同机器上输出不同结果
+                .defaultLocale(locale);
+
+        // 用 Jackson 自己的 configOverride 给类型设默认格式, 等价于在该类型上标注
+        // @JsonFormat. 不注册任何自定义序列化器, 字段上的 @JsonFormat 仍然优先.
+        applyPattern(builder, LocalDateTime.class, dateTimeFormat);
+        applyPattern(builder, LocalDate.class, dateFormat);
+        applyPattern(builder, LocalTime.class, timeFormat);
+
+        // 未显式设置时不调用, 保留 Jackson 对"时区未指定"的默认处理
+        if (zone != null) {
+            builder.defaultTimeZone(TimeZone.getTimeZone(zone));
+        }
 
         // 自定义
         if (customizer != null) {
@@ -160,29 +195,10 @@ public final class JsonBuilder {
         return builder.build();
     }
 
-    /**
-     * 创建Java8(Jsr310)时间模块支持
-     *
-     * <p>包含{@link LocalDateTime}, {@link LocalDate}, {@link LocalTime}</p>
-     */
-    private SimpleModule createJavaTimeModule() {
-        SimpleModule module = new SimpleModule("LavaJavaTimeModule");
-
-        // LocalDateTime
-        DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern(dateTimeFormat, locale);
-        module.addSerializer(LocalDateTime.class, new LocalDateTimeSerializer(dateTimeFormatter));
-        module.addDeserializer(LocalDateTime.class, new LocalDateTimeDeserializer(dateTimeFormatter));
-
-        // LocalDate
-        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern(dateFormat, locale);
-        module.addSerializer(LocalDate.class, new LocalDateSerializer(dateFormatter));
-        module.addDeserializer(LocalDate.class, new LocalDateDeserializer(dateFormatter));
-
-        // LocalTime
-        DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern(timeFormat, locale);
-        module.addSerializer(LocalTime.class, new LocalTimeSerializer(timeFormatter));
-        module.addDeserializer(LocalTime.class, new LocalTimeDeserializer(timeFormatter));
-
-        return module;
+    private void applyPattern(JsonMapper.Builder builder, Class<?> type, @Nullable String pattern) {
+        if (pattern == null) {
+            return;
+        }
+        builder.withConfigOverride(type, config -> config.setFormat(JsonFormat.Value.forPattern(pattern)));
     }
 }

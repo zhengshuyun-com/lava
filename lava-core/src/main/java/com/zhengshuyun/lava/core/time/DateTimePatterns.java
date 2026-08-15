@@ -96,8 +96,12 @@ public final class DateTimePatterns {
     /**
      * ISO 8601 UTC 时间 (带 Z 后缀): {@code yyyy-MM-dd'T'HH:mm:ss'Z'}
      * <p>示例: 2026-01-01T12:30:00Z
-     * <p>用于明确表示 UTC 时间的场景，适用于 Date/Instant/LocalDateTime
-     * <p>注意: 'Z' 为字面量字符，使用时必须确保时区为 UTC
+     * <p><b>注意: 'Z' 是字面量字符, 不是真实偏移量</b>. 该格式只会把 Z 原样拼在末尾,
+     * 不做任何时区校验, 因此用非 UTC 时间格式化时会产出声称是 UTC 的错误数据,
+     * 例如上海时间 12:30 会输出 {@code 2026-01-01T12:30:00Z}.
+     * <p>需要输出带真实偏移量的时刻请用 {@link #ISO_OFFSET_DATE_TIME},
+     * 或直接用 {@link DateTimeFormatter#ISO_INSTANT} 格式化 {@link java.time.Instant}.
+     * 仅在确认输入已是 UTC 且需要固定秒级精度时使用本常量.
      */
     public static final String ISO_INSTANT = "yyyy-MM-dd'T'HH:mm:ss'Z'";
 
