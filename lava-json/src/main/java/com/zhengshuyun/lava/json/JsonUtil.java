@@ -41,8 +41,9 @@ public final class JsonUtil {
 
     /**
      * 初始化底层 ObjectMapper, 不调用本方法则使用默认实现
-     * <p>
-     * 注意：必须在首次直接或间接调用 {@link #getObjectMapper()} 之前调用, 否则将抛出 IllegalArgumentException
+     *
+     * <p>注意: 必须在首次直接或间接调用 {@link #getObjectMapper()} 之前调用,
+     * 否则将抛出 IllegalArgumentException. 本类的任意读写方法都会间接触发初始化.
      *
      * @param newObjectMapper newObjectMapper
      */
@@ -54,7 +55,22 @@ public final class JsonUtil {
         }
     }
 
-    private static ObjectMapper getObjectMapper() {
+    /**
+     * 获取底层 ObjectMapper
+     *
+     * <p>本类只封装了常用方法, 需要 {@code writer()}, {@code reader()},
+     * {@code updateValue(..)}, {@code createParser(..)} 等未封装的能力时,
+     * 用本方法拿到 mapper 直接调用, 不要自行 new 一个, 否则会出现多套配置漂移.
+     *
+     * <p>Jackson 3 的 ObjectMapper 不可变, 因此调用方无法通过返回值改动共享配置.
+     * 需要一个改了配置的变体时用 {@code mapper.rebuild()} 派生, 原实例不受影响.
+     *
+     * <p>注意: 本方法会触发懒初始化, 调用后 {@link #initObjectMapper(ObjectMapper)}
+     * 将无法再调用.
+     *
+     * @return 当前使用的 ObjectMapper, 不会为 null
+     */
+    public static ObjectMapper getObjectMapper() {
         if (objectMapper == null) {
             synchronized (JsonUtil.class) {
                 if (objectMapper == null) {

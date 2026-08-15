@@ -18,6 +18,8 @@ package com.zhengshuyun.lava.json;
 
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.SerializationFeature;
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 import com.zhengshuyun.lava.core.time.ZoneIds;
@@ -49,6 +51,42 @@ class JsonUtilTest {
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
                 JsonUtil.initObjectMapper(JsonUtil.builder().build()));
         assertEquals("JsonUtil is already initialized", exception.getMessage());
+    }
+
+    @DisplayName("getObjectMapper 返回与门面方法一致的实例")
+    @Test
+    void testGetObjectMapper() {
+        ObjectMapper mapper = JsonUtil.getObjectMapper();
+        assertNotNull(mapper);
+        // 多次调用返回同一实例
+        assertSame(mapper, JsonUtil.getObjectMapper());
+        // 与门面方法走的是同一套配置
+        assertEquals(JsonUtil.writeValueAsString(Map.of("t", LocalDateTime.of(2026, 1, 1, 12, 30))),
+                mapper.writeValueAsString(Map.of("t", LocalDateTime.of(2026, 1, 1, 12, 30))));
+    }
+
+    @DisplayName("未封装的能力可通过 getObjectMapper 使用")
+    @Test
+    void testUnwrappedCapabilitiesReachable() {
+        ObjectMapper mapper = JsonUtil.getObjectMapper();
+
+        // updateValue: 把 JSON 合并到已有对象上, JsonUtil 没有封装
+        SimpleUser user = new SimpleUser();
+        user.setName("origin");
+        user.setAge(20);
+        SimpleUser merged = mapper.updateValue(user, Map.of("age", 30));
+        assertEquals("origin", merged.getName());
+        assertEquals(30, merged.getAge());
+
+        // writer(): 自定义输出方式, JsonUtil 只封装了默认缩进
+        assertEquals("{\"t\":1}", mapper.writer().writeValueAsString(Map.of("t", 1)));
+
+        // rebuild(): 派生变体不影响原实例
+        ObjectMapper derived = mapper.rebuild()
+                .enable(SerializationFeature.INDENT_OUTPUT)
+                .build();
+        assertTrue(derived.writeValueAsString(Map.of("t", 1)).contains("\n"));
+        assertEquals("{\"t\":1}", mapper.writeValueAsString(Map.of("t", 1)));
     }
 
     // 序列化测试
