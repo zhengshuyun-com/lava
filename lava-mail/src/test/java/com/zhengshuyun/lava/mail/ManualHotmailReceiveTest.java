@@ -16,7 +16,6 @@
 
 package com.zhengshuyun.lava.mail;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.zhengshuyun.lava.json.JsonUtil;
 import com.zhengshuyun.lava.mail.provider.MailProviderPreset;
 import com.zhengshuyun.lava.mail.provider.MailProviders;
@@ -25,6 +24,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import tools.jackson.databind.node.ObjectNode;
 
 import java.time.Instant;
 import java.util.List;
