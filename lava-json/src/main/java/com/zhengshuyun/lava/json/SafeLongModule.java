@@ -16,7 +16,7 @@
 
 package com.zhengshuyun.lava.json;
 
-import com.fasterxml.jackson.databind.module.SimpleModule;
+import tools.jackson.databind.module.SimpleModule;
 
 /**
  * Long值JS安全序列化

@@ -1,7 +1,7 @@
 # Lava — 让 Java 基础设施开发更简单、更安全、更一致.
 
-- [GitHub](https://github.com/zhengshuyun-com/lava)
-- [Issues](https://github.com/zhengshuyun-com/lava/issues)
+- [GitHub](https://github.com/zhengshuyuncom/lava)
+- [Issues](https://github.com/zhengshuyuncom/lava/issues)
 
 ## 模块结构
 

@@ -16,11 +16,9 @@
 
 package com.zhengshuyun.lava.json;
 
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.databind.JsonSerializer;
-import com.fasterxml.jackson.databind.SerializerProvider;
-
-import java.io.IOException;
+import tools.jackson.core.JsonGenerator;
+import tools.jackson.databind.SerializationContext;
+import tools.jackson.databind.ValueSerializer;
 
 /**
  * Long值JS安全序列化器
@@ -34,7 +32,7 @@ import java.io.IOException;
  * @author Toint
  * @since 2026/1/2
  */
-public class SafeLongSerializer extends JsonSerializer<Long> {
+public class SafeLongSerializer extends ValueSerializer<Long> {
     /**
      * JavaScript Number.MAX_SAFE_INTEGER = 2^53 - 1 = 9007199254740991
      */
@@ -46,8 +44,7 @@ public class SafeLongSerializer extends JsonSerializer<Long> {
     private static final long JS_MIN_SAFE_INTEGER = -9007199254740991L;
 
     @Override
-    public void serialize(Long value, JsonGenerator gen, SerializerProvider serializers)
-            throws IOException {
+    public void serialize(Long value, JsonGenerator gen, SerializationContext serializers) {
         if (value == null) {
             gen.writeNull();
             return;

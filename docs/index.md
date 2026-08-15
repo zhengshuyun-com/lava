@@ -15,7 +15,7 @@ hero:
             link: https://central.sonatype.com/search?q=lava&namespace=com.zhengshuyun
         -   theme: alt
             text: GitHub
-            link: https://github.com/zhengshuyun-com/lava
+            link: https://github.com/zhengshuyuncom/lava
 
 features:
     -   title: 统一体验

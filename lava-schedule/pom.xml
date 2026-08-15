@@ -29,7 +29,7 @@
     <artifactId>lava-schedule</artifactId>
     <name>${project.artifactId}</name>
     <description>Lava 调度模块, 提供统一的任务调度能力</description>
-    <url>https://github.com/zhengshuyun-com/lava</url>
+    <url>https://github.com/zhengshuyuncom/lava</url>
 
     <dependencies>
         <dependency>

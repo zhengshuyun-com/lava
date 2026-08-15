@@ -28,7 +28,7 @@
     <artifactId>lava-crypto</artifactId>
     <name>${project.artifactId}</name>
     <description>Lava 加密模块, 提供密码哈希, 密钥和编码格式处理能力</description>
-    <url>https://github.com/zhengshuyun-com/lava</url>
+    <url>https://github.com/zhengshuyuncom/lava</url>
 
     <dependencies>
         <dependency>

@@ -29,7 +29,7 @@
     <artifactId>lava-json</artifactId>
     <name>${project.artifactId}</name>
     <description>Lava JSON 模块, 提供统一的 JSON 编解码能力</description>
-    <url>https://github.com/zhengshuyun-com/lava</url>
+    <url>https://github.com/zhengshuyuncom/lava</url>
 
     <dependencies>
         <dependency>
@@ -38,13 +38,8 @@
         </dependency>
 
         <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
+            <groupId>tools.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>com.fasterxml.jackson.datatype</groupId>
-            <artifactId>jackson-datatype-jsr310</artifactId>
         </dependency>
     </dependencies>
 

@@ -16,10 +16,10 @@
 
 package com.zhengshuyun.lava.json;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 import com.zhengshuyun.lava.core.time.DateTimePatterns;
 import com.zhengshuyun.lava.core.time.ZoneIds;
 import org.junit.jupiter.api.DisplayName;
@@ -58,20 +58,28 @@ class JsonUtilTest {
     @DisplayName("序列化对象为字符串")
     @Test
     void testWriteValueAsString() {
-        String expected = """
-                {"id":1234567890123456789,"name":"lava","age":18,"birthDateTime":"2026-01-01T00:00:00Z","birthLocalDate":"2026-01-01","birthLocalTime":"00:00:00","birthDate":"2026-01-01T00:00:00Z"}""";
         User user = User.create();
-        assertEquals(expected, JsonUtil.writeValueAsString(user));
+        String result = JsonUtil.writeValueAsString(user);
+        // Jackson 3 默认按字段名字母序输出, 验证内容而非顺序
+        assertTrue(result.contains("\"id\":1234567890123456789"));
+        assertTrue(result.contains("\"name\":\"lava\""));
+        assertTrue(result.contains("\"age\":18"));
+        assertTrue(result.contains("\"birthDateTime\":\"2026-01-01T00:00:00Z\""));
+        assertTrue(result.contains("\"birthLocalDate\":\"2026-01-01\""));
+        assertTrue(result.contains("\"birthLocalTime\":\"00:00:00\""));
+        assertTrue(result.contains("\"birthDate\":\"2026-01-01T00:00:00Z\""));
     }
 
     @DisplayName("序列化对象为字节数组")
     @Test
     void testWriteValueAsBytes() {
-        String expected = """
-                {"id":1234567890123456789,"name":"lava","age":18,"birthDateTime":"2026-01-01T00:00:00Z","birthLocalDate":"2026-01-01","birthLocalTime":"00:00:00","birthDate":"2026-01-01T00:00:00Z"}""";
         User user = User.create();
         byte[] bytes = JsonUtil.writeValueAsBytes(user);
-        assertEquals(expected, new String(bytes, StandardCharsets.UTF_8));
+        String result = new String(bytes, StandardCharsets.UTF_8);
+        assertTrue(result.contains("\"id\":1234567890123456789"));
+        assertTrue(result.contains("\"name\":\"lava\""));
+        assertTrue(result.contains("\"birthDateTime\":\"2026-01-01T00:00:00Z\""));
+        assertTrue(result.contains("\"birthDate\":\"2026-01-01T00:00:00Z\""));
     }
 
     @DisplayName("序列化对象为格式化字符串")

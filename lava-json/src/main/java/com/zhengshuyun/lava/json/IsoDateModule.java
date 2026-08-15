@@ -16,12 +16,11 @@
 
 package com.zhengshuyun.lava.json;
 
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.databind.JsonSerializer;
-import com.fasterxml.jackson.databind.SerializerProvider;
-import com.fasterxml.jackson.databind.module.SimpleModule;
+import tools.jackson.core.JsonGenerator;
+import tools.jackson.databind.SerializationContext;
+import tools.jackson.databind.ValueSerializer;
+import tools.jackson.databind.module.SimpleModule;
 
-import java.io.IOException;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.util.Date;
@@ -41,10 +40,9 @@ final class IsoDateModule extends SimpleModule {
         addSerializer(Date.class, new IsoDateSerializer());
     }
 
-    private static class IsoDateSerializer extends JsonSerializer<Date> {
+    private static class IsoDateSerializer extends ValueSerializer<Date> {
         @Override
-        public void serialize(Date value, JsonGenerator gen, SerializerProvider serializers)
-                throws IOException {
+        public void serialize(Date value, JsonGenerator gen, SerializationContext serializers) {
             Instant instant = value.toInstant();
             gen.writeString(DateTimeFormatter.ISO_INSTANT.format(instant));
         }

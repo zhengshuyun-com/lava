@@ -16,17 +16,18 @@
 
 package com.zhengshuyun.lava.json;
 
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.databind.json.JsonMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import com.fasterxml.jackson.datatype.jsr310.deser.LocalDateDeserializer;
-import com.fasterxml.jackson.datatype.jsr310.deser.LocalDateTimeDeserializer;
-import com.fasterxml.jackson.datatype.jsr310.deser.LocalTimeDeserializer;
-import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateSerializer;
-import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateTimeSerializer;
-import com.fasterxml.jackson.datatype.jsr310.ser.LocalTimeSerializer;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.SerializationFeature;
+import tools.jackson.databind.cfg.DateTimeFeature;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.module.SimpleModule;
+import tools.jackson.databind.ext.javatime.deser.LocalDateDeserializer;
+import tools.jackson.databind.ext.javatime.deser.LocalDateTimeDeserializer;
+import tools.jackson.databind.ext.javatime.deser.LocalTimeDeserializer;
+import tools.jackson.databind.ext.javatime.ser.LocalDateSerializer;
+import tools.jackson.databind.ext.javatime.ser.LocalDateTimeSerializer;
+import tools.jackson.databind.ext.javatime.ser.LocalTimeSerializer;
 import com.zhengshuyun.lava.core.lang.Validate;
 import com.zhengshuyun.lava.core.time.DateTimePatterns;
 import com.zhengshuyun.lava.core.time.ZoneIds;
@@ -138,8 +139,8 @@ public final class JsonBuilder {
 
         // 使用 Builder 模式创建 ObjectMapper
         JsonMapper.Builder builder = JsonMapper.builder()
-                // 禁用将日期类型序列化为数字时间戳
-                .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+                // 禁用将日期类型序列化为数字时间戳 (Jackson 3 改用 DateTimeFeature)
+                .disable(DateTimeFeature.WRITE_DATES_AS_TIMESTAMPS)
                 // 反序列化时忽略未知字段
                 .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
                 // 序列化空对象时不抛异常
@@ -148,7 +149,7 @@ public final class JsonBuilder {
                 .defaultTimeZone(timeZone).defaultLocale(locale)
                 // 添加 Date ISO 8601 序列化支持
                 .addModule(new IsoDateModule())
-                // 添加Java8时间模块支持
+                // 添加Java8时间模块支持 (Jackson 3 内置, 用 SimpleModule 注册自定义格式)
                 .addModule(createJavaTimeModule());
 
         // 自定义
@@ -164,8 +165,8 @@ public final class JsonBuilder {
      *
      * <p>包含{@link LocalDateTime}, {@link LocalDate}, {@link LocalTime}</p>
      */
-    private JavaTimeModule createJavaTimeModule() {
-        JavaTimeModule module = new JavaTimeModule();
+    private SimpleModule createJavaTimeModule() {
+        SimpleModule module = new SimpleModule("LavaJavaTimeModule");
 
         // LocalDateTime
         DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern(dateTimeFormat, locale);

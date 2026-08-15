@@ -30,7 +30,7 @@
     <artifactId>lava-core</artifactId>
     <name>${project.artifactId}</name>
     <description>Lava 核心工具模块, 提供通用 Java 基础设施能力</description>
-    <url>https://github.com/zhengshuyun-com/lava</url>
+    <url>https://github.com/zhengshuyuncom/lava</url>
 
     <dependencies>
         <dependency>

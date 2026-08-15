@@ -29,7 +29,7 @@
     <artifactId>lava-http</artifactId>
     <name>${project.artifactId}</name>
     <description>Lava HTTP 模块, 提供统一的同步 HTTP 客户端能力</description>
-    <url>https://github.com/zhengshuyun-com/lava</url>
+    <url>https://github.com/zhengshuyuncom/lava</url>
 
     <dependencies>
         <dependency>
