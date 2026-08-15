@@ -18,6 +18,15 @@ package com.zhengshuyun.lava.core.id;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -89,5 +98,102 @@ public class SeataSnowflakeTest {
 
         assertTrue(id1 > 0, "ID with minimum worker ID should be positive");
         assertTrue(id2 > 0, "ID with maximum worker ID should be positive");
+    }
+
+    /**
+     * 校验 ID 位布局: 高 1 位为 0, 接着 10 位 workerId, 低 53 位为时间戳+序列号
+     * <p>
+     * 本类算法源自上游 Seata, 位布局是外部可见契约 (已落库的 ID 不可变), 任何重构都不得改动
+     */
+    @Test
+    void testIdBitLayout() {
+        int workerIdShift = 41 + 12;
+
+        for (long workerId : new long[]{0L, 1L, 512L, 1022L, 1023L}) {
+            long id = new SeataSnowflake(workerId).nextId();
+
+            assertTrue(id > 0, "id must be positive (sign bit must stay 0)");
+            assertEquals(workerId, id >>> workerIdShift,
+                    () -> "workerId must occupy bits 53..62 for workerId=" + workerId);
+        }
+    }
+
+    /**
+     * 校验同一实例生成的 ID 严格连续递增 (Seata 改良算法的核心特性)
+     */
+    @Test
+    void testIdsAreStrictlyIncrementing() {
+        SeataSnowflake snowflake = new SeataSnowflake(1L);
+        long previous = snowflake.nextId();
+
+        for (int i = 0; i < 10_000; i++) {
+            long current = snowflake.nextId();
+            assertEquals(previous + 1, current, "ids must increase strictly by 1");
+            previous = current;
+        }
+    }
+
+    /**
+     * 校验自动分配的 workerId 始终落在合法区间, 且不会因取不到 MAC 而构造失败
+     */
+    @Test
+    void testAutoWorkerIdAlwaysValid() {
+        int workerIdShift = 41 + 12;
+
+        for (int i = 0; i < 50; i++) {
+            long id = assertDoesNotThrow(() -> new SeataSnowflake().nextId(),
+                    "auto workerId generation must never fail");
+            long workerId = id >>> workerIdShift;
+            assertTrue(workerId >= 0 && workerId <= 1023,
+                    () -> "auto-generated workerId out of range: " + workerId);
+        }
+    }
+
+    /**
+     * 校验不同 workerId 的实例不会产生相同 ID (分布式场景的基本要求)
+     */
+    @Test
+    void testDifferentWorkerIdsDoNotCollide() {
+        SeataSnowflake a = new SeataSnowflake(1L);
+        SeataSnowflake b = new SeataSnowflake(2L);
+
+        Set<Long> ids = new HashSet<>();
+        for (int i = 0; i < 1000; i++) {
+            assertTrue(ids.add(a.nextId()), "duplicate id from worker 1");
+            assertTrue(ids.add(b.nextId()), "duplicate id from worker 2");
+        }
+        assertEquals(2000, ids.size());
+    }
+
+    /**
+     * 校验并发生成不产生重复 ID
+     */
+    @Test
+    void testConcurrentGenerationHasNoDuplicates() throws Exception {
+        SeataSnowflake snowflake = new SeataSnowflake(1L);
+        int threads = 8;
+        int perThread = 2000;
+
+        List<Callable<List<Long>>> tasks = new ArrayList<>();
+        for (int t = 0; t < threads; t++) {
+            tasks.add(() -> {
+                List<Long> ids = new ArrayList<>(perThread);
+                for (int i = 0; i < perThread; i++) {
+                    ids.add(snowflake.nextId());
+                }
+                return ids;
+            });
+        }
+
+        ExecutorService pool = Executors.newFixedThreadPool(threads);
+        try {
+            Set<Long> all = new HashSet<>();
+            for (Future<List<Long>> future : pool.invokeAll(tasks)) {
+                all.addAll(future.get());
+            }
+            assertEquals(threads * perThread, all.size(), "concurrent generation produced duplicate ids");
+        } finally {
+            pool.shutdownNow();
+        }
     }
 }

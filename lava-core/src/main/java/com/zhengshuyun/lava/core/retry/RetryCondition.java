@@ -29,6 +29,7 @@ import java.util.Arrays;
  * @author Toint
  * @since 2026/1/15
  */
+@FunctionalInterface
 public interface RetryCondition {
 
     /**
@@ -38,6 +39,9 @@ public interface RetryCondition {
 
     /**
      * 任何情况都重试
+     * <p>
+     * <b>注意: 成功也会重试</b>, 直到用尽 maxAttempts. 适用于轮询等待结果就绪的场景,
+     * 普通的"失败才重试"请用 {@link #ANY_EXCEPTION}
      */
     RetryCondition ALWAYS = (attempt, error, result) -> true;
 
@@ -61,32 +65,23 @@ public interface RetryCondition {
      * <p>
      * 只有当抛出的异常是指定类型(或其子类)时才重试
      *
-     * @param types 异常类型数组
+     * @param types 异常类型数组 (不能为空, 元素不能为 null)
      * @return 条件
+     * @throws IllegalArgumentException 如果 types 为 null、为空数组或含 null 元素
      */
     @SafeVarargs
     static RetryCondition ofException(Class<? extends Throwable>... types) {
-        return new RetryOnException(types);
-    }
+        Validate.notNull(types, "exceptionTypes must not be null");
+        // 空数组意味着任何异常都不重试, 这几乎总是调用方笔误, 与 NEVER 混淆; 提前失败而不是静默不重试
+        Validate.isTrue(types.length > 0, "exceptionTypes must not be empty, use RetryCondition.NEVER instead");
 
-    /**
-     * 基于异常类型的重试条件
-     */
-    class RetryOnException implements RetryCondition {
-
-        /**
-         * 异常类型数组
-         */
-        private final Class<? extends Throwable>[] exceptionTypes;
-
-        @SafeVarargs
-        RetryOnException(Class<? extends Throwable>... exceptionTypes) {
-            Validate.notNull(exceptionTypes, "exceptionTypes must not be null");
-            this.exceptionTypes = Arrays.copyOf(exceptionTypes, exceptionTypes.length);
+        // 防御性拷贝, 避免调用方后续修改数组影响条件行为
+        Class<? extends Throwable>[] exceptionTypes = Arrays.copyOf(types, types.length);
+        for (Class<? extends Throwable> type : exceptionTypes) {
+            Validate.notNull(type, "exceptionType must not be null");
         }
 
-        @Override
-        public boolean shouldRetry(int attempt, @Nullable Throwable error, @Nullable Object result) {
+        return (attempt, error, result) -> {
             if (error == null) {
                 return false;
             }
@@ -96,6 +91,6 @@ public interface RetryCondition {
                 }
             }
             return false;
-        }
+        };
     }
 }

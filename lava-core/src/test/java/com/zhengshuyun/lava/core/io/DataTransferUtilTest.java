@@ -122,6 +122,46 @@ class DataTransferUtilTest {
     }
 
     /**
+     * 测试格式化字节 - 1024 整数幂边界必须选中正确单位
+     * <p>
+     * 用 Math.log 求幂次时, 边界值可能因浮点误差算成 x.9999 并向下取整错位到小一级单位
+     */
+    @Test
+    void testFormatBytesUnitBoundaries() {
+        long unit = 1024L;
+        String[] expectedUnits = {"KB", "MB", "GB", "TB", "PB", "EB"};
+
+        for (String expectedUnit : expectedUnits) {
+            assertEquals("1.00 " + expectedUnit, DataTransferUtil.formatBytes(unit),
+                    () -> "wrong unit at boundary " + expectedUnit);
+            unit *= 1024L;
+        }
+    }
+
+    /**
+     * 测试格式化字节 - 紧贴单位边界下方时统一进位
+     * <p>
+     * 1024^n - 1 除完是 1023.999..., 渲染成 "1024 KB" 不如进位成 "1.00 MB".
+     * 各级单位必须表现一致 (旧实现依赖 Math.log 浮点误差, KB~TB 不进位而 PB/EB 进位)
+     */
+    @Test
+    void testFormatBytesJustBelowBoundaryCarriesConsistently() {
+        // B 级不进位: 1023 仍是合法的字节数显示
+        assertEquals("1023 B", DataTransferUtil.formatBytes(1024L - 1));
+
+        // 其余各级统一进位到下一单位
+        assertEquals("1.00 MB", DataTransferUtil.formatBytes(1024L * 1024 - 1));
+        assertEquals("1.00 GB", DataTransferUtil.formatBytes(1024L * 1024 * 1024 - 1));
+        assertEquals("1.00 TB", DataTransferUtil.formatBytes(1024L * 1024 * 1024 * 1024 - 1));
+        assertEquals("1.00 PB", DataTransferUtil.formatBytes(1024L * 1024 * 1024 * 1024 * 1024 - 1));
+        assertEquals("1.00 EB", DataTransferUtil.formatBytes(1024L * 1024 * 1024 * 1024 * 1024 * 1024 - 1));
+
+        // 未达进位阈值的不进位
+        assertEquals("1023 KB", DataTransferUtil.formatBytes(1023L * 1024));
+        assertEquals("1023 MB", DataTransferUtil.formatBytes(1023L * 1024 * 1024));
+    }
+
+    /**
      * 测试格式化字节 - 精度格式
      */
     @Test

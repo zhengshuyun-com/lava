@@ -20,6 +20,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.net.NetworkInterface;
 import java.util.Enumeration;
+import java.util.OptionalLong;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -67,7 +68,7 @@ public final class SeataSnowflake {
      * 中间10位：workerId
      * 最低位53位：全0
      */
-    private long workerId;
+    private final long workerId;
 
     /**
      * 时间戳和序列号混合在一个Long中
@@ -75,7 +76,7 @@ public final class SeataSnowflake {
      * 中间41位：时间戳
      * 最低12位：序列号
      */
-    private AtomicLong timestampAndSequence;
+    private final AtomicLong timestampAndSequence;
 
     /**
      * 用于从long中提取时间戳和序列号的掩码
@@ -95,33 +96,15 @@ public final class SeataSnowflake {
      * @param workerId 机器ID (0 ~ 1023) 如果为null, 则自动分配一个
      */
     public SeataSnowflake(@Nullable Long workerId) {
-        initTimestampAndSequence();
-        initWorkerId(workerId);
-    }
+        // 立即初始化第一个时间戳和序列号
+        this.timestampAndSequence = new AtomicLong(getNewestTimestamp() << SEQUENCE_BITS);
 
-    /**
-     * 立即初始化第一个时间戳和序列号
-     */
-    private void initTimestampAndSequence() {
-        long timestamp = getNewestTimestamp();
-        long timestampWithSequence = timestamp << SEQUENCE_BITS;
-        this.timestampAndSequence = new AtomicLong(timestampWithSequence);
-    }
-
-    /**
-     * 初始化workerId
-     *
-     * @param workerId 如果为null, 则自动生成一个
-     */
-    private void initWorkerId(@Nullable Long workerId) {
-        if (workerId == null) {
-            workerId = generateWorkerId();
-        }
-        if (workerId > MAX_WORKER_ID || workerId < 0) {
+        long resolvedWorkerId = workerId != null ? workerId : generateWorkerId();
+        if (resolvedWorkerId > MAX_WORKER_ID || resolvedWorkerId < 0) {
             String message = String.format("worker Id can't be greater than %d or less than 0", MAX_WORKER_ID);
             throw new IllegalArgumentException(message);
         }
-        this.workerId = workerId << (TIMESTAMP_BITS + SEQUENCE_BITS);
+        this.workerId = resolvedWorkerId << (TIMESTAMP_BITS + SEQUENCE_BITS);
     }
 
     /**
@@ -173,33 +156,42 @@ public final class SeataSnowflake {
      *
      * @return workerId
      */
-    private long generateWorkerId() {
-        try {
-            return generateWorkerIdBaseOnMac();
-        } catch (Exception e) {
-            return generateRandomWorkerId();
-        }
+    private static long generateWorkerId() {
+        return generateWorkerIdBaseOnMac().orElseGet(SeataSnowflake::generateRandomWorkerId);
     }
 
     /**
      * 使用可用MAC地址的最低10位作为workerId
      *
-     * @return workerId
-     * @throws Exception 当没有找到可用的MAC地址时
+     * @return workerId, 没有可用MAC地址时返回空
      */
-    private long generateWorkerIdBaseOnMac() throws Exception {
-        Enumeration<NetworkInterface> all = NetworkInterface.getNetworkInterfaces();
-        while (all.hasMoreElements()) {
-            NetworkInterface networkInterface = all.nextElement();
-            boolean isLoopback = networkInterface.isLoopback();
-            boolean isVirtual = networkInterface.isVirtual();
-            byte[] mac = networkInterface.getHardwareAddress();
-            if (isLoopback || isVirtual || mac == null) {
-                continue;
+    private static OptionalLong generateWorkerIdBaseOnMac() {
+        // 这里刻意捕获 Exception 而非 SocketException, 与上游 Seata 实现保持一致:
+        // getNetworkInterfaces() 在 SecurityManager 受限策略下会抛 SecurityException (RuntimeException),
+        // 且在部分平台/容器环境下可能返回 null. ID 生成位于启动关键路径,
+        // 任何探测失败都必须降级为随机 workerId, 不能让异常冒泡导致服务无法生成 ID
+        try {
+            Enumeration<NetworkInterface> all = NetworkInterface.getNetworkInterfaces();
+            if (all == null) {
+                return OptionalLong.empty();
             }
-            return ((mac[4] & 0B11) << 8) | (mac[5] & 0xFF);
+            while (all.hasMoreElements()) {
+                NetworkInterface networkInterface = all.nextElement();
+                boolean isLoopback = networkInterface.isLoopback();
+                boolean isVirtual = networkInterface.isVirtual();
+                byte[] mac = networkInterface.getHardwareAddress();
+                // 上游只判 mac == null, 但非以太网卡 (firewire 等) 的 MAC 可能不足 6 字节,
+                // 上游会因 mac[4]/mac[5] 越界抛 AIOOBE 后整体降级为随机;
+                // 这里跳过该网卡继续找下一张, 严格优于上游
+                if (isLoopback || isVirtual || mac == null || mac.length < 6) {
+                    continue;
+                }
+                return OptionalLong.of(((mac[4] & 0B11) << 8) | (mac[5] & 0xFF));
+            }
+        } catch (Exception e) {
+            return OptionalLong.empty();
         }
-        throw new RuntimeException("no available mac found");
+        return OptionalLong.empty();
     }
 
     /**
@@ -207,7 +199,7 @@ public final class SeataSnowflake {
      *
      * @return workerId
      */
-    private long generateRandomWorkerId() {
+    private static long generateRandomWorkerId() {
         return ThreadLocalRandom.current().nextInt(MAX_WORKER_ID + 1);
     }
 }

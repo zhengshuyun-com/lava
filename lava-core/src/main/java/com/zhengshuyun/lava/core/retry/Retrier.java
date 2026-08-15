@@ -29,8 +29,16 @@ import java.util.concurrent.Callable;
  * 支持自定义重试次数、延迟策略、重试条件和监听器的任务重试执行器.
  * 当所有尝试都失败时, 会根据异常类型抛出：
  * <ul>
- *   <li>非受检异常 (RuntimeException 及其子类、Error) ：直接抛出原始异常</li>
+ *   <li>非受检异常 (RuntimeException 及其子类) ：直接抛出原始异常</li>
  *   <li>受检异常 (Exception 及其子类) ：包装为 {@link RetryException} 抛出</li>
+ * </ul>
+ *
+ * <h2>不重试的情况</h2>
+ * <ul>
+ *   <li>{@link Error} (如 OutOfMemoryError, StackOverflowError) ：属于 JVM 级故障,
+ *   重试无意义且会放大问题, 直接向上抛出, 不计入尝试次数</li>
+ *   <li>{@link InterruptedException} ：属于取消信号而非失败, 会恢复线程中断状态并
+ *   立即包装为 {@link RetryException} 抛出</li>
  * </ul>
  *
  * @author Toint
@@ -122,6 +130,7 @@ public final class Retrier {
      * @throws RetryException   执行失败且为受检异常时包装抛出
      */
     public void execute(Runnable runnable) {
+        Validate.notNull(runnable, "runnable must not be null");
         execute(() -> {
             runnable.run();
             return null;
@@ -149,12 +158,18 @@ public final class Retrier {
             }
 
             // 执行任务
+            // 只捕获 Exception: Error (如 OutOfMemoryError, StackOverflowError) 表示 JVM 级故障,
+            // 重试没有意义且会放大问题, 直接向上抛出
             boolean success;
             try {
                 result = callable.call();
                 lastError = null;
                 success = true;
-            } catch (Throwable e) {
+            } catch (InterruptedException e) {
+                // 中断是取消信号, 不是可重试的失败: 恢复中断状态并立即终止
+                Thread.currentThread().interrupt();
+                throw wrap(e);
+            } catch (Exception e) {
                 lastError = e;
                 result = null;
                 success = false;
@@ -178,7 +193,7 @@ public final class Retrier {
                     Thread.sleep(delay);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
-                    throw new RetryException(e.getMessage(), e);
+                    throw wrap(e);
                 }
             }
         }
@@ -187,10 +202,23 @@ public final class Retrier {
         // 非受检异常直接抛出, 受检异常包装为 RetryException
         if (lastError != null) {
             Throwables.throwIfUnchecked(lastError);
-            throw new RetryException(lastError.getMessage(), lastError);
+            throw wrap(lastError);
         }
 
         return result;
+    }
+
+    /**
+     * 包装受检异常为 {@link RetryException}
+     * <p>
+     * 原始异常的 message 可能为 null, 此时退化为异常类型名, 避免丢失诊断信息
+     *
+     * @param error 原始异常
+     * @return 包装后的异常
+     */
+    private static RetryException wrap(Throwable error) {
+        String message = error.getMessage();
+        return new RetryException(message != null ? message : error.getClass().getName(), error);
     }
 
     /**

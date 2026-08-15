@@ -214,7 +214,7 @@ public final class ByteStreamCopier {
         Validate.notNull(progressListener, "progressListener must not be null");
         progressListener.onStart(contentLength);
 
-        byte[] buffer = IoUtil.createBuffer();
+        byte[] buffer = new byte[IoUtil.DEFAULT_BUFFER_SIZE];
         long totalBytes = 0;
         while (true) {
             int readBytes = inputStream.read(buffer);

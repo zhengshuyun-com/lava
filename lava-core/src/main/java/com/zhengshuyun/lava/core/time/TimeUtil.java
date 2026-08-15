@@ -19,12 +19,12 @@ package com.zhengshuyun.lava.core.time;
 import com.google.common.base.Strings;
 import org.jspecify.annotations.Nullable;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
-import java.util.Arrays;
-import java.util.List;
+import java.time.format.ResolverStyle;
+import java.time.temporal.ChronoField;
 
 /**
  * 时间工具类
@@ -37,23 +37,92 @@ public final class TimeUtil {
     private TimeUtil() {
     }
 
-    private static final List<DateTimeFormatter> DATE_TIME_FORMATTERS = Arrays.asList(
-            DateTimeFormatter.ofPattern(DateTimePatterns.DATE_TIME),
-            DateTimeFormatter.ofPattern(DateTimePatterns.DATE_TIME_MILLIS),
-            DateTimeFormatter.ofPattern(DateTimePatterns.DATE_TIME_SLASH),
-            DateTimeFormatter.ofPattern(DateTimePatterns.DATE_TIME_SLASH_MILLIS),
-            DateTimeFormatter.ofPattern(DateTimePatterns.DATE_TIME_COMPACT),
-            DateTimeFormatter.ofPattern(DateTimePatterns.DATE_TIME_CHINESE),
-            DateTimeFormatter.ofPattern(DateTimePatterns.ISO_LOCAL_DATE_TIME),
-            DateTimeFormatter.ofPattern(DateTimePatterns.ISO_LOCAL_DATE_TIME_MILLIS)
-    );
+    /**
+     * 横杠分隔: {@code yyyy-MM-dd}, 可选 {@code (空格|T)HH:mm:ss}, 可选小数秒
+     * <p>
+     * 模式里用 {@code uuuu} (纪年年份) 而非 {@code yyyy} (纪元内年份),
+     * 因为 STRICT 解析下 {@code yyyy} 会强制要求纪元字段
+     */
+    private static final DateTimeFormatter DASH = dateTimeFormatter("uuuu-MM-dd");
 
-    private static final List<DateTimeFormatter> DATE_FORMATTERS = Arrays.asList(
-            DateTimeFormatter.ofPattern(DateTimePatterns.DATE),
-            DateTimeFormatter.ofPattern(DateTimePatterns.DATE_SLASH),
-            DateTimeFormatter.ofPattern(DateTimePatterns.DATE_COMPACT),
-            DateTimeFormatter.ofPattern(DateTimePatterns.DATE_CHINESE)
-    );
+    /**
+     * 斜杠分隔: {@code yyyy/MM/dd}, 可选时间部分
+     */
+    private static final DateTimeFormatter SLASH = dateTimeFormatter("uuuu/MM/dd");
+
+    /**
+     * 紧凑格式: {@code yyyyMMdd}, 可选 {@code HHmmss}
+     */
+    private static final DateTimeFormatter COMPACT = new DateTimeFormatterBuilder()
+            .appendValue(ChronoField.YEAR, 4)
+            .appendValue(ChronoField.MONTH_OF_YEAR, 2)
+            .appendValue(ChronoField.DAY_OF_MONTH, 2)
+            .optionalStart()
+            .appendValue(ChronoField.HOUR_OF_DAY, 2)
+            .appendValue(ChronoField.MINUTE_OF_HOUR, 2)
+            .appendValue(ChronoField.SECOND_OF_MINUTE, 2)
+            .optionalEnd()
+            .parseDefaulting(ChronoField.HOUR_OF_DAY, 0)
+            .parseDefaulting(ChronoField.MINUTE_OF_HOUR, 0)
+            .parseDefaulting(ChronoField.SECOND_OF_MINUTE, 0)
+            .toFormatter()
+            .withResolverStyle(ResolverStyle.STRICT);
+
+    /**
+     * 中文格式: {@code yyyy年MM月dd日}, 可选 {@code HH时mm分ss秒}
+     */
+    private static final DateTimeFormatter CHINESE = new DateTimeFormatterBuilder()
+            .appendValue(ChronoField.YEAR, 4)
+            .appendLiteral('年')
+            .appendValue(ChronoField.MONTH_OF_YEAR, 2)
+            .appendLiteral('月')
+            .appendValue(ChronoField.DAY_OF_MONTH, 2)
+            .appendLiteral('日')
+            .optionalStart()
+            .appendLiteral(' ')
+            .appendValue(ChronoField.HOUR_OF_DAY, 2)
+            .appendLiteral('时')
+            .appendValue(ChronoField.MINUTE_OF_HOUR, 2)
+            .appendLiteral('分')
+            .appendValue(ChronoField.SECOND_OF_MINUTE, 2)
+            .appendLiteral('秒')
+            .optionalEnd()
+            .parseDefaulting(ChronoField.HOUR_OF_DAY, 0)
+            .parseDefaulting(ChronoField.MINUTE_OF_HOUR, 0)
+            .parseDefaulting(ChronoField.SECOND_OF_MINUTE, 0)
+            .toFormatter()
+            .withResolverStyle(ResolverStyle.STRICT);
+
+    /**
+     * 构建"日期 + 可选时间"的格式化器
+     * <p>
+     * 日期与时间之间允许空格或 {@code T} 分隔, 秒后允许 1~9 位小数秒.
+     * 缺失时间部分时默认为 00:00:00
+     *
+     * @param datePattern 日期部分的模式
+     * @return 格式化器
+     */
+    private static DateTimeFormatter dateTimeFormatter(String datePattern) {
+        return new DateTimeFormatterBuilder()
+                .appendPattern(datePattern)
+                .optionalStart()
+                // 空格分隔或 ISO 的 T 分隔
+                .optionalStart().appendLiteral(' ').optionalEnd()
+                .optionalStart().appendLiteral('T').optionalEnd()
+                .appendPattern("HH:mm:ss")
+                .optionalStart()
+                .appendFraction(ChronoField.NANO_OF_SECOND, 1, 9, true)
+                .optionalEnd()
+                .optionalEnd()
+                // 只有日期时补齐时间部分, 使其可直接解析为 LocalDateTime
+                // parseDefaulting 仅在字段未被解析到时生效, 因此不会与显式时间冲突
+                .parseDefaulting(ChronoField.HOUR_OF_DAY, 0)
+                .parseDefaulting(ChronoField.MINUTE_OF_HOUR, 0)
+                .parseDefaulting(ChronoField.SECOND_OF_MINUTE, 0)
+                .toFormatter()
+                // STRICT: 拒绝 2026-02-30 这类不存在的日期, 而不是按 SMART 悄悄夹到 02-28
+                .withResolverStyle(ResolverStyle.STRICT);
+    }
 
     /**
      * 解析字符串为 LocalDateTime, 支持多种常见格式
@@ -74,30 +143,42 @@ public final class TimeUtil {
      *   <li>{@code yyyy年MM月dd日} - 中文日期, 如: 2026年01月01日 (时间部分默认为 00:00:00)</li>
      * </ul>
      *
+     * <h2>解析规则</h2>
+     * <ul>
+     *   <li>输入前后空白会被裁剪</li>
+     *   <li>小数秒接受 1~9 位, 如 {@code .1} / {@code .123} / {@code .123456789}</li>
+     *   <li>日期与时间之间的分隔符接受空格或 {@code T}</li>
+     *   <li>采用严格解析: {@code 2026-02-30} 这类不存在的日期返回 null,
+     *   不会被悄悄修正为月末</li>
+     *   <li>月、日、时、分、秒必须补零到两位, {@code 2026-1-1} 无法解析</li>
+     * </ul>
+     *
      * @param dateTime 日期时间字符串
      * @return LocalDateTime 对象, 解析失败或输入为空时返回 null
      */
     public static @Nullable LocalDateTime parse(@Nullable String dateTime) {
-        dateTime = Strings.nullToEmpty(dateTime).trim();
+        String text = Strings.nullToEmpty(dateTime).trim();
 
-        if (dateTime.isEmpty()) {
+        if (text.isEmpty()) {
             return null;
         }
 
-        for (DateTimeFormatter formatter : DATE_TIME_FORMATTERS) {
-            try {
-                return LocalDateTime.parse(dateTime, formatter);
-            } catch (DateTimeParseException ignore) {
-            }
+        // 按分隔符选出唯一候选格式, 避免逐个 formatter 试错时抛出并丢弃大量 DateTimeParseException
+        DateTimeFormatter formatter;
+        if (text.indexOf('-') > 0) {
+            formatter = DASH;
+        } else if (text.indexOf('/') > 0) {
+            formatter = SLASH;
+        } else if (text.indexOf('年') > 0) {
+            formatter = CHINESE;
+        } else {
+            formatter = COMPACT;
         }
 
-        for (DateTimeFormatter formatter : DATE_FORMATTERS) {
-            try {
-                return LocalDate.parse(dateTime, formatter).atStartOfDay();
-            } catch (DateTimeParseException ignore) {
-            }
+        try {
+            return LocalDateTime.parse(text, formatter);
+        } catch (DateTimeParseException ignore) {
+            return null;
         }
-
-        return null;
     }
 }

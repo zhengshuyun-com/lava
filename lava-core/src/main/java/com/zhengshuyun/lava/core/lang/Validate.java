@@ -416,7 +416,7 @@ public final class Validate {
      * @throws IllegalArgumentException 校验失败
      */
     public static String isEmail(@Nullable String str) {
-        if (!EmailValidator.isValid(str)) {
+        if (str == null || !EmailValidator.isValid(str)) {
             throw new IllegalArgumentException(DEFAULT_INVALID_EMAIL_MESSAGE);
         }
         return str;
@@ -431,7 +431,7 @@ public final class Validate {
      * @throws IllegalArgumentException 校验失败
      */
     public static String isEmail(@Nullable String str, @Nullable Object errMsg) {
-        if (!EmailValidator.isValid(str)) {
+        if (str == null || !EmailValidator.isValid(str)) {
             throw new IllegalArgumentException(String.valueOf(errMsg));
         }
         return str;
@@ -450,7 +450,7 @@ public final class Validate {
             @Nullable String str,
             @Nullable String errMsgTemplate,
             @Nullable Object... errMsgArgs) {
-        if (!EmailValidator.isValid(str)) {
+        if (str == null || !EmailValidator.isValid(str)) {
             throw new IllegalArgumentException(Strings.lenientFormat(errMsgTemplate, errMsgArgs));
         }
         return str;

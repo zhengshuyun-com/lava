@@ -831,4 +831,102 @@ class RetrierTest {
         assertEquals("test message", exception.getMessage());
         assertSame(cause, exception.getCause());
     }
+
+    /**
+     * 测试 Error 不重试
+     * Error 属于 JVM 级故障, 应原样抛出且只执行一次
+     */
+    @Test
+    void testErrorIsNotRetried() {
+        AtomicInteger counter = new AtomicInteger(0);
+
+        assertThrows(StackOverflowError.class, () ->
+                Retrier.builder()
+                        .setMaxAttempts(5)
+                        .setFixedDelayMillis(1)
+                        .build()
+                        .execute(() -> {
+                            counter.incrementAndGet();
+                            throw new StackOverflowError("jvm level failure");
+                        }));
+
+        assertEquals(1, counter.get(), "Error should not be retried");
+    }
+
+    /**
+     * 测试任务抛出 InterruptedException 时立即终止并恢复中断状态
+     */
+    @Test
+    void testCallableInterruptedExceptionAbortsImmediately() {
+        AtomicInteger counter = new AtomicInteger(0);
+
+        RetryException exception = assertThrows(RetryException.class, () ->
+                Retrier.builder()
+                        .setMaxAttempts(5)
+                        .setFixedDelayMillis(1)
+                        .build()
+                        .execute(() -> {
+                            counter.incrementAndGet();
+                            throw new InterruptedException("cancelled");
+                        }));
+
+        assertEquals(1, counter.get(), "InterruptedException should not be retried");
+        assertInstanceOf(InterruptedException.class, exception.getCause());
+        assertTrue(Thread.interrupted(), "interrupt status must be restored (and is cleared here)");
+    }
+
+    /**
+     * 测试异常 message 为 null 时退化为异常类型名, 不产生 "null" 消息
+     */
+    @Test
+    void testWrappedExceptionWithNullMessage() {
+        RetryException exception = assertThrows(RetryException.class, () ->
+                Retrier.builder()
+                        .setMaxAttempts(1)
+                        .build()
+                        .execute(() -> {
+                            throw new IOException();
+                        }));
+
+        assertEquals(IOException.class.getName(), exception.getMessage());
+    }
+
+    /**
+     * 测试 ofException 拒绝空数组
+     * 空数组等价于"任何异常都不重试", 几乎总是调用方笔误
+     */
+    @Test
+    void testRetryConditionOfExceptionRejectsEmpty() {
+        assertThrows(IllegalArgumentException.class, RetryCondition::ofException);
+        assertThrows(IllegalArgumentException.class, () -> Retrier.builder().setRetryOnException());
+    }
+
+    /**
+     * 测试 ofException 拒绝 null 元素
+     */
+    @Test
+    void testRetryConditionOfExceptionRejectsNullElement() {
+        assertThrows(IllegalArgumentException.class,
+                () -> RetryCondition.ofException(IOException.class, null));
+    }
+
+    /**
+     * 测试 runnable 为 null
+     */
+    @Test
+    void testNullRunnable() {
+        Retrier retrier = Retrier.builder().build();
+        assertThrows(IllegalArgumentException.class, () -> retrier.execute((Runnable) null));
+    }
+
+    /**
+     * 测试指数退避在超大 attempt 下不会因浮点溢出得到异常值, 而是被 maxDelay 封顶
+     */
+    @Test
+    void testExponentialBackoffOverflowIsCapped() {
+        RetryStrategy strategy = RetryStrategy.ofExponentialBackoffMillis(1000, 10, 30_000);
+
+        assertEquals(30_000, strategy.getDelay(1000).toMillis());
+        assertEquals(30_000, strategy.getDelay(Integer.MAX_VALUE).toMillis());
+    }
 }

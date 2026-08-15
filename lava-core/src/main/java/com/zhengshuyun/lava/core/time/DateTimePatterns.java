@@ -94,21 +94,11 @@ public final class DateTimePatterns {
     public static final String ISO_LOCAL_DATE_TIME_MILLIS = "yyyy-MM-dd'T'HH:mm:ss.SSS";
 
     /**
-     * ISO 8601 UTC 时间 (带 Z 后缀): {@code yyyy-MM-dd'T'HH:mm:ss'Z'}
-     * <p>示例: 2026-01-01T12:30:00Z
-     * <p><b>注意: 'Z' 是字面量字符, 不是真实偏移量</b>. 该格式只会把 Z 原样拼在末尾,
-     * 不做任何时区校验, 因此用非 UTC 时间格式化时会产出声称是 UTC 的错误数据,
-     * 例如上海时间 12:30 会输出 {@code 2026-01-01T12:30:00Z}.
-     * <p>需要输出带真实偏移量的时刻请用 {@link #ISO_OFFSET_DATE_TIME},
-     * 或直接用 {@link DateTimeFormatter#ISO_INSTANT} 格式化 {@link java.time.Instant}.
-     * 仅在确认输入已是 UTC 且需要固定秒级精度时使用本常量.
-     */
-    public static final String ISO_INSTANT = "yyyy-MM-dd'T'HH:mm:ss'Z'";
-
-    /**
      * ISO 8601 带时区: {@code yyyy-MM-dd'T'HH:mm:ssXXX}
      * <p>示例: 2026-01-01T12:30:00+08:00 (中国时区)
      * <p>用于需要明确时区的场景
+     * <p>需要输出 UTC 时刻 (末尾 Z) 请直接用 {@link DateTimeFormatter#ISO_INSTANT}
+     * 格式化 {@link java.time.Instant}, 不要用字面量 {@code 'Z'} 拼接非 UTC 时间
      */
     public static final String ISO_OFFSET_DATE_TIME = "yyyy-MM-dd'T'HH:mm:ssXXX";
 

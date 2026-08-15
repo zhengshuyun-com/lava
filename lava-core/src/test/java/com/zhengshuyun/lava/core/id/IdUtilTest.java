@@ -18,7 +18,12 @@ package com.zhengshuyun.lava.core.id;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * @author Toint
@@ -36,5 +41,38 @@ public class IdUtilTest {
     void testRandomUUID() {
         assertEquals(36, IdUtil.randomUUID().length());
         assertEquals(32, IdUtil.randomUUIDWithoutDash().length());
+    }
+
+    /**
+     * 无横杠 UUID 必须是 32 位小写十六进制
+     */
+    @Test
+    void testRandomUUIDWithoutDashFormat() {
+        for (int i = 0; i < 1000; i++) {
+            String id = IdUtil.randomUUIDWithoutDash();
+            assertTrue(id.matches("[0-9a-f]{32}"), () -> "unexpected uuid format: " + id);
+        }
+    }
+
+    /**
+     * 十六进制编码必须与 UUID.toString() 去横杠的结果完全一致, 覆盖随机值与位模式边界
+     */
+    @Test
+    void testToHexWithoutDashMatchesUuidToString() {
+        List<UUID> cases = new ArrayList<>(List.of(
+                new UUID(0L, 0L),
+                new UUID(-1L, -1L),
+                new UUID(Long.MIN_VALUE, Long.MAX_VALUE),
+                UUID.fromString("6703d34b-c118-424b-816d-c27bca6f9b1a"),
+                UUID.fromString("e13053cb-ab63-4217-bac7-e6516b1b7030")
+        ));
+        for (int i = 0; i < 1000; i++) {
+            cases.add(UUID.randomUUID());
+        }
+
+        for (UUID uuid : cases) {
+            assertEquals(uuid.toString().replace("-", ""), IdUtil.toHexWithoutDash(uuid),
+                    () -> "hex encoding mismatch for " + uuid);
+        }
     }
 }

@@ -18,6 +18,9 @@ package com.zhengshuyun.lava.core.time;
 
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDateTime;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
@@ -29,6 +32,9 @@ import static org.junit.jupiter.api.Assertions.assertNull;
  * @since 2026/01/18
  */
 class TimeUtilTest {
+
+    private static final LocalDateTime DATE_TIME = LocalDateTime.of(2026, 1, 1, 12, 30, 0);
+    private static final LocalDateTime DATE_ONLY = LocalDateTime.of(2026, 1, 1, 0, 0, 0);
 
     /**
      * 测试 parse 方法
@@ -52,5 +58,49 @@ class TimeUtilTest {
         assertNull(TimeUtil.parse("   "));
         assertNull(TimeUtil.parse("invalid"));
         assertNull(TimeUtil.parse("12:30:00"));
+    }
+
+    /**
+     * 校验解析结果的具体取值, 而不只是非 null
+     */
+    @Test
+    void testParseValues() {
+        assertEquals(DATE_TIME, TimeUtil.parse("2026-01-01 12:30:00"));
+        assertEquals(DATE_TIME, TimeUtil.parse("2026/01/01 12:30:00"));
+        assertEquals(DATE_TIME, TimeUtil.parse("2026-01-01T12:30:00"));
+        assertEquals(DATE_TIME, TimeUtil.parse("20260101123000"));
+        assertEquals(DATE_TIME, TimeUtil.parse("2026年01月01日 12时30分00秒"));
+
+        // 只有日期时, 时间补齐为 00:00:00
+        assertEquals(DATE_ONLY, TimeUtil.parse("2026-01-01"));
+        assertEquals(DATE_ONLY, TimeUtil.parse("2026/01/01"));
+        assertEquals(DATE_ONLY, TimeUtil.parse("20260101"));
+        assertEquals(DATE_ONLY, TimeUtil.parse("2026年01月01日"));
+
+        // 小数秒
+        assertEquals(DATE_TIME.withNano(123_000_000), TimeUtil.parse("2026-01-01 12:30:00.123"));
+        assertEquals(DATE_TIME.withNano(123_000_000), TimeUtil.parse("2026/01/01 12:30:00.123"));
+        assertEquals(DATE_TIME.withNano(100_000_000), TimeUtil.parse("2026-01-01 12:30:00.1"));
+        assertEquals(DATE_TIME.withNano(123_456_789), TimeUtil.parse("2026-01-01 12:30:00.123456789"));
+
+        // 前后空白会被裁剪
+        assertEquals(DATE_TIME, TimeUtil.parse("  2026-01-01 12:30:00  "));
+    }
+
+    /**
+     * 非法输入必须返回 null, 而不是抛异常或给出错误结果
+     */
+    @Test
+    void testParseInvalid() {
+        assertNull(TimeUtil.parse(""));
+        assertNull(TimeUtil.parse("2026-13-01"));          // 月份越界
+        assertNull(TimeUtil.parse("2026-01-32"));          // 日越界
+        assertNull(TimeUtil.parse("2026-02-30"));          // 不存在的日期
+        assertNull(TimeUtil.parse("2026-01-01 25:00:00")); // 小时越界
+        assertNull(TimeUtil.parse("2026-1-1"));            // 非补零
+        assertNull(TimeUtil.parse("20260101 123000"));     // 紧凑格式不接受空格
+        assertNull(TimeUtil.parse("2026-01-01 12:30"));    // 缺少秒
+        assertNull(TimeUtil.parse("not a date"));
+        assertNull(TimeUtil.parse("123"));
     }
 }

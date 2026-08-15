@@ -23,6 +23,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
+import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -32,6 +33,19 @@ import java.util.concurrent.TimeUnit;
  * @since 2026/1/11
  */
 public final class DataTransferUtil {
+
+    /**
+     * 字节单位 (1024 进制), 索引对应 1024 的幂次 - 1
+     */
+    private static final String[] BYTE_UNITS = {"KB", "MB", "GB", "TB", "PB", "EB"};
+
+    /**
+     * 时长格式化器 (小时到秒, 英文)
+     */
+    private static final DurationFormatter DURATION_FORMATTER = DurationFormatter.builder()
+            .setRange(ChronoUnit.HOURS, ChronoUnit.SECONDS)
+            .setEnglish()
+            .build();
 
     private DataTransferUtil() {
     }
@@ -49,12 +63,22 @@ public final class DataTransferUtil {
             return bytes + " B";
         }
 
-        final String[] units = {"KB", "MB", "GB", "TB", "PB", "EB"};
-        int unitIndex = (int) (Math.log(bytes) / Math.log(1024)) - 1;
-        double value = bytes / Math.pow(1024, unitIndex + 1);
+        // 用位运算精确求 1024 的幂次, 不依赖 Math.log 的浮点精度
+        int exponent = (63 - Long.numberOfLeadingZeros(bytes)) / 10;
+        double value = (double) bytes / (1L << (exponent * 10));
 
+        // 进位: 1024^n - 1 这类值除完后是 1023.999..., 按 %.0f 会渲染成 "1024 TB",
+        // 进位成 "1.00 PB" 更符合直觉. 判断依据是"渲染后是否达到 1024"而非原始值,
+        // 因此用 Math.round 而不是 value >= 1024.
+        // Long.MAX_VALUE 约 8 EB, 不会出现 1024 EB, 故只需判一次上界
+        if (Math.round(value) >= 1024 && exponent < BYTE_UNITS.length) {
+            exponent++;
+            value /= 1024;
+        }
+
+        // 指定 Locale.ROOT, 避免在 de/fr 等 locale 下小数点变成逗号
         String format = value >= 100 ? "%.0f %s" : (value >= 10 ? "%.1f %s" : "%.2f %s");
-        return String.format(format, value, units[unitIndex]);
+        return String.format(Locale.ROOT, format, value, BYTE_UNITS[exponent - 1]);
     }
 
     /**
@@ -93,14 +117,6 @@ public final class DataTransferUtil {
      * @return 时长字符串 (如 "1h 23m", "45s", "1m 30s")
      * @see DurationFormatter
      */
-    /**
-     * 时长格式化器 (小时到秒, 英文)
-     */
-    private static final DurationFormatter DURATION_FORMATTER = DurationFormatter.builder()
-            .setRange(ChronoUnit.HOURS, ChronoUnit.SECONDS)
-            .setEnglish()
-            .build();
-
     public static String formatDuration(Duration duration) {
         return DURATION_FORMATTER.format(duration);
     }
@@ -195,7 +211,7 @@ public final class DataTransferUtil {
                 sb.append(" / ").append(DataTransferUtil.formatBytes(totalBytes));
                 Integer percentage = DataTransferUtil.calculatePercentage(currentBytes, totalBytes);
                 if (percentage != null) {
-                    sb.append(String.format(" (%d%%)", percentage));
+                    sb.append(String.format(Locale.ROOT, " (%d%%)", percentage));
                 }
             } else {
                 sb.append(" / ?");

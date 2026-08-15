@@ -33,37 +33,11 @@ import static org.junit.jupiter.api.Assertions.*;
 class IoUtilTest {
 
     /**
-     * 测试创建默认大小的缓冲区
+     * 测试默认缓冲区大小常量
      */
     @Test
-    void testCreateBuffer() {
-        byte[] buffer = IoUtil.createBuffer();
-        assertNotNull(buffer);
-        assertEquals(IoUtil.DEFAULT_BUFFER_SIZE, buffer.length);
-        assertEquals(8192, buffer.length);
-    }
-
-    /**
-     * 测试创建字节流复制器
-     */
-    @Test
-    void testCopier() {
-        ByteStreamCopier.Builder copier = IoUtil.copier();
-        assertNotNull(copier);
-        assertInstanceOf(ByteStreamCopier.Builder.class, copier);
-    }
-
-    /**
-     * 测试 copier 可以正常使用
-     */
-    @Test
-    void testCopierFunctional() {
-        String input = "test copier";
-        String result = IoUtil.copier()
-                .setSource(input)
-                .build()
-                .writeString();
-        assertEquals(input, result);
+    void testDefaultBufferSize() {
+        assertEquals(8192, IoUtil.DEFAULT_BUFFER_SIZE);
     }
 
     /**

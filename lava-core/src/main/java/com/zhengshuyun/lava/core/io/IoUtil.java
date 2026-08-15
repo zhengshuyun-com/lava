@@ -38,22 +38,6 @@ public final class IoUtil {
     }
 
     /**
-     * 创建默认大小的缓冲区
-     */
-    public static byte[] createBuffer() {
-        return new byte[DEFAULT_BUFFER_SIZE];
-    }
-
-    /**
-     * 创建字节流复制器
-     *
-     * @return 字节流复制器
-     */
-    public static ByteStreamCopier.Builder copier() {
-        return ByteStreamCopier.builder();
-    }
-
-    /**
      * 静默关闭资源 (逆序关闭, 忽略异常)
      *
      * @param closeables 资源数组

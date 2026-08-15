@@ -16,16 +16,20 @@
 
 package com.zhengshuyun.lava.core.retry;
 
+import com.zhengshuyun.lava.core.lang.Validate;
+
 import java.time.Duration;
 
 /**
  * 重试延迟策略
  * <p>
- * 定义重试时的延迟时间计算逻辑, 不包含重试次数限制
+ * 定义重试时的延迟时间计算逻辑, 不包含重试次数限制.
+ * 通过静态工厂方法创建内置策略, 也可直接用 lambda 实现自定义策略
  *
  * @author Toint
  * @since 2026/1/15
  */
+@FunctionalInterface
 public interface RetryStrategy {
 
     /**
@@ -39,45 +43,75 @@ public interface RetryStrategy {
     /**
      * 创建固定延迟策略 (毫秒)
      *
-     * @param delayMillis 延迟时间 (毫秒)
+     * @param delayMillis 延迟时间 (毫秒, 必须 &gt;= 0)
      * @return 固定延迟策略
+     * @throws IllegalArgumentException 如果 delayMillis &lt; 0
      */
     static RetryStrategy ofFixedDelayMillis(long delayMillis) {
-        return new FixedDelayStrategy(Duration.ofMillis(delayMillis));
+        return ofFixedDelay(Duration.ofMillis(delayMillis));
     }
 
     /**
      * 创建固定延迟策略
      *
-     * @param delay 延迟时间
+     * @param delay 延迟时间 (必须 &gt;= 0)
      * @return 固定延迟策略
+     * @throws IllegalArgumentException 如果 delay 为 null 或负数
      */
     static RetryStrategy ofFixedDelay(Duration delay) {
-        return new FixedDelayStrategy(delay);
+        Validate.notNull(delay, "delay must not be null");
+        Validate.isFalse(delay.isNegative(), "delay must be >= 0");
+        return attempt -> delay;
     }
 
     /**
      * 创建指数退避策略 (毫秒)
      *
-     * @param initialDelay 初始延迟 (毫秒)
-     * @param multiplier   倍数
-     * @param maxDelay     最大延迟 (毫秒)
+     * @param initialDelay 初始延迟 (毫秒, 必须 &gt;= 0)
+     * @param multiplier   倍数 (必须 &gt; 0)
+     * @param maxDelay     最大延迟 (毫秒, 必须 &gt;= 0)
      * @return 指数退避策略
+     * @throws IllegalArgumentException 参数非法
      */
     static RetryStrategy ofExponentialBackoffMillis(long initialDelay, double multiplier, long maxDelay) {
-        return new ExponentialBackoffStrategy(Duration.ofMillis(initialDelay), multiplier, Duration.ofMillis(maxDelay));
+        return ofExponentialBackoff(Duration.ofMillis(initialDelay), multiplier, Duration.ofMillis(maxDelay));
     }
 
     /**
      * 创建指数退避策略
+     * <p>
+     * 延迟时间按指数增长: {@code initialDelay * multiplier^(attempt-1)}, 并以 maxDelay 封顶
+     * <p>
+     * 示例 (initialDelay=1s, multiplier=2, maxDelay=10s) :
+     * <ul>
+     *   <li>第1次重试 (attempt=1) : 1 * 2^0 = 1s</li>
+     *   <li>第2次重试 (attempt=2) : 1 * 2^1 = 2s</li>
+     *   <li>第3次重试 (attempt=3) : 1 * 2^2 = 4s</li>
+     *   <li>第4次重试 (attempt=4) : 1 * 2^3 = 8s</li>
+     *   <li>第5次重试 (attempt=5) : 1 * 2^4 = 16s → 封顶为 10s</li>
+     * </ul>
      *
-     * @param initialDelay 初始延迟
-     * @param multiplier   倍数
-     * @param maxDelay     最大延迟
+     * @param initialDelay 初始延迟 (必须 &gt;= 0)
+     * @param multiplier   倍数 (必须 &gt; 0)
+     * @param maxDelay     最大延迟 (必须 &gt;= 0)
      * @return 指数退避策略
+     * @throws IllegalArgumentException 参数非法
      */
     static RetryStrategy ofExponentialBackoff(Duration initialDelay, double multiplier, Duration maxDelay) {
-        return new ExponentialBackoffStrategy(initialDelay, multiplier, maxDelay);
+        Validate.notNull(initialDelay, "initialDelay must not be null");
+        Validate.isFalse(initialDelay.isNegative(), "initialDelay must be >= 0");
+        Validate.isTrue(multiplier > 0, "multiplier must be > 0");
+        Validate.notNull(maxDelay, "maxDelay must not be null");
+        Validate.isFalse(maxDelay.isNegative(), "maxDelay must be >= 0");
+
+        long initialMillis = initialDelay.toMillis();
+        long maxMillis = maxDelay.toMillis();
+
+        return attempt -> {
+            // 指数增长可能溢出为 Infinity, 转 long 时会饱和为 Long.MAX_VALUE, 随后被 maxMillis 封顶
+            double delayMillis = initialMillis * Math.pow(multiplier, attempt - 1);
+            return Duration.ofMillis(Math.min((long) delayMillis, maxMillis));
+        };
     }
 
     /**
@@ -86,93 +120,7 @@ public interface RetryStrategy {
      * @return 无延迟策略
      */
     static RetryStrategy ofNoDelay() {
-        return new NoDelayStrategy();
+        return attempt -> Duration.ZERO;
     }
 
-    /**
-     * 固定延迟策略
-     */
-    class FixedDelayStrategy implements RetryStrategy {
-
-        private final Duration delay;
-
-        public FixedDelayStrategy(Duration delay) {
-            if (delay == null || delay.isNegative()) {
-                throw new IllegalArgumentException("delay must be >= 0");
-            }
-            this.delay = delay;
-        }
-
-        @Override
-        public Duration getDelay(int attempt) {
-            return delay;
-        }
-    }
-
-    /**
-     * 指数退避策略
-     * <p>
-     * 延迟时间按指数增长：initialDelay * multiplier^(attempt-1)
-     * <p>
-     * 示例 (initialDelay=1s, multiplier=2, maxDelay=10s) ：
-     * <ul>
-     *   <li>第1次重试 (attempt=1) ：1 * 2^0 = 1s</li>
-     *   <li>第2次重试 (attempt=2) ：1 * 2^1 = 2s</li>
-     *   <li>第3次重试 (attempt=3) ：1 * 2^2 = 4s</li>
-     *   <li>第4次重试 (attempt=4) ：1 * 2^3 = 8s</li>
-     *   <li>第5次重试 (attempt=5) ：1 * 2^4 = 16s → 限制为 10s</li>
-     * </ul>
-     */
-    class ExponentialBackoffStrategy implements RetryStrategy {
-
-        /**
-         * 初始延迟
-         */
-        private final Duration initialDelay;
-
-        /**
-         * 倍数, 每次重试延迟乘以该值
-         */
-        private final double multiplier;
-
-        /**
-         * 最大延迟, 延迟时间不超过此值
-         */
-        private final Duration maxDelay;
-
-        public ExponentialBackoffStrategy(Duration initialDelay, double multiplier, Duration maxDelay) {
-            if (initialDelay == null || initialDelay.isNegative()) {
-                throw new IllegalArgumentException("initialDelay must be >= 0");
-            }
-            if (multiplier <= 0) {
-                throw new IllegalArgumentException("multiplier must be > 0");
-            }
-            if (maxDelay == null || maxDelay.isNegative()) {
-                throw new IllegalArgumentException("maxDelay must be >= 0");
-            }
-            this.initialDelay = initialDelay;
-            this.multiplier = multiplier;
-            this.maxDelay = maxDelay;
-        }
-
-        @Override
-        public Duration getDelay(int attempt) {
-            // 计算指数退避延迟：initialDelay * multiplier^(attempt-1)
-            long delayMillis = (long) (initialDelay.toMillis() * Math.pow(multiplier, attempt - 1));
-            // 限制最大延迟
-            long cappedDelayMillis = Math.min(delayMillis, maxDelay.toMillis());
-            return Duration.ofMillis(cappedDelayMillis);
-        }
-    }
-
-    /**
-     * 无延迟策略 (立即重试)
-     */
-    class NoDelayStrategy implements RetryStrategy {
-
-        @Override
-        public Duration getDelay(int attempt) {
-            return Duration.ZERO;
-        }
-    }
 }
