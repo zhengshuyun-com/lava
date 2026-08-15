@@ -25,7 +25,12 @@ import tools.jackson.databind.json.JsonMapper;
 import java.math.BigInteger;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.OptionalLong;
+import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -56,6 +61,36 @@ class SafeLongModuleTest {
     }
 
     record LongList(List<Long> v) {
+    }
+
+    record SetField(Set<Long> v) {
+    }
+
+    record IterableField(Iterable<Long> v) {
+    }
+
+    record MapValue(Map<String, Long> v) {
+    }
+
+    record MapObjectValue(Map<String, Object> v) {
+    }
+
+    record ObjectField(Object v) {
+    }
+
+    record NestedList(List<List<Long>> v) {
+    }
+
+    record Matrix(long[][] v) {
+    }
+
+    record ListOfArrays(List<long[]> v) {
+    }
+
+    record OptionalField(Optional<Long> v) {
+    }
+
+    record OptionalLongField(OptionalLong v) {
     }
 
     record ShapeString(@JsonFormat(shape = JsonFormat.Shape.STRING) Long v) {
@@ -169,7 +204,87 @@ class SafeLongModuleTest {
                 mapper().writeValueAsString(new ShapeNumberArray(new long[]{UNSAFE, SAFE})));
     }
 
+    @DisplayName("Set, Iterable, Stream 生效")
+    @Test
+    void testOtherCollections() {
+        ObjectMapper mapper = mapper();
+
+        assertEquals("{\"v\":[\"9223372036854775807\"]}",
+                mapper.writeValueAsString(new SetField(Set.of(UNSAFE))));
+        assertEquals("{\"v\":[\"9223372036854775807\",42]}",
+                mapper.writeValueAsString(new IterableField(List.of(UNSAFE, SAFE))));
+        assertEquals("[\"9223372036854775807\",42]",
+                mapper.writeValueAsString(Stream.of(UNSAFE, SAFE)));
+    }
+
+    @DisplayName("Map 的 value 生效, 各类 Map 实现一致")
+    @Test
+    void testMapValues() {
+        ObjectMapper mapper = mapper();
+
+        assertEquals("{\"v\":{\"k\":\"9223372036854775807\"}}",
+                mapper.writeValueAsString(new MapValue(Map.of("k", UNSAFE))));
+        assertEquals("{\"k\":\"9223372036854775807\"}",
+                mapper.writeValueAsString(new TreeMap<>(Map.of("k", UNSAFE))));
+    }
+
+    @DisplayName("声明为 Object 时按运行时类型解析, 同样生效")
+    @Test
+    void testRuntimeTypeResolution() {
+        ObjectMapper mapper = mapper();
+
+        assertEquals("{\"v\":\"9223372036854775807\"}",
+                mapper.writeValueAsString(new ObjectField(UNSAFE)));
+        assertEquals("{\"v\":{\"k\":\"9223372036854775807\"}}",
+                mapper.writeValueAsString(new MapObjectValue(Map.of("k", UNSAFE))));
+        assertEquals("[\"9223372036854775807\",42]",
+                mapper.writeValueAsString(List.of((Object) UNSAFE, (Object) SAFE)));
+    }
+
+    @DisplayName("嵌套与多维容器生效, long[][] 每行都走规则")
+    @Test
+    void testNestedAndMultiDimensional() {
+        ObjectMapper mapper = mapper();
+
+        assertEquals("{\"v\":[[\"9223372036854775807\",42]]}",
+                mapper.writeValueAsString(new NestedList(List.of(List.of(UNSAFE, SAFE)))));
+        assertEquals("{\"v\":[[\"9223372036854775807\",42]]}",
+                mapper.writeValueAsString(new Matrix(new long[][]{{UNSAFE, SAFE}})));
+        assertEquals("{\"v\":[[\"9223372036854775807\",42]]}",
+                mapper.writeValueAsString(new ListOfArrays(List.of(new long[]{UNSAFE, SAFE}))));
+        assertEquals("[[\"9223372036854775807\",42]]",
+                mapper.writeValueAsString(new Long[][]{{UNSAFE, SAFE}}));
+    }
+
+    @DisplayName("Optional<Long> 和 OptionalLong 都生效, 空值输出 null")
+    @Test
+    void testOptional() {
+        ObjectMapper mapper = mapper();
+
+        assertEquals("{\"v\":\"9223372036854775807\"}",
+                mapper.writeValueAsString(new OptionalField(Optional.of(UNSAFE))));
+        assertEquals("{\"v\":\"9223372036854775807\"}",
+                mapper.writeValueAsString(new OptionalLongField(OptionalLong.of(UNSAFE))));
+        assertEquals("{\"v\":42}",
+                mapper.writeValueAsString(new OptionalLongField(OptionalLong.of(SAFE))));
+        assertEquals("{\"v\":null}",
+                mapper.writeValueAsString(new OptionalLongField(OptionalLong.empty())));
+    }
+
     // 作用范围
+
+    @DisplayName("readTree 保留原文档的数字形态, 不做转换")
+    @Test
+    void testTreeModelNotConverted() {
+        ObjectMapper mapper = mapper();
+
+        // 树模型如实反映输入, 转换会篡改调用方的文档
+        assertEquals("{\"k\":9223372036854775807}",
+                mapper.writeValueAsString(mapper.readTree("{\"k\":9223372036854775807}")));
+        // 从对象转成树时走序列化器, 因此会转换
+        assertEquals("{\"k\":\"9223372036854775807\"}",
+                mapper.writeValueAsString(mapper.valueToTree(Map.of("k", UNSAFE))));
+    }
 
     @DisplayName("不影响 Map 的 key, Integer, AtomicLong 和 BigInteger")
     @Test
