@@ -16,398 +16,460 @@
 
 package com.zhengshuyun.lava.crypto;
 
-import com.zhengshuyun.lava.core.lang.Validate;
 import org.bouncycastle.crypto.generators.Argon2BytesGenerator;
 import org.bouncycastle.crypto.params.Argon2Parameters;
 
+import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Base64;
+import com.zhengshuyun.lava.core.lang.ValidationUtils;
 
-/**
- * Argon2id 密码哈希执行器
- * <p>
- * 使用 Argon2id 算法对密码进行哈希和验证, 输出 PHC 格式字符串.
- * 执行器不可变, 线程安全, 可作为单例复用.
- * <p>
- * 示例:
- * <pre>{@code
- * PasswordHasher hasher = CryptoUtil.passwordHasher()
- *     .setMemoryKiB(65536)
- *     .setIterations(3)
- *     .build();
- * String hash = hasher.hash("myPassword");
- * boolean ok = hasher.verify("myPassword", hash);
- * }</pre>
- *
- * @author Toint
- * @since 2026/2/7
- */
+/** 不可变且线程安全的 Argon2id 密码哈希器。 */
 public final class PasswordHasher {
 
-    /**
-     * PHC 格式前缀
-     */
-    private static final String PHC_PREFIX = "$argon2id$v=";
-
-    /**
-     * Argon2 版本号 (0x13 = 19)
-     */
-    private static final int ARGON2_VERSION = Argon2Parameters.ARGON2_VERSION_13;
-
-    /**
-     * verify/hash 时允许的最大内存 (KiB), 防止恶意参数导致资源耗尽
-     */
-    private static final int MAX_MEMORY_KIB = 4 * 1024 * 1024;
-
-    /**
-     * verify/hash 时允许的最大迭代次数
-     */
-    private static final int MAX_ITERATIONS = 100;
-
-    /**
-     * verify/hash 时允许的最大并行度
-     */
-    private static final int MAX_PARALLELISM = 128;
-
-    /**
-     * verify 时允许的最大哈希串长度, 防止超长输入耗尽内存
-     */
-    private static final int MAX_ENCODED_HASH_LENGTH = 4096;
-
-    /**
-     * verify/hash 时允许的最大盐长度(字节)
-     */
-    private static final int MAX_SALT_LENGTH_BYTES = 256;
-
-    /**
-     * verify/hash 时允许的最大哈希长度(字节)
-     */
-    private static final int MAX_HASH_LENGTH_BYTES = 256;
-
-    /**
-     * Base64 编码器 (无 padding)
-     */
+    private static final String ALGORITHM = "argon2id";
+    private static final int VERSION = Argon2Parameters.ARGON2_VERSION_13;
     private static final Base64.Encoder BASE64_ENCODER = Base64.getEncoder().withoutPadding();
-
-    /**
-     * Base64 解码器
-     */
     private static final Base64.Decoder BASE64_DECODER = Base64.getDecoder();
 
-    /**
-     * 内存大小 (KiB)
-     */
-    private final int memoryKiB;
-
-    /**
-     * 迭代次数
-     */
-    private final int iterations;
-
-    /**
-     * 并行度
-     */
-    private final int parallelism;
-
-    /**
-     * 盐长度 (字节)
-     */
-    private final int saltLengthBytes;
-
-    /**
-     * 哈希长度 (字节)
-     */
-    private final int hashLengthBytes;
-
-    /**
-     * 安全随机数生成器
-     */
+    private final PasswordHashPolicy policy;
     private final SecureRandom secureRandom;
 
-    private PasswordHasher(Builder builder) {
-        Validate.isTrue(builder.memoryKiB >= 1, "memoryKiB must be >= 1");
-        Validate.isTrue(builder.iterations >= 1, "iterations must be >= 1");
-        Validate.isTrue(builder.parallelism >= 1, "parallelism must be >= 1");
-        Validate.isTrue(builder.memoryKiB <= MAX_MEMORY_KIB,
-                "memoryKiB must be <= " + MAX_MEMORY_KIB);
-        Validate.isTrue(builder.iterations <= MAX_ITERATIONS,
-                "iterations must be <= " + MAX_ITERATIONS);
-        Validate.isTrue(builder.parallelism <= MAX_PARALLELISM,
-                "parallelism must be <= " + MAX_PARALLELISM);
-        Validate.isTrue(builder.saltLengthBytes >= 8, "saltLengthBytes must be >= 8");
-        Validate.isTrue(builder.hashLengthBytes >= 4, "hashLengthBytes must be >= 4");
-        Validate.isTrue(builder.saltLengthBytes <= MAX_SALT_LENGTH_BYTES,
-                "saltLengthBytes must be <= " + MAX_SALT_LENGTH_BYTES);
-        Validate.isTrue(builder.hashLengthBytes <= MAX_HASH_LENGTH_BYTES,
-                "hashLengthBytes must be <= " + MAX_HASH_LENGTH_BYTES);
-        this.memoryKiB = builder.memoryKiB;
-        this.iterations = builder.iterations;
-        this.parallelism = builder.parallelism;
-        this.saltLengthBytes = builder.saltLengthBytes;
-        this.hashLengthBytes = builder.hashLengthBytes;
-        this.secureRandom = new SecureRandom();
+    /** 使用默认策略和新的安全随机源创建密码哈希器。 */
+    public PasswordHasher() {
+        this(PasswordHashPolicy.DEFAULT);
     }
 
     /**
-     * 创建 Builder 实例
+     * 使用指定策略和新的安全随机源创建密码哈希器。
      *
-     * @return Builder 实例
+     * @param policy 密码哈希与验证资源策略
      */
-    public static Builder builder() {
-        return new Builder();
+    public PasswordHasher(PasswordHashPolicy policy) {
+        this(policy, new SecureRandom());
     }
 
     /**
-     * 对密码进行哈希
+     * 使用指定策略和安全随机源创建密码哈希器，主要用于确定性测试和受控熵源。
      *
-     * @param password 明文密码
-     * @return PHC 格式哈希字符串, 如 {@code $argon2id$v=19$m=65536,t=3,p=1$<salt>$<hash>}
+     * @param policy 密码哈希与验证资源策略
+     * @param secureRandom 用于生成每个密码盐的安全随机源
+     */
+    public PasswordHasher(PasswordHashPolicy policy, SecureRandom secureRandom) {
+        this.policy = ValidationUtils.requireNonNull(policy, "policy must not be null");
+        this.secureRandom = ValidationUtils.requireNonNull(secureRandom, "secureRandom must not be null");
+    }
+
+    /**
+     * 使用默认策略创建密码哈希器。
+     *
+     * @return 新的默认密码哈希器
+     */
+    public static PasswordHasher create() {
+        return new PasswordHasher();
+    }
+
+    /**
+     * 使用指定策略创建密码哈希器。
+     *
+     * @param policy 密码哈希与验证资源策略
+     * @return 新的密码哈希器
+     */
+    public static PasswordHasher withPolicy(PasswordHashPolicy policy) {
+        return new PasswordHasher(policy);
+    }
+
+    /**
+     * 返回此哈希器使用的不可变策略。
+     *
+     * @return 密码哈希与验证资源策略
+     */
+    public PasswordHashPolicy policy() {
+        return policy;
+    }
+
+    /**
+     * 计算密码哈希，不接管也不修改调用方传入的数组。
+     *
+     * @param password 待哈希的密码字符；调用方可在调用后自行清零
+     * @return Argon2id PHC 格式的密码哈希
+     */
+    public String hash(char[] password) {
+        ValidationUtils.requireNonNull(password, "password must not be null");
+        PasswordHashPolicy.Generation generation = policy.generation();
+        byte[] salt = new byte[generation.saltLengthBytes()];
+        synchronized (secureRandom) {
+            secureRandom.nextBytes(salt);
+        }
+        byte[] hash = null;
+        try {
+            hash = computeHash(
+                    password,
+                    salt,
+                    generation.memoryKiB(),
+                    generation.iterations(),
+                    generation.parallelism(),
+                    generation.hashLengthBytes());
+            return encode(generation, salt, hash);
+        } finally {
+            Arrays.fill(salt, (byte) 0);
+            if (hash != null) {
+                Arrays.fill(hash, (byte) 0);
+            }
+        }
+    }
+
+    /**
+     * 计算密码字符串的哈希；调用方可清除秘密数据时，应优先使用 {@link #hash(char[])}。
+     *
+     * @param password 待哈希的密码字符串
+     * @return Argon2id PHC 格式的密码哈希
      */
     public String hash(String password) {
-        Validate.notBlank(password, "password must not be blank");
-
-        byte[] salt = new byte[saltLengthBytes];
-        secureRandom.nextBytes(salt);
-
-        byte[] hash = computeHash(password, salt, memoryKiB, iterations, parallelism, hashLengthBytes);
-        return encode(salt, hash, memoryKiB, iterations, parallelism);
+        ValidationUtils.requireNonNull(password, "password must not be null");
+        char[] chars = password.toCharArray();
+        try {
+            return hash(chars);
+        } finally {
+            Arrays.fill(chars, '\0');
+        }
     }
 
     /**
-     * 验证密码是否与哈希匹配
-     * <p>
-     * 从 encodedHash 中解析参数进行验证, 忽略 Builder 配置的参数.
-     * 参数升级后旧哈希仍可验证.
+     * 验证密码是否匹配 Argon2id PHC 哈希。仅在普通密码不匹配时返回 false；畸形 PHC 输入和
+     * 资源上限违规会抛出异常。
      *
-     * @param password    明文密码
-     * @param encodedHash PHC 格式哈希字符串
-     * @return 密码匹配返回 true, 否则返回 false
+     * @param password 待验证的密码字符；调用方可在调用后自行清零
+     * @param encodedHash Argon2id PHC 格式的密码哈希
+     * @return 密码匹配时为 true
+     * @throws CryptoException PHC 格式无效或请求资源超过验证上限时抛出
+     */
+    public boolean verify(char[] password, String encodedHash) {
+        ValidationUtils.requireNonNull(password, "password must not be null");
+        ParsedHash parsed = parse(encodedHash);
+        byte[] computed = null;
+        try {
+            computed = computeHash(
+                    password,
+                    parsed.salt(),
+                    parsed.memoryKiB(),
+                    parsed.iterations(),
+                    parsed.parallelism(),
+                    parsed.hash().length);
+            return MessageDigest.isEqual(parsed.hash(), computed);
+        } finally {
+            parsed.clear();
+            if (computed != null) {
+                Arrays.fill(computed, (byte) 0);
+            }
+        }
+    }
+
+    /**
+     * 验证密码字符串是否匹配 Argon2id PHC 哈希；对于可变的秘密数据，应优先使用
+     * {@link #verify(char[], String)}。
+     *
+     * @param password 待验证的密码字符串
+     * @param encodedHash Argon2id PHC 格式的密码哈希
+     * @return 密码匹配时为 true
+     * @throws CryptoException PHC 格式无效或请求资源超过验证上限时抛出
      */
     public boolean verify(String password, String encodedHash) {
-        Validate.notBlank(password, "password must not be blank");
-        Validate.notBlank(encodedHash, "encodedHash must not be blank");
-
-        ParsedHash parsed = decode(encodedHash);
-        byte[] computedHash = computeHash(
-                password, parsed.salt, parsed.memoryKiB, parsed.iterations, parsed.parallelism, parsed.hash.length);
-
-        return MessageDigest.isEqual(parsed.hash, computedHash);
+        ValidationUtils.requireNonNull(password, "password must not be null");
+        char[] chars = password.toCharArray();
+        try {
+            return verify(chars, encodedHash);
+        } finally {
+            Arrays.fill(chars, '\0');
+        }
     }
 
     /**
-     * 计算 Argon2id 哈希
+     * 判断有效哈希是否应按此哈希器的生成策略重新生成。
+     *
+     * @param encodedHash Argon2id PHC 格式的密码哈希
+     * @return 参数与当前生成策略不一致时为 true
+     * @throws CryptoException PHC 格式无效或请求资源超过验证上限时抛出
      */
-    private static byte[] computeHash(
-            String password, byte[] salt, int memoryKiB, int iterations, int parallelism, int hashLength) {
-        byte[] passwordBytes = password.getBytes(StandardCharsets.UTF_8);
+    public boolean needsRehash(String encodedHash) {
+        ParsedHash parsed = parse(encodedHash);
         try {
-            Argon2Parameters params = new Argon2Parameters.Builder(Argon2Parameters.ARGON2_id)
-                    .withVersion(ARGON2_VERSION)
+            PasswordHashPolicy.Generation generation = policy.generation();
+            return parsed.memoryKiB() != generation.memoryKiB()
+                    || parsed.iterations() != generation.iterations()
+                    || parsed.parallelism() != generation.parallelism()
+                    || parsed.salt().length != generation.saltLengthBytes()
+                    || parsed.hash().length != generation.hashLengthBytes();
+        } finally {
+            parsed.clear();
+        }
+    }
+
+    private ParsedHash parse(String encodedHash) {
+        ValidationUtils.requireNonNull(encodedHash, "encodedHash must not be null");
+        PasswordHashPolicy.VerificationLimits limits = policy.verificationLimits();
+        if (encodedHash.length() > limits.maxEncodedHashLength()) {
+            throw new CryptoException("Encoded Argon2id hash exceeds the length limit");
+        }
+
+        int algorithmEnd = encodedHash.indexOf('$', 1);
+        int versionEnd = algorithmEnd < 0 ? -1 : encodedHash.indexOf('$', algorithmEnd + 1);
+        int parametersEnd = versionEnd < 0 ? -1 : encodedHash.indexOf('$', versionEnd + 1);
+        int saltEnd = parametersEnd < 0 ? -1 : encodedHash.indexOf('$', parametersEnd + 1);
+        if (!encodedHash.startsWith("$")
+                || algorithmEnd < 0
+                || versionEnd < 0
+                || parametersEnd < 0
+                || saltEnd < 0
+                || encodedHash.indexOf('$', saltEnd + 1) >= 0
+                || !encodedHash.regionMatches(1, ALGORITHM, 0, ALGORITHM.length())
+                || algorithmEnd != ALGORITHM.length() + 1) {
+            throw malformed("Invalid Argon2id PHC structure");
+        }
+
+        int version = parseNamedInteger(encodedHash, algorithmEnd + 1, versionEnd, "v");
+        if (version != VERSION) {
+            throw malformed("Unsupported Argon2id version: " + version);
+        }
+
+        ParameterValues parameters = parseParameters(encodedHash, versionEnd + 1, parametersEnd);
+        checkLimit(parameters.memoryKiB(), limits.maxMemoryKiB(), "memory");
+        checkLimit(parameters.iterations(), limits.maxIterations(), "iterations");
+        checkLimit(parameters.parallelism(), limits.maxParallelism(), "parallelism");
+        if (parameters.memoryKiB() < 8L * parameters.parallelism()) {
+            throw malformed("Argon2id memory must be at least eight times parallelism");
+        }
+
+        String saltText = encodedHash.substring(parametersEnd + 1, saltEnd);
+        String hashText = encodedHash.substring(saltEnd + 1);
+        checkBase64EncodedLength(saltText, limits.maxSaltLengthBytes(), "salt");
+        checkBase64EncodedLength(hashText, limits.maxHashLengthBytes(), "hash");
+        byte[] salt = decodeBase64(saltText, "salt");
+        byte[] hash;
+        try {
+            hash = decodeBase64(hashText, "hash");
+        } catch (RuntimeException e) {
+            Arrays.fill(salt, (byte) 0);
+            throw e;
+        }
+        if (salt.length < 8) {
+            Arrays.fill(salt, (byte) 0);
+            Arrays.fill(hash, (byte) 0);
+            throw malformed("Argon2id salt must contain at least 8 bytes");
+        }
+        if (hash.length < 4) {
+            Arrays.fill(salt, (byte) 0);
+            Arrays.fill(hash, (byte) 0);
+            throw malformed("Argon2id hash must contain at least 4 bytes");
+        }
+        if (salt.length > limits.maxSaltLengthBytes()) {
+            Arrays.fill(salt, (byte) 0);
+            Arrays.fill(hash, (byte) 0);
+            throw new CryptoException("Argon2id salt exceeds the verification limit");
+        }
+        if (hash.length > limits.maxHashLengthBytes()) {
+            Arrays.fill(salt, (byte) 0);
+            Arrays.fill(hash, (byte) 0);
+            throw new CryptoException("Argon2id hash exceeds the verification limit");
+        }
+        return new ParsedHash(
+                parameters.memoryKiB(),
+                parameters.iterations(),
+                parameters.parallelism(),
+                salt,
+                hash);
+    }
+
+    private static ParameterValues parseParameters(String text, int start, int end) {
+        int firstComma = text.indexOf(',', start);
+        int secondComma = firstComma < 0 ? -1 : text.indexOf(',', firstComma + 1);
+        if (firstComma < 0 || secondComma < 0 || secondComma >= end
+                || (text.indexOf(',', secondComma + 1) >= 0
+                        && text.indexOf(',', secondComma + 1) < end)) {
+            throw malformed("Invalid Argon2id parameter list");
+        }
+        int memory = parseNamedInteger(text, start, firstComma, "m");
+        int iterations = parseNamedInteger(text, firstComma + 1, secondComma, "t");
+        int parallelism = parseNamedInteger(text, secondComma + 1, end, "p");
+        return new ParameterValues(memory, iterations, parallelism);
+    }
+
+    private static int parseNamedInteger(String text, int start, int end, String name) {
+        if (end - start < 3 || text.charAt(start) != name.charAt(0) || text.charAt(start + 1) != '=') {
+            throw malformed("Expected Argon2id parameter " + name);
+        }
+        int value = 0;
+        for (int index = start + 2; index < end; index++) {
+            char current = text.charAt(index);
+            if (current < '0' || current > '9') {
+                throw malformed("Invalid Argon2id parameter " + name);
+            }
+            int digit = current - '0';
+            if (value > (Integer.MAX_VALUE - digit) / 10) {
+                throw new CryptoException("Argon2id parameter " + name + " is too large");
+            }
+            value = value * 10 + digit;
+        }
+        if (value == 0) {
+            throw malformed("Argon2id parameter " + name + " must be positive");
+        }
+        return value;
+    }
+
+    private static void checkLimit(int value, int maximum, String name) {
+        if (value > maximum) {
+            throw new CryptoException(
+                    "Argon2id " + name + " exceeds the verification limit");
+        }
+    }
+
+    private static void checkBase64EncodedLength(String text, int maxDecodedBytes, String name) {
+        if (text.isEmpty()) {
+            throw malformed("Argon2id " + name + " must not be empty");
+        }
+        long maximumCharacters = ((long) maxDecodedBytes + 2) / 3 * 4;
+        if (text.length() > maximumCharacters) {
+            throw new CryptoException(
+                    "Argon2id " + name + " exceeds the verification limit");
+        }
+        for (int index = 0; index < text.length(); index++) {
+            char current = text.charAt(index);
+            boolean base64 = (current >= 'A' && current <= 'Z')
+                    || (current >= 'a' && current <= 'z')
+                    || (current >= '0' && current <= '9')
+                    || current == '+'
+                    || current == '/';
+            if (!base64) {
+                throw malformed("Invalid unpadded Base64 in Argon2id " + name);
+            }
+        }
+    }
+
+    private static byte[] decodeBase64(String value, String name) {
+        try {
+            return BASE64_DECODER.decode(value);
+        } catch (IllegalArgumentException e) {
+            throw new CryptoException(
+                    "Invalid Base64 in Argon2id " + name, e);
+        }
+    }
+
+    private static byte[] computeHash(
+            char[] password,
+            byte[] salt,
+            int memoryKiB,
+            int iterations,
+            int parallelism,
+            int hashLength) {
+        byte[] passwordBytes = encodeUtf8(password);
+        try {
+            Argon2Parameters parameters = new Argon2Parameters.Builder(Argon2Parameters.ARGON2_id)
+                    .withVersion(VERSION)
                     .withMemoryAsKB(memoryKiB)
                     .withIterations(iterations)
                     .withParallelism(parallelism)
                     .withSalt(salt)
                     .build();
-
-            byte[] hash = new byte[hashLength];
+            byte[] result = new byte[hashLength];
             Argon2BytesGenerator generator = new Argon2BytesGenerator();
-            generator.init(params);
-            generator.generateBytes(passwordBytes, hash);
-            return hash;
+            generator.init(parameters);
+            generator.generateBytes(passwordBytes, result);
+            return result;
         } finally {
             Arrays.fill(passwordBytes, (byte) 0);
         }
     }
 
-    /**
-     * 编码为 PHC 格式字符串
-     */
-    private static String encode(byte[] salt, byte[] hash, int memoryKiB, int iterations, int parallelism) {
-        return PHC_PREFIX + ARGON2_VERSION
-                + "$m=" + memoryKiB + ",t=" + iterations + ",p=" + parallelism
+    private static byte[] encodeUtf8(char[] password) {
+        ByteBuffer encoded;
+        try {
+            encoded = StandardCharsets.UTF_8.newEncoder()
+                    .onMalformedInput(CodingErrorAction.REPORT)
+                    .onUnmappableCharacter(CodingErrorAction.REPORT)
+                    .encode(CharBuffer.wrap(password));
+        } catch (CharacterCodingException exception) {
+            throw new IllegalArgumentException("password contains malformed UTF-16", exception);
+        }
+        byte[] result = new byte[encoded.remaining()];
+        encoded.get(result);
+        if (encoded.hasArray()) {
+            Arrays.fill(
+                    encoded.array(),
+                    encoded.arrayOffset(),
+                    encoded.arrayOffset() + encoded.capacity(),
+                    (byte) 0);
+        }
+        return result;
+    }
+
+    private static String encode(
+            PasswordHashPolicy.Generation generation, byte[] salt, byte[] hash) {
+        return "$" + ALGORITHM
+                + "$v=" + VERSION
+                + "$m=" + generation.memoryKiB()
+                + ",t=" + generation.iterations()
+                + ",p=" + generation.parallelism()
                 + "$" + BASE64_ENCODER.encodeToString(salt)
                 + "$" + BASE64_ENCODER.encodeToString(hash);
     }
 
-    /**
-     * 解析 PHC 格式字符串
-     */
-    private static ParsedHash decode(String encodedHash) {
-        if (encodedHash.length() > MAX_ENCODED_HASH_LENGTH) {
-            throw new CryptoException("Invalid Argon2id hash format: hash string too long");
-        }
-
-        // $argon2id$v=19$m=65536,t=3,p=1$<salt>$<hash>
-        String[] parts = encodedHash.split("\\$");
-        if (parts.length != 6 || !"argon2id".equals(parts[1])) {
-            throw new CryptoException("Invalid Argon2id hash format");
-        }
-
-        // 解析并校验版本
-        int version = parseParam(parts[2], "v");
-        if (version != ARGON2_VERSION) {
-            throw new CryptoException("Unsupported Argon2id version: " + version + ", expected: " + ARGON2_VERSION);
-        }
-
-        // 解析参数 m=xxx,t=xxx,p=xxx
-        String[] paramParts = parts[3].split(",");
-        if (paramParts.length != 3) {
-            throw new CryptoException("Invalid Argon2id hash format: invalid parameters");
-        }
-
-        int memoryKiB = parseParam(paramParts[0], "m");
-        int iterations = parseParam(paramParts[1], "t");
-        int parallelism = parseParam(paramParts[2], "p");
-
-        // 参数上限保护, 防止恶意哈希串导致资源耗尽
-        if (memoryKiB < 1 || memoryKiB > MAX_MEMORY_KIB) {
-            throw new CryptoException("Argon2id memory out of range: " + memoryKiB);
-        }
-        if (iterations < 1 || iterations > MAX_ITERATIONS) {
-            throw new CryptoException("Argon2id iterations out of range: " + iterations);
-        }
-        if (parallelism < 1 || parallelism > MAX_PARALLELISM) {
-            throw new CryptoException("Argon2id parallelism out of range: " + parallelism);
-        }
-
-        try {
-            byte[] salt = BASE64_DECODER.decode(parts[4]);
-            byte[] hash = BASE64_DECODER.decode(parts[5]);
-
-            if (salt.length < 8 || salt.length > MAX_SALT_LENGTH_BYTES) {
-                throw new CryptoException("Argon2id salt length out of range: " + salt.length);
-            }
-            if (hash.length < 4 || hash.length > MAX_HASH_LENGTH_BYTES) {
-                throw new CryptoException("Argon2id hash length out of range: " + hash.length);
-            }
-
-            return new ParsedHash(salt, hash, memoryKiB, iterations, parallelism);
-        } catch (IllegalArgumentException e) {
-            throw new CryptoException("Invalid Argon2id hash format: invalid Base64", e);
-        }
+    private static CryptoException malformed(String message) {
+        return new CryptoException(message);
     }
 
-    /**
-     * 解析单个参数
-     */
-    private static int parseParam(String param, String prefix) {
-        if (!param.startsWith(prefix + "=")) {
-            throw new CryptoException("Invalid Argon2id hash format: expected " + prefix);
-        }
-        try {
-            return Integer.parseInt(param.substring(prefix.length() + 1));
-        } catch (NumberFormatException e) {
-            throw new CryptoException("Invalid Argon2id hash format: invalid " + prefix + " value", e);
-        }
+    private record ParameterValues(int memoryKiB, int iterations, int parallelism) {
     }
 
-    /**
-     * 解析后的哈希数据
-     */
-    private record ParsedHash(byte[] salt, byte[] hash, int memoryKiB, int iterations, int parallelism) {
-    }
+    private static final class ParsedHash {
 
-    /**
-     * 密码哈希执行器构建器
-     *
-     * @author Toint
-     * @since 2026/2/7
-     */
-    public static final class Builder {
+        private final int memoryKiB;
+        private final int iterations;
+        private final int parallelism;
+        private final byte[] salt;
+        private final byte[] hash;
 
-        /**
-         * 内存大小 (KiB), OWASP 推荐最低值
-         */
-        private int memoryKiB = 65536;
-
-        /**
-         * 迭代次数, OWASP 推荐
-         */
-        private int iterations = 3;
-
-        /**
-         * 并行度
-         */
-        private int parallelism = 1;
-
-        /**
-         * 盐长度 (字节), 128-bit
-         */
-        private int saltLengthBytes = 16;
-
-        /**
-         * 哈希长度 (字节), 256-bit
-         */
-        private int hashLengthBytes = 32;
-
-        private Builder() {
-        }
-
-        /**
-         * 设置内存大小
-         *
-         * @param memoryKiB 内存大小 (KiB), 默认 65536 (64 MiB)
-         * @return this
-         */
-        public Builder setMemoryKiB(int memoryKiB) {
+        ParsedHash(
+                int memoryKiB,
+                int iterations,
+                int parallelism,
+                byte[] salt,
+                byte[] hash) {
             this.memoryKiB = memoryKiB;
-            return this;
-        }
-
-        /**
-         * 设置迭代次数
-         *
-         * @param iterations 迭代次数, 默认 3
-         * @return this
-         */
-        public Builder setIterations(int iterations) {
             this.iterations = iterations;
-            return this;
-        }
-
-        /**
-         * 设置并行度
-         *
-         * @param parallelism 并行度, 默认 1
-         * @return this
-         */
-        public Builder setParallelism(int parallelism) {
             this.parallelism = parallelism;
-            return this;
+            this.salt = salt;
+            this.hash = hash;
         }
 
-        /**
-         * 设置盐长度
-         *
-         * @param saltLengthBytes 盐长度 (字节), 默认 16 (128-bit)
-         * @return this
-         */
-        public Builder setSaltLengthBytes(int saltLengthBytes) {
-            this.saltLengthBytes = saltLengthBytes;
-            return this;
+        int memoryKiB() {
+            return memoryKiB;
         }
 
-        /**
-         * 设置哈希长度
-         *
-         * @param hashLengthBytes 哈希长度 (字节), 默认 32 (256-bit)
-         * @return this
-         */
-        public Builder setHashLengthBytes(int hashLengthBytes) {
-            this.hashLengthBytes = hashLengthBytes;
-            return this;
+        int iterations() {
+            return iterations;
         }
 
-        /**
-         * 构建 PasswordHasher 实例
-         *
-         * @return PasswordHasher 实例
-         */
-        public PasswordHasher build() {
-            return new PasswordHasher(this);
+        int parallelism() {
+            return parallelism;
+        }
+
+        byte[] salt() {
+            return salt;
+        }
+
+        byte[] hash() {
+            return hash;
+        }
+
+        void clear() {
+            Arrays.fill(salt, (byte) 0);
+            Arrays.fill(hash, (byte) 0);
         }
     }
 }

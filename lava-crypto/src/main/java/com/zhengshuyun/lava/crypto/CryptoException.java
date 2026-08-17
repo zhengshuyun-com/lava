@@ -16,22 +16,11 @@
 
 package com.zhengshuyun.lava.crypto;
 
-/**
- * 加密操作异常
- *
- * @author Toint
- * @since 2026/2/7
- */
-public class CryptoException extends RuntimeException {
+/** 加密、密码哈希或密钥处理失败时抛出的通用异常。 */
+public final class CryptoException extends RuntimeException {
 
     /**
-     * 创建不带消息和 cause 的异常实例.
-     */
-    public CryptoException() {
-    }
-
-    /**
-     * 创建带错误消息的异常实例.
+     * 创建带错误消息的异常实例。
      *
      * @param message 错误消息
      */
@@ -40,33 +29,12 @@ public class CryptoException extends RuntimeException {
     }
 
     /**
-     * 创建带错误消息和 cause 的异常实例.
+     * 创建带错误消息和原因的异常实例。
      *
      * @param message 错误消息
-     * @param cause   根因异常
+     * @param cause 根因异常
      */
     public CryptoException(String message, Throwable cause) {
         super(message, cause);
-    }
-
-    /**
-     * 创建仅包含 cause 的异常实例.
-     *
-     * @param cause 根因异常
-     */
-    public CryptoException(Throwable cause) {
-        super(cause);
-    }
-
-    /**
-     * 创建可控制抑制和堆栈写入行为的异常实例.
-     *
-     * @param message            错误消息
-     * @param cause              根因异常
-     * @param enableSuppression  是否启用抑制
-     * @param writableStackTrace 是否可写堆栈
-     */
-    public CryptoException(String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
-        super(message, cause, enableSuppression, writableStackTrace);
     }
 }

@@ -14,31 +14,13 @@
  * limitations under the License.
  */
 
+/**
+ * 密码哈希, EC 密钥与编码格式处理
+ * <p>
+ * 本包为 {@link org.jspecify.annotations.NullMarked} 作用域: 所有类型默认非空,
+ * 可为 null 的位置显式标注 {@link org.jspecify.annotations.Nullable}.
+ */
+@NullMarked
 package com.zhengshuyun.lava.crypto;
 
-/**
- * EC 曲线常量
- *
- * @author Toint
- * @since 2026/2/7
- */
-public final class EcCurves {
-
-    private EcCurves() {
-    }
-
-    /**
-     * P-256 (ES256)
-     */
-    public static final String SECP256R1 = "secp256r1";
-
-    /**
-     * P-384 (ES384)
-     */
-    public static final String SECP384R1 = "secp384r1";
-
-    /**
-     * P-521 (ES512)
-     */
-    public static final String SECP521R1 = "secp521r1";
-}
+import org.jspecify.annotations.NullMarked;
