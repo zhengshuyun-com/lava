@@ -140,11 +140,19 @@
     </dependencyManagement>
 
     <dependencies>
+        <!-- 编写 JUnit 测试所需的注解和断言 API。 -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- 执行 JUnit Jupiter 测试。 -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-engine</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- 供 Maven 测试插件启动 JUnit Platform。 -->
         <dependency>
             <groupId>org.junit.platform</groupId>
             <artifactId>junit-platform-launcher</artifactId>
