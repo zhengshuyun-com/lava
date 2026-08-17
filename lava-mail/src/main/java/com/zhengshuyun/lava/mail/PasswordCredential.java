@@ -1,123 +1,59 @@
 /*
  * Copyright 2026 zhengshuyun.com
- *
  * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
-
 package com.zhengshuyun.lava.mail;
 
-import com.zhengshuyun.lava.core.lang.Validate;
+import com.zhengshuyun.lava.core.lang.ValidationUtils;
 
-/**
- * 密码型凭证
- * <p>
- * 可用于普通密码或邮箱授权码.
- *
- * @author Toint
- * @since 2026/4/21
- */
+/** 用户名和密码认证凭证；诊断文本始终隐藏密码。 */
 public final class PasswordCredential implements MailCredential {
-
-    /**
-     * 登录用户名
-     */
     private final String username;
-
-    /**
-     * 密码或授权码
-     */
     private final String password;
 
-    private PasswordCredential(Builder builder) {
-        this.username = Validate.notBlank(builder.username, "username must not be blank");
-        this.password = Validate.notBlank(builder.password, "password must not be blank");
+    /**
+     * 创建密码凭证。密码属于不透明值，不会去除首尾空白。
+     *
+     * @param username 登录用户名
+     * @param password 登录密码
+     */
+    public PasswordCredential(String username, String password) {
+        this.username = requireNonBlankWithoutControls(username, "username");
+        this.password = ValidationUtils.requireNonNull(password, "password");
     }
 
-    /**
-     * 创建密码型凭证构建器
-     *
-     * @return 构建器
-     */
-    public static Builder builder() {
-        return new Builder();
-    }
-
-    /**
-     * 获取登录用户名
-     *
-     * @return 登录用户名
-     */
     @Override
-    public String getUsername() {
+    public String username() {
         return username;
     }
 
     /**
-     * 获取密码或授权码
+     * 返回真实密码，仅可用于认证，调用方不得记录。
      *
-     * @return 密码或授权码
+     * @return 原始密码
      */
-    public String getPassword() {
+    public String password() {
         return password;
     }
 
-    /**
-     * 密码型凭证构建器
-     */
-    public static final class Builder {
+    @Override
+    public String toString() {
+        return "PasswordCredential[username=" + username + ", password=<redacted>]";
+    }
 
-        /**
-         * 登录用户名
-         */
-        private String username;
+    static String requireNonBlank(String value, String name) {
+        return ValidationUtils.requireNotBlank(value, name + " must not be blank").strip();
+    }
 
-        /**
-         * 密码或授权码
-         */
-        private String password;
+    static String requireNonBlankPreserved(String value, String name) {
+        return ValidationUtils.requireNotBlank(value, name + " must not be blank");
+    }
 
-        private Builder() {
+    static String requireNonBlankWithoutControls(String value, String name) {
+        String normalized = requireNonBlank(value, name);
+        if (normalized.codePoints().anyMatch(Character::isISOControl)) {
+            throw new IllegalArgumentException(name + " must not contain control characters");
         }
-
-        /**
-         * 设置登录用户名
-         *
-         * @param username 登录用户名
-         * @return this
-         */
-        public Builder setUsername(String username) {
-            this.username = username;
-            return this;
-        }
-
-        /**
-         * 设置密码或授权码
-         *
-         * @param password 密码或授权码
-         * @return this
-         */
-        public Builder setPassword(String password) {
-            this.password = password;
-            return this;
-        }
-
-        /**
-         * 构建密码型凭证
-         *
-         * @return 密码型凭证
-         */
-        public PasswordCredential build() {
-            return new PasswordCredential(this);
-        }
+        return normalized;
     }
 }

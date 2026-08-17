@@ -1,31 +1,15 @@
 /*
  * Copyright 2026 zhengshuyun.com
- *
  * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
-
 package com.zhengshuyun.lava.mail;
 
-/**
- * 邮件认证凭证
- *
- * @author Toint
- * @since 2026/4/21
- */
-public interface MailCredential {
-
+/** SMTP 和 IMAP 共用的认证凭证。 */
+public sealed interface MailCredential permits PasswordCredential, OAuth2RefreshTokenCredential {
     /**
-     * 获取登录用户名
+     * 返回登录用户名。
+     *
+     * @return 已去除首尾空白的用户名
      */
-    String getUsername();
+    String username();
 }

@@ -1,168 +1,104 @@
 /*
  * Copyright 2026 zhengshuyun.com
- *
  * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
-
 package com.zhengshuyun.lava.mail;
 
-import com.zhengshuyun.lava.core.lang.Validate;
-import com.zhengshuyun.lava.mail.internal.ImapMailReader;
-import com.zhengshuyun.lava.mail.internal.MailSessionFactory;
-import com.zhengshuyun.lava.mail.internal.OAuth2AccessTokenProvider;
-import jakarta.mail.Session;
-import org.jspecify.annotations.Nullable;
-
-import java.util.List;
+import java.io.OutputStream;
+import com.zhengshuyun.lava.core.lang.ValidationUtils;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * 同步邮件收件客户端
+ * 基于 UID 的同步 IMAP 收件器，每次操作都会独立打开并关闭邮箱连接。
  *
- * @author Toint
- * @since 2026/4/21
+ * <p>实例关闭后不能复用。调用方不应让 {@link #close()} 与其他操作并发执行。</p>
  */
-public final class MailReader {
-
-    /**
-     * IMAP 服务器配置
-     */
-    private final ImapServerConfig imapServerConfig;
-
-    /**
-     * 登录凭证
-     */
+public final class MailReader implements AutoCloseable {
+    private final ImapServerConfig config;
     private final MailCredential credential;
+    private final MailReaderEngine engine;
+    private final AtomicBoolean closed = new AtomicBoolean();
 
     /**
-     * OAuth2 token 提供器
-     */
-    private final OAuth2AccessTokenProvider accessTokenProvider;
-
-    /**
-     * IMAP 读取器
-     */
-    private final ImapMailReader imapMailReader;
-
-    private MailReader(Builder builder) {
-        this.imapServerConfig = Validate.notNull(builder.imapServerConfig, "imapServerConfig must not be null");
-        this.credential = Validate.notNull(builder.credential, "credential must not be null");
-        this.accessTokenProvider = new OAuth2AccessTokenProvider();
-        this.imapMailReader = new ImapMailReader();
-    }
-
-    /**
-     * 创建 MailReader 构建器
+     * 使用默认客户端选项创建收件器。
      *
-     * @return Builder 实例
+     * @param config IMAP 配置
+     * @param credential 认证凭证
      */
-    public static Builder builder() {
-        return new Builder();
+    public MailReader(ImapServerConfig config, MailCredential credential) {
+        this(config, credential, MailClientOptions.DEFAULT);
     }
 
     /**
-     * 查询邮件列表
+     * 使用指定客户端选项创建收件器。
+     *
+     * @param config IMAP 配置
+     * @param credential 认证凭证
+     * @param options 客户端选项
+     */
+    public MailReader(
+            ImapServerConfig config, MailCredential credential, MailClientOptions options) {
+        this.config = ValidationUtils.requireNonNull(config, "config");
+        this.credential = ValidationUtils.requireNonNull(credential, "credential");
+        this.engine = MailReaderEngine.create(credential, ValidationUtils.requireNonNull(options, "options"));
+    }
+
+    /**
+     * 按 UID 降序列出一页消息摘要。
      *
      * @param query 查询条件
-     * @return 查询结果, 无结果时返回空列表
-     * @throws IllegalArgumentException query 为 null 时抛出
-     * @throws MailException            底层邮件协议调用失败时抛出
+     * @return 消息摘要页
+     * @throws MailException 连接、认证、协议或消息解析失败时抛出
      */
-    public List<MailMessage> listMessages(MailQuery query) {
-        Validate.notNull(query, "query must not be null");
-
-        // IMAP 侧与 SMTP 一样, 统一在这里处理 OAuth2 access token 的懒获取.
-        String accessToken = resolveAccessTokenIfNecessary();
-        Session session = MailSessionFactory.createImapSession(imapServerConfig, credential, accessToken);
-        return imapMailReader.listMessages(session, imapServerConfig, credential, query, accessToken);
+    public MailPage<MailMessageSummary> listMessages(MailQuery query) {
+        ensureOpen();
+        return engine.list(config, credential, ValidationUtils.requireNonNull(query, "query"));
     }
 
     /**
-     * 获取 IMAP 服务器配置
+     * 读取指定消息的摘要与受限正文。
      *
-     * @return IMAP 配置
+     * @param id 消息标识
+     * @return 邮件消息
+     * @throws MailException 消息不存在、UIDVALIDITY 变化或读取失败时抛出
      */
-    public ImapServerConfig getImapServerConfig() {
-        return imapServerConfig;
+    public MailMessage readMessage(MailMessageId id) {
+        ensureOpen();
+        return engine.read(config, credential, ValidationUtils.requireNonNull(id, "id"));
     }
 
     /**
-     * 获取当前登录凭证
+     * 将已解码附件字节写入借用的目标流，不会关闭或刷新 {@code destination}。
+     * 如果解码或大小限制失败，目标流中可能已经包含一段受限前缀。
      *
-     * @return 登录凭证
+     * @param id 消息标识
+     * @param attachmentIndex 摘要中附件元数据的索引
+     * @param destination 调用方持有的目标流
+     * @return 写入的解码字节数
+     * @throws MailException 消息、附件不存在或下载失败时抛出
      */
-    public MailCredential getCredential() {
-        return credential;
+    public long downloadAttachment(
+            MailMessageId id, int attachmentIndex, OutputStream destination) {
+        ensureOpen();
+        if (attachmentIndex < 0) {
+            throw new IllegalArgumentException("attachmentIndex must not be negative");
+        }
+        return engine.download(
+                config, credential, ValidationUtils.requireNonNull(id, "id"), attachmentIndex,
+                ValidationUtils.requireNonNull(destination, "destination"));
     }
 
-    /**
-     * 按凭证类型解析 access token
-     *
-     * @return OAuth2 场景返回 access token, 密码场景返回 null
-     */
-    private @Nullable String resolveAccessTokenIfNecessary() {
-        if (credential instanceof OAuth2RefreshTokenCredential oauth2Credential) {
-            return accessTokenProvider.getAccessToken(oauth2Credential);
+    /** 关闭实例持有的 OAuth2 HTTP 资源；可重复调用。 */
+    @Override
+    public void close() {
+        if (closed.compareAndSet(false, true)) {
+            engine.close();
         }
-        return null;
     }
 
-    /**
-     * 邮件收件客户端构建器
-     */
-    public static final class Builder {
-
-        /**
-         * IMAP 服务器配置
-         */
-        private @Nullable ImapServerConfig imapServerConfig;
-
-        /**
-         * 登录凭证
-         */
-        private @Nullable MailCredential credential;
-
-        private Builder() {
-        }
-
-        /**
-         * 设置 IMAP 服务器配置
-         *
-         * @param imapServerConfig IMAP 配置
-         * @return this
-         */
-        public Builder setImapServerConfig(ImapServerConfig imapServerConfig) {
-            this.imapServerConfig = imapServerConfig;
-            return this;
-        }
-
-        /**
-         * 设置登录凭证
-         *
-         * @param credential 登录凭证
-         * @return this
-         */
-        public Builder setCredential(MailCredential credential) {
-            this.credential = credential;
-            return this;
-        }
-
-        /**
-         * 构建 MailReader
-         *
-         * @return MailReader 实例
-         */
-        public MailReader build() {
-            return new MailReader(this);
+    private void ensureOpen() {
+        if (closed.get()) {
+            throw new IllegalStateException("mail reader is closed");
         }
     }
 }

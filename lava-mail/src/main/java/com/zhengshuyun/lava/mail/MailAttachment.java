@@ -1,162 +1,76 @@
 /*
  * Copyright 2026 zhengshuyun.com
- *
  * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
-
 package com.zhengshuyun.lava.mail;
 
-import com.zhengshuyun.lava.core.lang.Validate;
+import com.zhengshuyun.lava.core.lang.ValidationUtils;
 
 import java.util.Arrays;
 
 /**
- * 邮件附件
+ * 发信时使用的内存附件，构造和读取内容时均执行防御性复制。
  *
- * @author Toint
- * @since 2026/4/21
+ * @param fileName 附件文件名
+ * @param contentType MIME 内容类型
+ * @param content 附件字节内容
  */
-public final class MailAttachment {
-
+@SuppressWarnings("ArrayRecordComponent") // 构造和读取时都执行防御性复制，不会暴露内部数组。
+public record MailAttachment(String fileName, String contentType, byte[] content) {
     /**
-     * 文件名
+     * 校验附件元数据并复制附件字节。
+     *
+     * @param fileName 附件文件名
+     * @param contentType MIME 内容类型
+     * @param content 附件字节内容
      */
-    private final String fileName;
-
-    /**
-     * 内容类型
-     */
-    private final String contentType;
-
-    /**
-     * 附件内容
-     */
-    private final byte[] content;
-
-    private MailAttachment(Builder builder) {
-        this.fileName = Validate.notBlank(builder.fileName, "fileName must not be blank");
-        this.contentType = Validate.notBlank(builder.contentType, "contentType must not be blank");
-        this.content = Arrays.copyOf(Validate.notNull(builder.content, "content must not be null"), builder.content.length);
+    public MailAttachment {
+        fileName = PasswordCredential.requireNonBlank(fileName, "fileName");
+        contentType = PasswordCredential.requireNonBlank(contentType, "contentType");
+        ValidationUtils.requireNonNull(content, "content");
+        if (fileName.codePoints().anyMatch(Character::isISOControl)
+                || contentType.codePoints().anyMatch(Character::isISOControl)) {
+            throw new IllegalArgumentException("fileName and contentType must not contain control characters");
+        }
+        content = content.clone();
     }
 
     /**
-     * 创建邮件附件构建器
+     * 返回附件内容副本。
      *
-     * @return 构建器
+     * @return 附件字节副本
      */
-    public static Builder builder() {
-        return new Builder();
+    @Override
+    public byte[] content() {
+        return content.clone();
     }
 
     /**
-     * 获取附件文件名
+     * 返回附件字节数。
      *
-     * @return 文件名
+     * @return 附件大小
      */
-    public String getFileName() {
-        return fileName;
-    }
-
-    /**
-     * 获取附件内容类型
-     *
-     * @return 内容类型
-     */
-    public String getContentType() {
-        return contentType;
-    }
-
-    /**
-     * 获取附件内容副本
-     *
-     * @return 附件内容副本
-     */
-    public byte[] getContent() {
-        return Arrays.copyOf(content, content.length);
-    }
-
-    /**
-     * 获取附件大小
-     *
-     * @return 字节大小
-     */
-    public long getSize() {
+    public long size() {
         return content.length;
     }
 
     /**
-     * 邮件附件构建器
+     * record 对数组组件默认按引用比较，这里改为按附件字节内容比较，以保持值对象语义。
      */
-    public static final class Builder {
+    @Override
+    public boolean equals(Object object) {
+        return this == object
+                || object instanceof MailAttachment other
+                && fileName.equals(other.fileName)
+                && contentType.equals(other.contentType)
+                && Arrays.equals(content, other.content);
+    }
 
-        /**
-         * 文件名
-         */
-        private String fileName;
-
-        /**
-         * 内容类型
-         */
-        private String contentType = "application/octet-stream";
-
-        /**
-         * 附件内容
-         */
-        private byte[] content = new byte[0];
-
-        private Builder() {
-        }
-
-        /**
-         * 设置附件文件名
-         *
-         * @param fileName 文件名
-         * @return this
-         */
-        public Builder setFileName(String fileName) {
-            this.fileName = fileName;
-            return this;
-        }
-
-        /**
-         * 设置内容类型
-         *
-         * @param contentType 内容类型
-         * @return this
-         */
-        public Builder setContentType(String contentType) {
-            this.contentType = contentType;
-            return this;
-        }
-
-        /**
-         * 设置附件内容
-         *
-         * @param content 附件字节内容
-         * @return this
-         */
-        public Builder setContent(byte[] content) {
-            this.content = Arrays.copyOf(Validate.notNull(content, "content must not be null"), content.length);
-            return this;
-        }
-
-        /**
-         * 构建附件对象
-         *
-         * @return 附件对象
-         */
-        public MailAttachment build() {
-            return new MailAttachment(this);
-        }
+    /** 与 {@link #equals(Object)} 一致地按附件字节内容计算哈希值。 */
+    @Override
+    public int hashCode() {
+        int result = fileName.hashCode();
+        result = 31 * result + contentType.hashCode();
+        return 31 * result + Arrays.hashCode(content);
     }
 }

@@ -1,125 +1,61 @@
 /*
  * Copyright 2026 zhengshuyun.com
- *
  * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
-
 package com.zhengshuyun.lava.mail;
 
-import com.zhengshuyun.lava.core.lang.Validate;
+import jakarta.mail.internet.AddressException;
+import jakarta.mail.internet.InternetAddress;
 import org.jspecify.annotations.Nullable;
 
+import com.zhengshuyun.lava.core.lang.ValidationUtils;
+
 /**
- * 邮件地址
+ * 经过严格语法校验的互联网邮箱地址及可选显示名。
  *
- * @author Toint
- * @since 2026/4/21
+ * @param address 只包含一个 mailbox 的邮箱地址，不接受形如 {@code Name <user@example.com>} 的组合文本
+ * @param displayName 可选显示名
  */
-public final class MailAddress {
-
+public record MailAddress(String address, @Nullable String displayName) {
     /**
-     * 邮箱地址
-     */
-    private final String address;
-
-    /**
-     * 显示名称
-     * <p>
-     * 发信时可用于自定义发件人昵称, 例如 `DMIT Inc. <system@notice.dmit.io>`.
-     */
-    private final @Nullable String personal;
-
-    private MailAddress(Builder builder) {
-        this.address = Validate.notBlank(builder.address, "address must not be blank");
-        this.personal = builder.personal;
-    }
-
-    /**
-     * 创建邮件地址构建器
+     * 校验并规范化邮箱地址。
      *
-     * @return 构建器
+     * @param address 邮箱地址
+     * @param displayName 可选显示名
      */
-    public static Builder builder() {
-        return new Builder();
+    public MailAddress {
+        address = PasswordCredential.requireNonBlank(address, "address");
+        if (containsControl(address)) {
+            throw new IllegalArgumentException("address must not contain control characters");
+        }
+        try {
+            InternetAddress[] parsed = InternetAddress.parse(address, true);
+            if (parsed.length != 1 || !address.equals(parsed[0].getAddress())) {
+                throw new IllegalArgumentException("address must contain exactly one mailbox");
+            }
+            parsed[0].validate();
+        } catch (AddressException exception) {
+            throw new IllegalArgumentException("address is not a valid Internet mailbox", exception);
+        }
+        if (displayName != null) {
+            displayName = ValidationUtils.requireNotBlank(
+                    displayName, "displayName must not be blank").strip();
+            if (containsControl(displayName)) {
+                throw new IllegalArgumentException("displayName must be non-blank and contain no control characters");
+            }
+        }
     }
 
     /**
-     * 获取邮箱地址
+     * 创建不带显示名的邮箱地址。
      *
-     * @return 邮箱地址
+     * @param address 邮箱地址
      */
-    public String getAddress() {
-        return address;
+    public MailAddress(String address) {
+        this(address, null);
     }
 
-    /**
-     * 获取显示名称
-     *
-     * @return 显示名称, 未设置时返回 null
-     */
-    public @Nullable String getPersonal() {
-        return personal;
-    }
-
-    /**
-     * 邮件地址构建器
-     */
-    public static final class Builder {
-
-        /**
-         * 邮箱地址
-         */
-        private String address;
-
-        /**
-         * 显示名称
-         * <p>
-         * 例如发件时可传 `DMIT Inc.` 这类名称, 与 address 一起组成展示头.
-         */
-        private @Nullable String personal;
-
-        private Builder() {
-        }
-
-        /**
-         * 设置邮箱地址
-         *
-         * @param address 邮箱地址
-         * @return this
-         */
-        public Builder setAddress(String address) {
-            this.address = address;
-            return this;
-        }
-
-        /**
-         * 设置显示名称
-         *
-         * @param personal 显示名称, 允许为 null
-         * @return this
-         */
-        public Builder setPersonal(@Nullable String personal) {
-            this.personal = personal;
-            return this;
-        }
-
-        /**
-         * 构建邮件地址
-         *
-         * @return 邮件地址
-         */
-        public MailAddress build() {
-            return new MailAddress(this);
-        }
+    private static boolean containsControl(String value) {
+        return value.codePoints().anyMatch(Character::isISOControl);
     }
 }

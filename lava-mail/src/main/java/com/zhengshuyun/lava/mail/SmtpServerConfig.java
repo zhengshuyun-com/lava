@@ -1,248 +1,102 @@
 /*
  * Copyright 2026 zhengshuyun.com
- *
  * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
-
 package com.zhengshuyun.lava.mail;
 
-import com.zhengshuyun.lava.core.lang.Validate;
+import java.time.Duration;
+import com.zhengshuyun.lava.core.lang.ValidationUtils;
 
 /**
- * SMTP 服务器配置
+ * 不可变的 SMTP 连接配置。
  *
- * @author Toint
- * @since 2026/4/21
+ * @param host 服务器主机名
+ * @param port 服务器端口，范围为 1 到 65535
+ * @param securityMode 传输安全模式
+ * @param connectTimeout 建立连接的超时时间
+ * @param readTimeout 读取响应的超时时间
+ * @param writeTimeout 写入请求的超时时间
  */
-public final class SmtpServerConfig {
+public record SmtpServerConfig(
+        String host,
+        int port,
+        MailSecurityMode securityMode,
+        Duration connectTimeout,
+        Duration readTimeout,
+        Duration writeTimeout) {
+
+    private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(30);
 
     /**
-     * 主机名
-     */
-    private final String host;
-
-    /**
-     * 端口
-     */
-    private final int port;
-
-    /**
-     * 连接安全模式
-     */
-    private final MailSecurityMode securityMode;
-
-    /**
-     * 连接超时时间, 毫秒
-     */
-    private final int connectTimeoutMillis;
-
-    /**
-     * 读取超时时间, 毫秒
-     */
-    private final int readTimeoutMillis;
-
-    /**
-     * 写入超时时间, 毫秒
-     */
-    private final int writeTimeoutMillis;
-
-    private SmtpServerConfig(Builder builder) {
-        this.host = Validate.notBlank(builder.host, "host must not be blank");
-        this.port = builder.port;
-        Validate.isTrue(port > 0, "port must be positive");
-        this.securityMode = Validate.notNull(builder.securityMode, "securityMode must not be null");
-        this.connectTimeoutMillis = builder.connectTimeoutMillis;
-        this.readTimeoutMillis = builder.readTimeoutMillis;
-        this.writeTimeoutMillis = builder.writeTimeoutMillis;
-        Validate.isTrue(connectTimeoutMillis >= 0, "connectTimeoutMillis must be >= 0");
-        Validate.isTrue(readTimeoutMillis >= 0, "readTimeoutMillis must be >= 0");
-        Validate.isTrue(writeTimeoutMillis >= 0, "writeTimeoutMillis must be >= 0");
-    }
-
-    /**
-     * 创建 SMTP 配置构建器
+     * 校验并规范化 SMTP 配置。
      *
-     * @return 构建器
+     * @param host 服务器主机名
+     * @param port 服务器端口
+     * @param securityMode 传输安全模式
+     * @param connectTimeout 建连超时
+     * @param readTimeout 读取超时
+     * @param writeTimeout 写入超时
      */
-    public static Builder builder() {
-        return new Builder();
+    public SmtpServerConfig {
+        host = requireHost(host);
+        requirePort(port);
+        ValidationUtils.requireNonNull(securityMode, "securityMode");
+        connectTimeout = requireTimeout(connectTimeout, "connectTimeout");
+        readTimeout = requireTimeout(readTimeout, "readTimeout");
+        writeTimeout = requireTimeout(writeTimeout, "writeTimeout");
     }
 
     /**
-     * 获取 SMTP 主机名
+     * 使用 30 秒默认超时创建强制 STARTTLS 的配置。
      *
-     * @return 主机名
+     * @param host 服务器主机名
+     * @param port 服务器端口
+     * @return SMTP 配置
      */
-    public String getHost() {
-        return host;
+    public static SmtpServerConfig startTls(String host, int port) {
+        return new SmtpServerConfig(
+                host, port, MailSecurityMode.STARTTLS,
+                DEFAULT_TIMEOUT, DEFAULT_TIMEOUT, DEFAULT_TIMEOUT);
     }
 
     /**
-     * 获取 SMTP 端口
+     * 使用 30 秒默认超时创建隐式 TLS 配置。
      *
-     * @return 端口
+     * @param host 服务器主机名
+     * @param port 服务器端口
+     * @return SMTP 配置
      */
-    public int getPort() {
-        return port;
+    public static SmtpServerConfig implicitTls(String host, int port) {
+        return new SmtpServerConfig(
+                host, port, MailSecurityMode.SSL_TLS,
+                DEFAULT_TIMEOUT, DEFAULT_TIMEOUT, DEFAULT_TIMEOUT);
     }
 
-    /**
-     * 获取安全模式
-     *
-     * @return 安全模式
-     */
-    public MailSecurityMode getSecurityMode() {
-        return securityMode;
+    static String requireHost(String host) {
+        String normalized = ValidationUtils.requireNotBlank(host, "host must not be blank").strip();
+        if (containsControlOrWhitespace(normalized)) {
+            throw new IllegalArgumentException("host must be a non-blank host name");
+        }
+        return normalized;
     }
 
-    /**
-     * 获取连接超时时间
-     *
-     * @return 连接超时时间, 单位毫秒
-     */
-    public int getConnectTimeoutMillis() {
-        return connectTimeoutMillis;
+    static void requirePort(int port) {
+        if (port < 1 || port > 65_535) {
+            throw new IllegalArgumentException("port must be between 1 and 65535");
+        }
     }
 
-    /**
-     * 获取读取超时时间
-     *
-     * @return 读取超时时间, 单位毫秒
-     */
-    public int getReadTimeoutMillis() {
-        return readTimeoutMillis;
+    static Duration requireTimeout(Duration timeout, String name) {
+        ValidationUtils.requireNonNull(timeout, name);
+        long millis = timeout.toMillis();
+        if (timeout.isNegative() || millis < 1 || millis > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException(name + " must be positive and at most 2147483647 ms");
+        }
+        return timeout;
     }
 
-    /**
-     * 获取写入超时时间
-     *
-     * @return 写入超时时间, 单位毫秒
-     */
-    public int getWriteTimeoutMillis() {
-        return writeTimeoutMillis;
-    }
-
-    /**
-     * SMTP 服务器配置构建器
-     */
-    public static final class Builder {
-
-        /**
-         * 主机名
-         */
-        private String host;
-
-        /**
-         * 端口
-         */
-        private int port;
-
-        /**
-         * 连接安全模式
-         */
-        private MailSecurityMode securityMode = MailSecurityMode.STARTTLS;
-
-        /**
-         * 连接超时时间, 毫秒
-         */
-        private int connectTimeoutMillis = 30000;
-
-        /**
-         * 读取超时时间, 毫秒
-         */
-        private int readTimeoutMillis = 30000;
-
-        /**
-         * 写入超时时间, 毫秒
-         */
-        private int writeTimeoutMillis = 30000;
-
-        private Builder() {
-        }
-
-        /**
-         * 设置 SMTP 主机名
-         *
-         * @param host 主机名
-         * @return this
-         */
-        public Builder setHost(String host) {
-            this.host = host;
-            return this;
-        }
-
-        /**
-         * 设置 SMTP 端口
-         *
-         * @param port 端口
-         * @return this
-         */
-        public Builder setPort(int port) {
-            this.port = port;
-            return this;
-        }
-
-        /**
-         * 设置安全模式
-         *
-         * @param securityMode 安全模式
-         * @return this
-         */
-        public Builder setSecurityMode(MailSecurityMode securityMode) {
-            this.securityMode = securityMode;
-            return this;
-        }
-
-        /**
-         * 设置连接超时时间
-         *
-         * @param connectTimeoutMillis 连接超时时间, 单位毫秒
-         * @return this
-         */
-        public Builder setConnectTimeoutMillis(int connectTimeoutMillis) {
-            this.connectTimeoutMillis = connectTimeoutMillis;
-            return this;
-        }
-
-        /**
-         * 设置读取超时时间
-         *
-         * @param readTimeoutMillis 读取超时时间, 单位毫秒
-         * @return this
-         */
-        public Builder setReadTimeoutMillis(int readTimeoutMillis) {
-            this.readTimeoutMillis = readTimeoutMillis;
-            return this;
-        }
-
-        /**
-         * 设置写入超时时间
-         *
-         * @param writeTimeoutMillis 写入超时时间, 单位毫秒
-         * @return this
-         */
-        public Builder setWriteTimeoutMillis(int writeTimeoutMillis) {
-            this.writeTimeoutMillis = writeTimeoutMillis;
-            return this;
-        }
-
-        /**
-         * 构建 SMTP 配置
-         *
-         * @return SMTP 配置
-         */
-        public SmtpServerConfig build() {
-            return new SmtpServerConfig(this);
-        }
+    private static boolean containsControlOrWhitespace(String value) {
+        return value.codePoints().anyMatch(codePoint ->
+                Character.isISOControl(codePoint) || Character.isWhitespace(codePoint));
     }
 }

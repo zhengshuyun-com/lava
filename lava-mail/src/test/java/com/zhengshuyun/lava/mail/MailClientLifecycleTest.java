@@ -1,0 +1,57 @@
+/*
+ * Copyright 2026 zhengshuyun.com
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ */
+package com.zhengshuyun.lava.mail;
+
+import org.junit.jupiter.api.Test;
+
+import java.io.ByteArrayOutputStream;
+import java.time.Duration;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
+class MailClientLifecycleTest {
+    private static final PasswordCredential CREDENTIAL = new PasswordCredential("user", "password");
+
+    @Test
+    void senderRejectsOperationsAfterIdempotentClose() {
+        MailSender sender = new MailSender(smtp(), CREDENTIAL);
+        sender.close();
+        sender.close();
+
+        assertThrows(IllegalStateException.class, () -> sender.send(MailSendRequest.text(
+                new MailAddress("sender@example.com"),
+                List.of(new MailAddress("receiver@example.com")), "subject", "body")));
+    }
+
+    @Test
+    void readerValidatesIndicesLocallyAndRejectsOperationsAfterClose() {
+        MailReader reader = new MailReader(imap(), CREDENTIAL);
+        MailMessageId id = new MailMessageId("INBOX", 1, 1);
+        assertThrows(IllegalArgumentException.class,
+                () -> reader.downloadAttachment(id, -1, new ByteArrayOutputStream()));
+
+        reader.close();
+        reader.close();
+
+        assertThrows(IllegalStateException.class,
+                () -> reader.listMessages(MailQuery.firstPage(1)));
+        assertThrows(IllegalStateException.class, () -> reader.readMessage(id));
+        assertThrows(IllegalStateException.class,
+                () -> reader.downloadAttachment(id, 0, new ByteArrayOutputStream()));
+    }
+
+    private static SmtpServerConfig smtp() {
+        return new SmtpServerConfig(
+                "localhost", 2525, MailSecurityMode.PLAINTEXT,
+                Duration.ofSeconds(1), Duration.ofSeconds(1), Duration.ofSeconds(1));
+    }
+
+    private static ImapServerConfig imap() {
+        return new ImapServerConfig(
+                "localhost", 1143, MailSecurityMode.PLAINTEXT, "INBOX",
+                Duration.ofSeconds(1), Duration.ofSeconds(1), Duration.ofSeconds(1));
+    }
+}
