@@ -19,23 +19,23 @@ class DurationFormatterTest {
     @Test
     void formatsOnlyExactDurationUnits() {
         DurationFormatter formatter = DurationFormatter.builder()
-                .setRange(ChronoUnit.DAYS, ChronoUnit.MILLIS)
+                .range(ChronoUnit.DAYS, ChronoUnit.MILLIS)
                 .build();
 
         assertEquals("2d 3h 4min 5s 6ms", formatter.format(
                 Duration.ofDays(2).plusHours(3).plusMinutes(4).plusSeconds(5).plusMillis(6)));
         assertThrows(IllegalArgumentException.class, () ->
-                DurationFormatter.builder().setLargestUnit(ChronoUnit.MONTHS).build());
+                DurationFormatter.builder().largestUnit(ChronoUnit.MONTHS).build());
         assertThrows(IllegalArgumentException.class, () ->
-                DurationFormatter.builder().setLargestUnit(ChronoUnit.YEARS).build());
+                DurationFormatter.builder().largestUnit(ChronoUnit.YEARS).build());
     }
 
     @Test
     void supportsPrecisionLocaleAndZeroValuesWithoutCalendarApproximations() {
         DurationFormatter nanos = DurationFormatter.builder()
-                .setRange(ChronoUnit.SECONDS, ChronoUnit.NANOS)
-                .setLocale(Locale.SIMPLIFIED_CHINESE)
-                .setShowZeroValues(true)
+                .range(ChronoUnit.SECONDS, ChronoUnit.NANOS)
+                .locale(Locale.SIMPLIFIED_CHINESE)
+                .showZeroValues(true)
                 .build();
 
         assertEquals("1秒 0毫秒 2微秒 3纳秒", nanos.format(Duration.ofSeconds(1).plusNanos(2003)));
@@ -57,7 +57,7 @@ class DurationFormatterTest {
         int nanos = (int) (Long.MAX_VALUE % 1_000_000_000L) + 1;
         Duration duration = Duration.ofSeconds(seconds, nanos);
         DurationFormatter formatter = DurationFormatter.builder()
-                .setRange(ChronoUnit.MICROS, ChronoUnit.NANOS)
+                .range(ChronoUnit.MICROS, ChronoUnit.NANOS)
                 .build();
 
         assertThrows(ArithmeticException.class, () -> formatter.format(duration));

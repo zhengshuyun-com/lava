@@ -3,198 +3,163 @@
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
  */
 
 package com.zhengshuyun.lava.http;
 
-import com.zhengshuyun.lava.core.lang.Validate;
-import okhttp3.*;
+import com.zhengshuyun.lava.core.lang.ValidationUtils;
+import com.zhengshuyun.lava.json.JsonCodec;
+import okhttp3.FormBody;
+import okhttp3.HttpUrl;
+import okhttp3.MediaType;
+import okhttp3.MultipartBody;
+import okhttp3.Request;
+import okhttp3.RequestBody;
 import org.jspecify.annotations.Nullable;
 
 import java.io.File;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.List;
 import java.util.Map;
 
-/**
- * HTTP 请求封装
- * <p>
- * 提供简洁的 Builder API 构建和执行 HTTP 请求, 支持 GET、POST、PUT、DELETE 等方法
- *
- * @author Toint
- * @since 2026/1/8
- */
+/** 不可变的 HTTP 请求；常规公开 API 仅使用 Lava 和 JDK 类型。 */
 public final class HttpRequest {
-
+    /** 未显式指定时使用的正文文本字符集。 */
     private static final Charset DEFAULT_CHARSET = StandardCharsets.UTF_8;
 
+    /** 对外展示的 URL；传输时会重新基于原始相对路径解析。 */
     private final String url;
+    /** 构建时的原始 URL，用于保留相对路径和 query 参数语义。 */
+    private final String rawUrl;
+    /** 以插入顺序保存的 query 参数变更。 */
+    private final List<QueryParam> queryParams;
+    /** HTTP 请求方法。 */
     private final HttpMethod method;
-    private final Headers headers;
+    /** 由文本和表单构建器使用的字符集。 */
+    private final Charset charset;
+    /** 请求级 HTTP 头。 */
+    private final HttpHeaders headers;
+    /** 高级 API 提供的 OkHttp 原生请求体。 */
     private final @Nullable RequestBody body;
+    /** 常规 API 使用的传输无关请求体。 */
+    private final @Nullable HttpBody portableBody;
 
     private HttpRequest(Builder builder) {
-        Validate.notNull(builder, "builder must not be null");
-        this.url = Validate.notBlank(builder.url, "url must not be blank");
-        this.method = Validate.notNull(builder.method, "method must not be null");
-        this.headers = Validate.notNull(builder.headersBuilder, "headersBuilder must not be null").build();
-        this.body = builder.body;
+        method = builder.method;
+        charset = builder.charset;
+        headers = builder.headers.build();
+        body = builder.body;
+        portableBody = builder.portableBody;
+        rawUrl = builder.url;
+        queryParams = List.copyOf(builder.queryParams);
+        url = resolveUrl(builder.url, builder.queryParams);
     }
 
+    /**
+     * 返回构建时可展示的 URL。
+     *
+     * @return 已包含请求级 query 参数的 URL
+     */
     public String getUrl() {
         return url;
     }
 
+    /**
+     * 返回 HTTP 请求方法。
+     *
+     * @return 请求方法
+     */
     public HttpMethod getMethod() {
         return method;
     }
 
-    public Headers getHeaders() {
+    /**
+     * 返回请求级请求头，不包含客户端默认头。
+     *
+     * @return 请求头
+     */
+    public HttpHeaders getHeaders() {
         return headers;
     }
 
-    public @Nullable RequestBody getBody() {
-        return body;
+    /** 使用客户端的同步发送入口，便于在业务代码中保持统一调用方向。 */
+    public HttpResponse send(HttpClient client) {
+        requireClient(client);
+        return client.send(this);
     }
 
-    /**
-     * 使用全局单例 HttpClient 执行请求
-     * <p>
-     * 返回的 {@link HttpResponse} 使用完后必须关闭, 推荐使用 try-with-resources
-     *
-     * @return HTTP 响应
-     * @throws HttpException 请求失败时抛出
-     * @see HttpUtil#execute(HttpRequest)
-     */
-    public HttpResponse execute() {
-        return HttpUtil.execute(this);
-    }
-
-    /**
-     * 使用全局单例 HttpClient 执行请求, 并应用方法级配置覆盖.
-     *
-     * @param config 方法级自定义配置, 允许为 null
-     * @return HTTP 响应
-     * @throws HttpException 请求失败时抛出
-     */
-    public HttpResponse execute(HttpClient.@Nullable Builder config) {
-        return HttpUtil.execute(this, config);
-    }
-
-    /**
-     * 使用指定的 HttpClient 执行请求
-     * <p>
-     * 返回的 {@link HttpResponse} 使用完后必须关闭, 推荐使用 try-with-resources
-     *
-     * @param httpClient HTTP 客户端
-     * @return HTTP 响应
-     * @throws IllegalArgumentException httpClient 为 null
-     * @throws HttpException            请求失败时抛出
-     */
-    public HttpResponse execute(HttpClient httpClient) {
-        return Validate.notNull(httpClient, "httpClient must not be null")
-                .execute(this);
-    }
-
-    /**
-     * 使用指定的 HttpClient 执行请求, 并应用方法级配置覆盖.
-     *
-     * @param httpClient HTTP 客户端
-     * @param config     方法级自定义配置, 允许为 null
-     * @return HTTP 响应
-     * @throws IllegalArgumentException httpClient 为 null
-     * @throws HttpException            请求失败时抛出
-     */
-    public HttpResponse execute(HttpClient httpClient, HttpClient.@Nullable Builder config) {
-        return Validate.notNull(httpClient, "httpClient must not be null")
-                .execute(this, config);
-    }
-
-    /**
-     * 使用全局单例 HttpClient 执行 SSE 请求.
-     *
-     * @param listener SSE 监听器
-     * @return SSE 会话
-     */
-    public HttpSseSession executeSse(HttpSseListener listener) {
-        return HttpUtil.executeSse(this, listener);
-    }
-
-    /**
-     * 使用全局单例 HttpClient 执行 SSE 请求, 并应用方法级配置覆盖.
-     *
-     * @param listener SSE 监听器
-     * @param config   方法级自定义配置, 允许为 null
-     * @return SSE 会话
-     */
-    public HttpSseSession executeSse(HttpSseListener listener, HttpClient.@Nullable Builder config) {
-        return HttpUtil.executeSse(this, listener, config);
-    }
-
-    /**
-     * 使用指定的 HttpClient 执行 SSE 请求.
-     *
-     * @param httpClient HTTP 客户端
-     * @param listener   SSE 监听器
-     * @return SSE 会话
-     */
-    public HttpSseSession executeSse(HttpClient httpClient, HttpSseListener listener) {
-        return Validate.notNull(httpClient, "httpClient must not be null")
-                .executeSse(this, listener);
-    }
-
-    /**
-     * 使用指定的 HttpClient 执行 SSE 请求, 并应用方法级配置覆盖.
-     *
-     * @param httpClient HTTP 客户端
-     * @param listener   SSE 监听器
-     * @param config     方法级自定义配置, 允许为 null
-     * @return SSE 会话
-     */
-    public HttpSseSession executeSse(HttpClient httpClient,
-                                     HttpSseListener listener,
-                                     HttpClient.@Nullable Builder config) {
-        return Validate.notNull(httpClient, "httpClient must not be null")
-                .executeSse(this, listener, config);
-    }
-
-    /**
-     * 转换为 OkHttp Request
-     * <p>
-     * 框架层面处理请求体的合法性：
-     * <ul>
-     * <li>不允许携带请求体的方法 (GET/HEAD) 携带了请求体 → 自动忽略</li>
-     * <li>必须携带请求体的方法 (POST/PUT/PATCH) 没有请求体 → 自动补充空请求体</li>
-     * </ul>
-     */
     Request toOkHttpRequest() {
+        return toOkHttpRequest(null, HttpHeaders.of());
+    }
+
+    Request toOkHttpRequest(@Nullable URI baseUrl, HttpHeaders defaults) {
         RequestBody requestBody = body;
-
-        // 不允许有 body 的方法, 自动忽略 body
-        if (!getMethod().permitsRequestBody() && requestBody != null) {
-            requestBody = null;
+        if (requestBody == null && portableBody != null) {
+            // 传输无关请求体只在真正发送时适配，避免公共 API 泄露 OkHttp 类型。
+            requestBody = HttpBodyUtils.toOkHttp(portableBody);
         }
-
-        // 必须有 body 的方法, 自动补充空 body
-        if (getMethod().requiresRequestBody() && requestBody == null) {
+        if (requestBody != null && !method.permitsRequestBody()) {
+            throw new IllegalStateException("HTTP " + method + " must not have a request body");
+        }
+        if (requestBody == null && method.requiresRequestBody()) {
             requestBody = RequestBody.create(new byte[0]);
         }
-
+        HttpHeaders effectiveHeaders = mergeHeaders(defaults, headers);
         return new Request.Builder()
-                .url(url)
-                .headers(headers)
+                .url(resolvedUrl(baseUrl))
+                .headers(effectiveHeaders.toOkHttp())
                 .method(method.getName(), requestBody)
                 .build();
+    }
+
+    String resolvedUrl(@Nullable URI baseUrl) {
+        String resolved = resolveUrl(rawUrl, baseUrl);
+        if (queryParams.isEmpty()) {
+            return resolved;
+        }
+        HttpUrl parsed = HttpUrl.parse(resolved);
+        if (parsed == null) {
+            throw new IllegalArgumentException("url must be an HTTP or HTTPS URL");
+        }
+        HttpUrl.Builder builder = parsed.newBuilder();
+        applyQueryParams(builder, queryParams);
+        return builder.build().toString();
+    }
+
+    HttpHeaders effectiveHeaders(HttpHeaders defaults) {
+        return mergeHeaders(defaults, headers);
+    }
+
+    /** 返回带有一个覆盖 header 的新请求。 */
+    public HttpRequest withHeader(String name, String value) {
+        Builder builder = builder(rawUrl, method, charset);
+        copyQueryParams(builder);
+        builder.headers(headers);
+        if (portableBody != null) {
+            builder.body(portableBody);
+        } else if (body != null) {
+            builder.okHttpBody(body);
+        }
+        builder.header(name, value);
+        return builder.build();
+    }
+
+    /** 返回带有新请求体的新请求；原请求保持不变。 */
+    public HttpRequest withBody(HttpBody value) {
+        ValidationUtils.requireNonNull(value, "body must not be null");
+        Builder builder = builder(rawUrl, method, charset);
+        copyQueryParams(builder);
+        builder.headers(headers);
+        builder.body(value);
+        return builder.build();
     }
 
     public static Builder builder(String url, HttpMethod method) {
@@ -205,328 +170,421 @@ public final class HttpRequest {
         return new Builder(url, method, charset);
     }
 
-    /**
-     * 创建 GET 请求
-     */
+    public static Builder builder(URI url, HttpMethod method) {
+        return builder(ValidationUtils.requireNonNull(url, "url must not be null").toString(), method);
+    }
+
     public static Builder get(String url) {
-        return new Builder(url, HttpMethod.GET, DEFAULT_CHARSET);
+        return builder(url, HttpMethod.GET);
     }
 
-    /**
-     * 创建 GET 请求
-     */
+    public static Builder get(URI url) {
+        return builder(url, HttpMethod.GET);
+    }
+
     public static Builder get(String url, Charset charset) {
-        return new Builder(url, HttpMethod.GET, charset);
+        return builder(url, HttpMethod.GET, charset);
     }
 
-    /**
-     * 创建 POST 请求
-     */
     public static Builder post(String url) {
-        return new Builder(url, HttpMethod.POST, DEFAULT_CHARSET);
+        return builder(url, HttpMethod.POST);
     }
 
-    /**
-     * 创建 POST 请求
-     */
+    public static Builder post(URI url) {
+        return builder(url, HttpMethod.POST);
+    }
+
     public static Builder post(String url, Charset charset) {
-        return new Builder(url, HttpMethod.POST, charset);
+        return builder(url, HttpMethod.POST, charset);
     }
 
-    /**
-     * 创建 PUT 请求
-     */
     public static Builder put(String url) {
-        return new Builder(url, HttpMethod.PUT, DEFAULT_CHARSET);
+        return builder(url, HttpMethod.PUT);
     }
 
-    /**
-     * 创建 PUT 请求
-     */
+    public static Builder put(URI url) {
+        return builder(url, HttpMethod.PUT);
+    }
+
     public static Builder put(String url, Charset charset) {
-        return new Builder(url, HttpMethod.PUT, charset);
+        return builder(url, HttpMethod.PUT, charset);
     }
 
-    /**
-     * 创建 DELETE 请求
-     */
     public static Builder delete(String url) {
-        return new Builder(url, HttpMethod.DELETE, DEFAULT_CHARSET);
+        return builder(url, HttpMethod.DELETE);
     }
 
-    /**
-     * 创建 DELETE 请求
-     */
+    public static Builder delete(URI url) {
+        return builder(url, HttpMethod.DELETE);
+    }
+
     public static Builder delete(String url, Charset charset) {
-        return new Builder(url, HttpMethod.DELETE, charset);
+        return builder(url, HttpMethod.DELETE, charset);
     }
 
-    /**
-     * 创建 PATCH 请求
-     */
     public static Builder patch(String url) {
-        return new Builder(url, HttpMethod.PATCH, DEFAULT_CHARSET);
+        return builder(url, HttpMethod.PATCH);
     }
 
-    /**
-     * 创建 PATCH 请求
-     */
+    public static Builder patch(URI url) {
+        return builder(url, HttpMethod.PATCH);
+    }
+
     public static Builder patch(String url, Charset charset) {
-        return new Builder(url, HttpMethod.PATCH, charset);
+        return builder(url, HttpMethod.PATCH, charset);
     }
 
-    /**
-     * 创建 HEAD 请求
-     */
     public static Builder head(String url) {
-        return new Builder(url, HttpMethod.HEAD, DEFAULT_CHARSET);
+        return builder(url, HttpMethod.HEAD);
     }
 
-    /**
-     * 创建 HEAD 请求
-     */
+    public static Builder head(URI url) {
+        return builder(url, HttpMethod.HEAD);
+    }
+
     public static Builder head(String url, Charset charset) {
-        return new Builder(url, HttpMethod.HEAD, charset);
+        return builder(url, HttpMethod.HEAD, charset);
     }
 
-    /**
-     * HTTP 请求构建器
-     */
+    @Override
+    public String toString() {
+        return "HttpRequest[method=" + method + ", url=" + HttpRedactionUtils.redactUrl(url)
+                + ", headers=" + headers + ']';
+    }
+
+    private static void requireClient(@Nullable HttpClient client) {
+        ValidationUtils.requireNonNull(client, "client must not be null");
+    }
+
+    private static String resolveUrl(String rawUrl, List<QueryParam> queryParams) {
+        HttpUrl parsed = HttpUrl.parse(rawUrl);
+        if (parsed == null) {
+            // 相对路径允许在 HttpClient 的 baseUrl 上解析；此处只校验 URI 语法。
+            try {
+                URI value = new URI(rawUrl);
+                if (value.isAbsolute() && !("http".equalsIgnoreCase(value.getScheme())
+                        || "https".equalsIgnoreCase(value.getScheme()))) {
+                    throw new IllegalArgumentException("url must use HTTP or HTTPS");
+                }
+                if (value.isAbsolute()) {
+                    throw new IllegalArgumentException("url must be a valid HTTP or HTTPS URL");
+                }
+                if (!queryParams.isEmpty()) {
+                    return renderRelativeUrl(rawUrl, queryParams);
+                }
+            } catch (URISyntaxException exception) {
+                throw new IllegalArgumentException("url must be a valid URI", exception);
+            }
+            return rawUrl;
+        }
+        requireHttpScheme(parsed);
+        if (queryParams.isEmpty()) {
+            return rawUrl;
+        }
+        HttpUrl.Builder builder = parsed.newBuilder();
+        applyQueryParams(builder, queryParams);
+        return builder.build().toString();
+    }
+
+    /** 在不改变相对路径语义的前提下渲染请求级 query 参数。 */
+    private static String renderRelativeUrl(String rawUrl, List<QueryParam> queryParams) {
+        int fragmentStart = rawUrl.indexOf('#');
+        String fragment = fragmentStart < 0 ? "" : rawUrl.substring(fragmentStart);
+        String withoutFragment = fragmentStart < 0 ? rawUrl : rawUrl.substring(0, fragmentStart);
+        int queryStart = withoutFragment.indexOf('?');
+        String path = queryStart < 0 ? withoutFragment : withoutFragment.substring(0, queryStart);
+        String existingQuery = queryStart < 0 ? "" : withoutFragment.substring(queryStart + 1);
+        HttpUrl synthetic = HttpUrl.parse("http://relative.invalid/?" + existingQuery);
+        if (synthetic == null) {
+            throw new IllegalArgumentException("url must be a valid URI");
+        }
+        HttpUrl.Builder builder = synthetic.newBuilder();
+        applyQueryParams(builder, queryParams);
+        String encodedQuery = builder.build().encodedQuery();
+        return path + (encodedQuery == null ? "" : "?" + encodedQuery) + fragment;
+    }
+
+    private static void applyQueryParams(HttpUrl.Builder builder, List<QueryParam> queryParams) {
+        for (QueryParam param : queryParams) {
+            if (param.replace) {
+                builder.removeAllQueryParameters(param.name);
+            }
+            builder.addQueryParameter(param.name, param.value);
+        }
+    }
+
+    private void copyQueryParams(Builder builder) {
+        for (QueryParam param : queryParams) {
+            if (param.replace) {
+                builder.queryParam(param.name, param.value);
+            } else {
+                builder.addQueryParam(param.name, param.value);
+            }
+        }
+    }
+
+    private static String resolveUrl(String rawUrl, @Nullable URI baseUrl) {
+        URI value;
+        try {
+            value = new URI(rawUrl);
+        } catch (URISyntaxException exception) {
+            throw new IllegalArgumentException("url must be a valid URI", exception);
+        }
+        if (!value.isAbsolute()) {
+            if (baseUrl == null) {
+                throw new IllegalArgumentException("relative URL requires a client baseUrl");
+            }
+            value = baseUrl.resolve(value);
+        }
+        HttpUrl parsed = HttpUrl.parse(value.toString());
+        if (parsed == null) {
+            throw new IllegalArgumentException("url must be an HTTP or HTTPS URL");
+        }
+        requireHttpScheme(parsed);
+        return parsed.toString();
+    }
+
+    private static void requireHttpScheme(HttpUrl url) {
+        if (!url.isHttps() && !"http".equalsIgnoreCase(url.scheme())) {
+            throw new IllegalArgumentException("url must use HTTP or HTTPS");
+        }
+    }
+
+    private static HttpHeaders mergeHeaders(HttpHeaders defaults, HttpHeaders request) {
+        HttpHeaders.Builder builder = HttpHeaders.builder();
+        builder.addAll(defaults);
+        for (String name : request.names()) {
+            // 请求级同名头完整覆盖默认值，同时保留该名称的多值语义。
+            builder.remove(name);
+            for (String value : request.values(name)) {
+                builder.add(name, value);
+            }
+        }
+        return builder.build();
+    }
+
+    private record QueryParam(String name, @Nullable String value, boolean replace) {
+    }
+
     public static final class Builder {
         private final String url;
         private final HttpMethod method;
         private final Charset charset;
-        private final Headers.Builder headersBuilder = new Headers.Builder();
+        private final HttpHeaders.Builder headers = HttpHeaders.builder();
+        private final List<QueryParam> queryParams = new ArrayList<>();
         private @Nullable RequestBody body;
+        private @Nullable HttpBody portableBody;
 
         private Builder(String url, HttpMethod method, Charset charset) {
-            this.url = Validate.notBlank(url, "url must not be blank");
-            this.method = Validate.notNull(method, "method must not be null");
-            this.charset = Validate.notNull(charset, "charset must not be null");
+            url = ValidationUtils.requireNotBlank(url, "url must not be blank");
+            ValidationUtils.requireNonNull(method, "method must not be null");
+            ValidationUtils.requireNonNull(charset, "charset must not be null");
+            this.url = url;
+            this.method = method;
+            this.charset = charset;
         }
 
-        /**
-         * 添加请求头, 已存在会替换原有值
-         */
-        public Builder setHeader(String name, String value) {
-            headersBuilder.set(name, value);
+        public Builder header(String name, String value) {
+            headers.set(name, value);
             return this;
         }
 
-        /**
-         * 添加请求头 (允许重复)
-         */
         public Builder addHeader(String name, String value) {
-            headersBuilder.add(name, value);
+            headers.add(name, value);
+            return this;
+        }
+        public Builder headers(HttpHeaders headers) {
+            ValidationUtils.requireNonNull(headers, "headers must not be null");
+            for (String name : List.copyOf(this.headers.build().names())) {
+                this.headers.remove(name);
+            }
+            this.headers.addAll(headers);
             return this;
         }
 
-        /**
-         * 设置 User-Agent (覆盖模式)
-         * <p>
-         * 注意：OkHttp 默认会使用 "okhttp/x.x.x" 作为 User-Agent,
-         * 某些服务器可能会识别并限制非浏览器请求.
-         * 如需模拟浏览器, 可使用 {@link #setUserAgentBrowser()} 或 {@link #setUserAgent(String)}
-         * 配合 {@link HttpUserAgents} 常量类
-         */
-        public Builder setUserAgent(String userAgent) {
-            return setHeader(HttpHeaders.USER_AGENT, userAgent);
-        }
-
-        /**
-         * 设置 User-Agent 为浏览器 (默认使用 Chrome on macOS)
-         * <p>
-         * 使用此方法可以让请求看起来像来自真实浏览器, 避免被某些服务器拒绝或限流.
-         * 等同于 {@code setUserAgent(UserAgents.DEFAULT)}
-         *
-         * @see HttpUserAgents
-         */
-        public Builder setUserAgentBrowser() {
-            return setHeader(HttpHeaders.USER_AGENT, HttpUserAgents.DEFAULT);
-        }
-
-        /**
-         * 设置 Authorization (覆盖模式)
-         */
-        public Builder setAuthorization(String authorization) {
-            return setHeader(HttpHeaders.AUTHORIZATION, authorization);
-        }
-
-        /**
-         * 设置 Bearer Token 认证 (覆盖模式)
-         *
-         * @param token JWT token 或其他 Bearer token
-         */
-        public Builder setBearerToken(String token) {
-            return setHeader(HttpHeaders.AUTHORIZATION, "Bearer " + token);
-        }
-
-        /**
-         * 设置 Basic Auth 认证 (覆盖模式)
-         *
-         * @param username 用户名
-         * @param password 密码
-         */
-        public Builder setBasicAuth(String username, String password) {
-            Validate.notNull(username, "username must not be null");
-            Validate.notNull(password, "password must not be null");
-            String basic = Credentials.basic(username, password, charset);
-            return setHeader(HttpHeaders.AUTHORIZATION, basic);
-        }
-
-        /**
-         * 设置 Cookie (覆盖模式)
-         * <p>
-         * 完整的 cookie 字符串, 例如: "name1=value1; name2=value2"
-         */
-        public Builder setCookie(String cookie) {
-            return setHeader(HttpHeaders.COOKIE, cookie);
-        }
-
-        /**
-         * 设置 JSON 请求体
-         */
-        public Builder setJsonBody(String json) {
-            this.body = RequestBody.create(json, MediaType.parse(HttpMediaTypes.APPLICATION_JSON));
+        public Builder addQueryParam(String name, @Nullable String value) {
+            requireQueryName(name);
+            queryParams.add(new QueryParam(name, value, false));
             return this;
         }
 
-        /**
-         * 设置 XML 请求体
-         */
-        public Builder setXmlBody(String xml) {
-            this.body = RequestBody.create(xml, MediaType.parse(HttpMediaTypes.APPLICATION_XML));
+        public Builder queryParam(String name, @Nullable String value) {
+            requireQueryName(name);
+            queryParams.add(new QueryParam(name, value, true));
             return this;
         }
 
-        /**
-         * 设置纯文本请求体
-         */
-        public Builder setTextBody(String text) {
-            this.body = RequestBody.create(text, MediaType.parse(HttpMediaTypes.TEXT_PLAIN));
+        public Builder addQueryParams(Map<String, String> params) {
+            ValidationUtils.requireNonNull(params, "params must not be null");
+            params.forEach(this::addQueryParam);
             return this;
         }
 
-        /**
-         * 设置表单请求体 (application/x-www-form-urlencoded)
-         */
-        public Builder setFormBody(Map<String, String> params) {
-            Validate.notNull(params, "params must not be null");
-            FormBody.Builder formBuilder = new FormBody.Builder(charset);
-            params.forEach(formBuilder::add);
-            this.body = formBuilder.build();
+        public Builder userAgent(String userAgent) {
+            return header(HttpHeaderNames.USER_AGENT, userAgent);
+        }
+
+        public Builder userAgentBrowser() {
+            return userAgent(HttpUserAgents.DEFAULT);
+        }
+
+        public Builder authorization(String authorization) {
+            return header(HttpHeaderNames.AUTHORIZATION, authorization);
+        }
+
+        public Builder bearerToken(String token) {
+            return authorization("Bearer " + ValidationUtils.requireNonNull(token, "token must not be null"));
+        }
+
+        public Builder basicAuth(String username, String password) {
+            ValidationUtils.requireNonNull(username, "username must not be null");
+            ValidationUtils.requireNonNull(password, "password must not be null");
+            byte[] credentials = (username + ':' + password).getBytes(charset);
+            return authorization("Basic " + Base64.getEncoder().encodeToString(credentials));
+        }
+
+        public Builder cookie(String cookie) {
+            return header(HttpHeaderNames.COOKIE, cookie);
+        }
+
+        public Builder jsonBody(String json) {
+            return body(json, HttpMediaTypes.APPLICATION_JSON);
+        }
+
+        public Builder xmlBody(String xml) {
+            return body(xml, HttpMediaTypes.APPLICATION_XML);
+        }
+
+        public Builder textBody(String text) {
+            return body(text, HttpMediaTypes.TEXT_PLAIN);
+        }
+
+        public Builder body(String value, String contentType) {
+            ValidationUtils.requireNonNull(value, "body must not be null");
+            body = RequestBody.create(value.getBytes(charset), requireMediaType(contentType));
+            portableBody = null;
             return this;
         }
 
-        /**
-         * 设置 Multipart 请求体 (文件上传)
-         */
-        public Builder setMultipartBody(MultipartBuilder multipartBuilder) {
-            Validate.notNull(multipartBuilder, "multipartBuilder must not be null");
-            this.body = multipartBuilder.build();
+        public Builder body(byte[] value, String contentType) {
+            ValidationUtils.requireNonNull(value, "body must not be null");
+            body = RequestBody.create(value.clone(), requireMediaType(contentType));
+            portableBody = null;
             return this;
         }
 
-        /**
-         * 设置 Multipart 请求体 (文件上传)
-         */
-        public Builder setMultipartBody(MultipartBody multipartBody) {
-            Validate.notNull(multipartBody, "multipartBody must not be null");
-            this.body = multipartBody;
+        /** 设置不依赖 OkHttp 的请求体。 */
+        public Builder body(HttpBody value) {
+            ValidationUtils.requireNonNull(value, "body must not be null");
+            portableBody = value;
+            body = null;
             return this;
         }
 
-        /**
-         * 设置原始请求体
-         */
-        public Builder setBody(@Nullable RequestBody body) {
+        /** 使用默认 JSON 编解码器编码任意对象。 */
+        public Builder jsonBody(Object value) {
+            return body(HttpBodyUtils.json(value));
+        }
+
+        /** 使用指定编解码器编码任意对象。 */
+        public Builder jsonBody(Object value, JsonCodec codec) {
+            return body(HttpBodyUtils.json(value, codec));
+        }
+
+        public Builder formBody(Map<String, String> params) {
+            ValidationUtils.requireNonNull(params, "params must not be null");
+            FormBody.Builder form = new FormBody.Builder(charset);
+            params.forEach(form::add);
+            body = form.build();
+            portableBody = null;
+            return this;
+        }
+
+        public Builder multipartBody(MultipartBuilder multipart) {
+            ValidationUtils.requireNonNull(multipart, "multipart must not be null");
+            body = multipart.build();
+            portableBody = null;
+            return this;
+        }
+
+        Builder okHttpBody(@Nullable RequestBody body) {
             this.body = body;
+            this.portableBody = null;
             return this;
         }
 
-        /**
-         * 构建请求
-         */
         public HttpRequest build() {
             return new HttpRequest(this);
         }
+
+        private static void requireQueryName(@Nullable String name) {
+            ValidationUtils.requireNotBlank(name, "query parameter name must not be blank");
+        }
     }
 
-    /**
-     * Multipart 构建器 (用于文件上传)
-     */
     public static final class MultipartBuilder {
+        private final MultipartBody.Builder delegate = new MultipartBody.Builder().setType(MultipartBody.FORM);
 
-        private final MultipartBody.Builder builder = new MultipartBody.Builder()
-                .setType(MultipartBody.FORM);
+        private MultipartBuilder() {
+        }
 
         public static MultipartBuilder builder() {
             return new MultipartBuilder();
         }
 
-        /**
-         * 添加表单字段
-         */
         public MultipartBuilder addFormField(String name, String value) {
-            builder.addFormDataPart(name, value);
+            delegate.addFormDataPart(name, value);
             return this;
         }
 
-        /**
-         * 添加文件
-         */
         public MultipartBuilder addFile(String name, Path path) {
-            return addFile(name, path.toFile());
+            return addFile(name, path, HttpMediaTypes.APPLICATION_OCTET_STREAM);
         }
 
-        /**
-         * 添加文件
-         */
         public MultipartBuilder addFile(String name, Path path, String contentType) {
+            ValidationUtils.requireNonNull(path, "path must not be null");
+            if (!Files.isRegularFile(path)) {
+                throw new IllegalArgumentException("path must be a regular file");
+            }
             return addFile(name, path.toFile(), contentType);
         }
 
-        /**
-         * 添加文件
-         */
         public MultipartBuilder addFile(String name, File file) {
             return addFile(name, file, HttpMediaTypes.APPLICATION_OCTET_STREAM);
         }
 
-        /**
-         * 添加文件
-         */
         public MultipartBuilder addFile(String name, File file, String contentType) {
-            Validate.isTrue(file.exists(), "File does not exist: %s", file.getAbsolutePath());
-            MediaType mediaType = MediaType.parse(contentType);
-            Validate.notNull(mediaType, "Invalid content type: %s", contentType);
-            RequestBody requestBody = RequestBody.create(file, mediaType);
-            builder.addFormDataPart(name, file.getName(), requestBody);
+            ValidationUtils.requireNonNull(file, "file must not be null");
+            if (!file.isFile()) {
+                throw new IllegalArgumentException("file must be a regular file");
+            }
+            delegate.addFormDataPart(name, file.getName(), RequestBody.create(file, requireMediaType(contentType)));
             return this;
         }
 
-        /**
-         * 添加文件
-         */
         public MultipartBuilder addFile(String name, @Nullable String filename, byte[] data) {
             return addFile(name, filename, data, HttpMediaTypes.APPLICATION_OCTET_STREAM);
         }
 
-        /**
-         * 添加文件
-         */
-        public MultipartBuilder addFile(String name, @Nullable String filename, byte[] data, String contentType) {
-            Validate.notNull(data, "data must not be null");
-            Validate.notNull(contentType, "contentType must not be null");
-            MediaType mediaType = MediaType.parse(contentType);
-            Validate.notNull(mediaType, "Invalid content type: {}", contentType);
-            RequestBody requestBody = RequestBody.create(data, mediaType);
-            builder.addFormDataPart(name, filename, requestBody);
+        public MultipartBuilder addFile(String name, @Nullable String filename,
+                                        byte[] data, String contentType) {
+            ValidationUtils.requireNonNull(data, "data must not be null");
+            delegate.addFormDataPart(name, filename,
+                    RequestBody.create(data.clone(), requireMediaType(contentType)));
             return this;
         }
 
-        public MultipartBody build() {
-            return builder.build();
+        MultipartBody build() {
+            return delegate.build();
         }
+    }
+
+    private static MediaType requireMediaType(@Nullable String contentType) {
+        ValidationUtils.requireNonNull(contentType, "contentType must not be null");
+        MediaType result = MediaType.parse(contentType);
+        if (result == null) {
+            throw new IllegalArgumentException("invalid content type");
+        }
+        return result;
     }
 }

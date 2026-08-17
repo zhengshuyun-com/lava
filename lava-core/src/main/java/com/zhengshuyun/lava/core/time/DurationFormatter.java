@@ -32,8 +32,8 @@ import java.util.Locale;
  * 示例:
  * <pre>{@code
  * DurationFormatter formatter = DurationFormatter.builder()
- *     .setLargestUnit(ChronoUnit.HOURS)
- *     .setChinese()
+ *     .largestUnit(ChronoUnit.HOURS)
+ *     .chinese()
  *     .build();
  *
  * formatter.format(Duration.ofSeconds(3661)); // "1时 1分 1秒"
@@ -275,7 +275,7 @@ public final class DurationFormatter {
          * @param largestUnit 最大单位 (DAYS/HOURS/MINUTES/SECONDS/MILLIS/MICROS/NANOS)
          * @return 当前构建器
          */
-        public Builder setLargestUnit(ChronoUnit largestUnit) {
+        public Builder largestUnit(ChronoUnit largestUnit) {
             this.largestUnit = ValidationUtils.requireNonNull(
                     largestUnit, "largestUnit cannot be null");
             return this;
@@ -287,7 +287,7 @@ public final class DurationFormatter {
          * @param smallestUnit 最小单位 (DAYS/HOURS/MINUTES/SECONDS/MILLIS/MICROS/NANOS)
          * @return 当前构建器
          */
-        public Builder setSmallestUnit(ChronoUnit smallestUnit) {
+        public Builder smallestUnit(ChronoUnit smallestUnit) {
             this.smallestUnit = ValidationUtils.requireNonNull(
                     smallestUnit, "smallestUnit cannot be null");
             return this;
@@ -296,7 +296,7 @@ public final class DurationFormatter {
         /**
          * 设置单位范围
          * <p>
-         * 参数在此立即校验; 单独调用 {@link #setLargestUnit} / {@link #setSmallestUnit}
+         * 参数在此立即校验; 单独调用 {@link #largestUnit} / {@link #smallestUnit}
          * 时无法在设值点判断区间方向, 由 {@link #build()} 兜底校验
          *
          * @param largestUnit  最大单位
@@ -304,8 +304,8 @@ public final class DurationFormatter {
          * @return 当前构建器
          * @throws IllegalArgumentException 如果 largestUnit &lt; smallestUnit 或单位不支持
          */
-        public Builder setRange(ChronoUnit largestUnit, ChronoUnit smallestUnit) {
-            setLargestUnit(largestUnit).setSmallestUnit(smallestUnit);
+        public Builder range(ChronoUnit largestUnit, ChronoUnit smallestUnit) {
+            largestUnit(largestUnit).smallestUnit(smallestUnit);
             validateRange();
             return this;
         }
@@ -335,7 +335,7 @@ public final class DurationFormatter {
          * @param locale 单位文本使用的区域设置
          * @return 当前构建器
          */
-        public Builder setLocale(Locale locale) {
+        public Builder locale(Locale locale) {
             this.locale = ValidationUtils.requireNonNull(locale, "locale cannot be null");
             return this;
         }
@@ -345,8 +345,8 @@ public final class DurationFormatter {
          *
          * @return 当前构建器
          */
-        public Builder setChinese() {
-            return setLocale(Locale.CHINESE);
+        public Builder chinese() {
+            return locale(Locale.CHINESE);
         }
 
         /**
@@ -354,8 +354,8 @@ public final class DurationFormatter {
          *
          * @return 当前构建器
          */
-        public Builder setEnglish() {
-            return setLocale(Locale.ENGLISH);
+        public Builder english() {
+            return locale(Locale.ENGLISH);
         }
 
         /**
@@ -364,7 +364,7 @@ public final class DurationFormatter {
          * @param showZeroValues true: "1h 0m 30s", false: "1h 30s"
          * @return 当前构建器
          */
-        public Builder setShowZeroValues(boolean showZeroValues) {
+        public Builder showZeroValues(boolean showZeroValues) {
             this.showZeroValues = showZeroValues;
             return this;
         }
@@ -375,7 +375,7 @@ public final class DurationFormatter {
          * @param separator 单位文本之间使用的分隔符
          * @return 当前构建器
          */
-        public Builder setSeparator(String separator) {
+        public Builder separator(String separator) {
             this.separator = ValidationUtils.requireNonNull(
                     separator, "separator cannot be null");
             return this;
@@ -384,8 +384,8 @@ public final class DurationFormatter {
         /**
          * 构建 DurationFormatter 实例
          * <p>
-         * 单位合法性与区间方向在此统一校验, 因此无论通过 {@link #setRange} 还是
-         * 单独调用 {@link #setLargestUnit} / {@link #setSmallestUnit} 都无法绕过
+         * 单位合法性与区间方向在此统一校验, 因此无论通过 {@link #range} 还是
+         * 单独调用 {@link #largestUnit} / {@link #smallestUnit} 都无法绕过
          *
          * @return 不可变的 DurationFormatter 实例
          * @throws IllegalArgumentException 如果单位不受支持, 或 largestUnit &lt; smallestUnit

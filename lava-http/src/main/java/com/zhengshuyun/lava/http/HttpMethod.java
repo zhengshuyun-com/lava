@@ -16,14 +16,15 @@
 
 package com.zhengshuyun.lava.http;
 
-import com.zhengshuyun.lava.core.lang.Validate;
+import com.zhengshuyun.lava.core.lang.ValidationUtils;
 
+import java.util.Locale;
 import java.util.Objects;
 
 /**
  * HTTP 请求方法
  * <p>
- * 表示 HTTP 请求方法, 参考 Spring Framework 的 HttpMethod 实现.
+ * 表示标准及扩展 HTTP 请求方法.
  *
  * @author Toint
  * @since 2026/1/8
@@ -91,7 +92,7 @@ public final class HttpMethod {
     private final String name;
 
     private HttpMethod(String name) {
-        Validate.notNull(name, "method name must not be null");
+        ValidationUtils.requireNonNull(name, "method name must not be null");
         this.name = name;
     }
 
@@ -119,8 +120,10 @@ public final class HttpMethod {
      * @throws IllegalArgumentException 如果 method 为 blank
      */
     public static HttpMethod valueOf(String method) {
-        Validate.notBlank(method, "method must not be blank");
-        String methodUpperCase = method.toUpperCase();
+        ValidationUtils.requireNotBlank(method, "method must not be blank");
+        // 必须固定 Locale.ROOT: 土耳其语等区域下 "i".toUpperCase() 会得到 "İ" (U+0130),
+        // 导致 options/patch 等含 i 的方法名解析成非法方法
+        String methodUpperCase = method.toUpperCase(Locale.ROOT);
         return switch (methodUpperCase) {
             case "GET" -> GET;
             case "HEAD" -> HEAD;
@@ -143,16 +146,29 @@ public final class HttpMethod {
 
     /**
      * 判断该方法是否允许携带请求体
+     * <p>
+     * 语义与 OkHttp 一致: 除 GET 和 HEAD 之外的方法都允许携带请求体.
+     * <p>
+     * 这里刻意自己实现而不复用 {@code okhttp3.internal.http.HttpMethod}:
+     * 那是 OkHttp 的 internal 包, 不属于公开 API 契约, 随时可能改签名或改包路径,
+     * 基础库不应该把稳定性押在上游内部实现上.
      */
     public boolean permitsRequestBody() {
-        return okhttp3.internal.http.HttpMethod.permitsRequestBody(name);
+        return !("GET".equals(name) || "HEAD".equals(name));
     }
 
     /**
      * 判断该方法是否必须携带请求体
+     * <p>
+     * 语义与 OkHttp 一致, 覆盖 POST、PUT、PATCH、QUERY 以及 WebDAV 的 PROPPATCH、REPORT.
+     *
+     * @see #permitsRequestBody()
      */
     public boolean requiresRequestBody() {
-        return okhttp3.internal.http.HttpMethod.requiresRequestBody(this.name);
+        return switch (name) {
+            case "POST", "PUT", "PATCH", "QUERY", "PROPPATCH", "REPORT" -> true;
+            default -> false;
+        };
     }
 
     @Override

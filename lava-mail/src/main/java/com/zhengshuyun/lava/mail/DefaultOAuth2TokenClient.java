@@ -36,14 +36,14 @@ final class DefaultOAuth2TokenClient implements OAuth2TokenClient {
     static HttpClient createPrivateHttpClient() {
         // token 请求不继承应用拦截器、Cookie、连接池和重试策略，避免凭证跨边界传播。
         return HttpClient.builder()
-                .setConnectTimeout(Duration.ofSeconds(10))
-                .setReadTimeout(Duration.ofSeconds(10))
-                .setWriteTimeout(Duration.ofSeconds(10))
-                .setCallTimeout(Duration.ofSeconds(20))
-                .setFollowRedirects(false)
-                .setFollowSslRedirects(false)
-                .setRetryOnConnectionFailure(false)
-                .setMaxBufferedResponseBytes(MAX_TOKEN_RESPONSE_BYTES)
+                .connectTimeout(Duration.ofSeconds(10))
+                .readTimeout(Duration.ofSeconds(10))
+                .writeTimeout(Duration.ofSeconds(10))
+                .callTimeout(Duration.ofSeconds(20))
+                .followRedirects(false)
+                .followSslRedirects(false)
+                .retryOnConnectionFailure(false)
+                .maxBufferedResponseBytes(MAX_TOKEN_RESPONSE_BYTES)
                 .build();
     }
 
@@ -58,9 +58,11 @@ final class DefaultOAuth2TokenClient implements OAuth2TokenClient {
         ValidationUtils.requireNonNull(credential, "credential");
         ValidationUtils.requireNonNull(clock, "clock");
         HttpRequest request = HttpRequest.post(credential.tokenEndpoint().toString())
-                .setFormBody(form(credential))
+                .formBody(form(credential))
                 .build();
-        try (HttpResponse response = http.execute(request)) {
+        HttpResponse response;
+        try {
+            response = http.send(request);
             // 错误响应体可能含敏感诊断信息，因此状态失败时不读取也不保留正文。
             if (!response.isSuccessful()) {
                 MailFailureKind kind = response.getCode() == 400

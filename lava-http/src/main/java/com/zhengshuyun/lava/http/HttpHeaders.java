@@ -16,231 +16,247 @@
 
 package com.zhengshuyun.lava.http;
 
+import com.zhengshuyun.lava.core.lang.ValidationUtils;
+import org.jspecify.annotations.Nullable;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+
 /**
- * HTTP 请求头常量
- * <p>
- * 包含常用的 HTTP 请求头和响应头名称
+ * 不可变且保持插入顺序的 HTTP 请求头。
  *
- * @author Toint
- * @since 2026/1/12
+ * <p>请求头名称按大小写不敏感规则查找；名称和值都会在到达传输层前校验。
+ * 请求头值有意只接受可见 ASCII 字符和水平制表符；这可拒绝 CR/LF 注入、控制字符
+ * 以及含义不明确的非 ASCII 线缆编码。</p>
  */
 public final class HttpHeaders {
 
-    private HttpHeaders() {
+    private static final HttpHeaders EMPTY = new HttpHeaders(List.of());
+
+    /** 交替存放的名称和值条目。 */
+    private final List<String> namesAndValues;
+
+    private HttpHeaders(List<String> namesAndValues) {
+        this.namesAndValues = List.copyOf(namesAndValues);
     }
 
-    /**
-     * Accept: 客户端能够接收的内容类型
-     * <p>
-     * 例如: application/json, text/html, *&#47;*
-     */
-    public static final String ACCEPT = "Accept";
+    public static HttpHeaders of() {
+        return EMPTY;
+    }
 
-    /**
-     * Accept-Charset: 客户端能够接收的字符集
-     * <p>
-     * 例如: utf-8, iso-8859-1
-     */
-    public static final String ACCEPT_CHARSET = "Accept-Charset";
+    public static HttpHeaders of(String... namesAndValues) {
+        ValidationUtils.requireNonNull(namesAndValues, "namesAndValues must not be null");
+        if ((namesAndValues.length & 1) != 0) {
+            throw new IllegalArgumentException("namesAndValues must contain name/value pairs");
+        }
+        Builder builder = builder();
+        for (int index = 0; index < namesAndValues.length; index += 2) {
+            builder.add(namesAndValues[index], namesAndValues[index + 1]);
+        }
+        return builder.build();
+    }
 
-    /**
-     * Accept-Encoding: 客户端能够接收的编码格式
-     * <p>
-     * 例如: gzip, deflate, br
-     */
-    public static final String ACCEPT_ENCODING = "Accept-Encoding";
+    public static Builder builder() {
+        return new Builder();
+    }
 
-    /**
-     * Accept-Language: 客户端能够接收的语言
-     * <p>
-     * 例如: zh-CN, en-US
-     */
-    public static final String ACCEPT_LANGUAGE = "Accept-Language";
+    public @Nullable String get(String name) {
+        requireName(name);
+        for (int index = namesAndValues.size() - 2; index >= 0; index -= 2) {
+            if (namesAndValues.get(index).equalsIgnoreCase(name)) {
+                return namesAndValues.get(index + 1);
+            }
+        }
+        return null;
+    }
 
-    /**
-     * Authorization: 身份认证信息
-     * <p>
-     * 例如: Bearer token, Basic base64credentials
-     */
-    public static final String AUTHORIZATION = "Authorization";
+    public List<String> values(String name) {
+        requireName(name);
+        List<String> result = new ArrayList<>();
+        for (int index = 0; index < namesAndValues.size(); index += 2) {
+            if (namesAndValues.get(index).equalsIgnoreCase(name)) {
+                result.add(namesAndValues.get(index + 1));
+            }
+        }
+        return List.copyOf(result);
+    }
 
-    /**
-     * Cache-Control: 缓存控制
-     * <p>
-     * 例如: no-cache, max-age=3600
-     */
-    public static final String CACHE_CONTROL = "Cache-Control";
+    public boolean contains(String name) {
+        return get(name) != null;
+    }
 
-    /**
-     * Connection: 连接选项
-     * <p>
-     * 例如: keep-alive, close
-     */
-    public static final String CONNECTION = "Connection";
+    public Set<String> names() {
+        Set<String> canonical = new LinkedHashSet<>();
+        Set<String> result = new LinkedHashSet<>();
+        for (int index = 0; index < namesAndValues.size(); index += 2) {
+            String name = namesAndValues.get(index);
+            if (canonical.add(name.toLowerCase(Locale.ROOT))) {
+                result.add(name);
+            }
+        }
+        return Collections.unmodifiableSet(result);
+    }
 
-    /**
-     * Content-Length: 请求体长度
-     */
-    public static final String CONTENT_LENGTH = "Content-Length";
+    public int size() {
+        return namesAndValues.size() / 2;
+    }
 
-    /**
-     * Content-Type: 请求体的MIME类型
-     * <p>
-     * 例如: application/json, application/x-www-form-urlencoded
-     */
-    public static final String CONTENT_TYPE = "Content-Type";
+    public boolean isEmpty() {
+        return namesAndValues.isEmpty();
+    }
 
-    /**
-     * Cookie: 客户端Cookie
-     * <p>
-     * 例如: sessionid=abc123; userid=456
-     */
-    public static final String COOKIE = "Cookie";
+    public String name(int index) {
+        checkIndex(index);
+        return namesAndValues.get(index * 2);
+    }
 
-    /**
-     * Date: 消息发送的日期和时间
-     */
-    public static final String DATE = "Date";
+    public String value(int index) {
+        checkIndex(index);
+        return namesAndValues.get(index * 2 + 1);
+    }
 
-    /**
-     * Host: 服务器域名
-     * <p>
-     * 例如: www.example.com
-     */
-    public static final String HOST = "Host";
+    /** 返回适用于元数据和诊断的安全快照。 */
+    public HttpHeaders redacted() {
+        if (isEmpty()) {
+            return this;
+        }
+        Builder builder = builder();
+        for (int index = 0; index < size(); index++) {
+            String name = name(index);
+            builder.add(name, HttpRedactionUtils.redactHeaderValue(name, value(index)));
+        }
+        return builder.build();
+    }
 
-    /**
-     * If-Modified-Since: 条件请求, 仅在资源被修改后才返回
-     */
-    public static final String IF_MODIFIED_SINCE = "If-Modified-Since";
+    static HttpHeaders fromOkHttp(okhttp3.Headers headers) {
+        Builder builder = builder();
+        for (int index = 0; index < headers.size(); index++) {
+            builder.add(headers.name(index), headers.value(index));
+        }
+        return builder.build();
+    }
 
-    /**
-     * If-None-Match: 条件请求, 配合ETag使用
-     */
-    public static final String IF_NONE_MATCH = "If-None-Match";
+    okhttp3.Headers toOkHttp() {
+        okhttp3.Headers.Builder builder = new okhttp3.Headers.Builder();
+        for (int index = 0; index < size(); index++) {
+            // 值在插入时已校验，因此使用常规的安全 OkHttp API 即可。
+            builder.add(name(index), value(index));
+        }
+        return builder.build();
+    }
 
-    /**
-     * Origin: 请求的来源 (用于CORS)
-     * <p>
-     * 例如: https://example.com
-     */
-    public static final String ORIGIN = "Origin";
+    private void checkIndex(int index) {
+        if (index < 0 || index >= size()) {
+            throw new IndexOutOfBoundsException(index);
+        }
+    }
 
-    /**
-     * Referer: 引用页面的地址
-     * <p>
-     * 例如: https://example.com/page1
-     */
-    public static final String REFERER = "Referer";
+    private static void requireName(@Nullable String name) {
+        ValidationUtils.requireNonNull(name, "header name must not be null");
+        if (name.isEmpty()) {
+            throw new IllegalArgumentException("header name must not be empty");
+        }
+        for (int index = 0; index < name.length(); index++) {
+            char c = name.charAt(index);
+            if (!isTokenCharacter(c)) {
+                throw new IllegalArgumentException("invalid HTTP header name");
+            }
+        }
+    }
 
-    /**
-     * User-Agent: 用户代理字符串
-     * <p>
-     * 例如: Mozilla/5.0 (Windows NT 10.0; Win64; x64)...
-     */
-    public static final String USER_AGENT = "User-Agent";
+    private static void requireValue(@Nullable String value) {
+        ValidationUtils.requireNonNull(value, "header value must not be null");
+        for (int index = 0; index < value.length(); index++) {
+            char c = value.charAt(index);
+            if (c != '\t' && (c < 0x20 || c > 0x7e)) {
+                throw new IllegalArgumentException("invalid HTTP header value");
+            }
+        }
+    }
 
-    /**
-     * X-Requested-With: 标识Ajax请求
-     * <p>
-     * 通常值为: XMLHttpRequest
-     */
-    public static final String X_REQUESTED_WITH = "X-Requested-With";
+    private static boolean isTokenCharacter(char c) {
+        return (c >= 'a' && c <= 'z')
+                || (c >= 'A' && c <= 'Z')
+                || (c >= '0' && c <= '9')
+                || "!#$%&'*+-.^_`|~".indexOf(c) >= 0;
+    }
 
-    /**
-     * X-Forwarded-For: 客户端真实IP (通过代理时)
-     */
-    public static final String X_FORWARDED_FOR = "X-Forwarded-For";
+    @Override
+    public boolean equals(@Nullable Object object) {
+        return object instanceof HttpHeaders other && namesAndValues.equals(other.namesAndValues);
+    }
 
-    /**
-     * X-Real-IP: 客户端真实IP (Nginx代理)
-     */
-    public static final String X_REAL_IP = "X-Real-IP";
+    @Override
+    public int hashCode() {
+        return namesAndValues.hashCode();
+    }
 
-    /**
-     * Range: 请求资源的部分内容 (用于断点续传)
-     * <p>
-     * 例如: bytes=0-1023
-     */
-    public static final String RANGE = "Range";
+    /** 敏感值始终会被脱敏。 */
+    @Override
+    public String toString() {
+        StringBuilder result = new StringBuilder();
+        for (int index = 0; index < size(); index++) {
+            String name = name(index);
+            result.append(name).append(": ")
+                    .append(HttpRedactionUtils.redactHeaderValue(name, value(index)))
+                    .append('\n');
+        }
+        return result.toString();
+    }
 
-    /**
-     * Upgrade: 协议升级
-     * <p>
-     * 例如: websocket
-     */
-    public static final String UPGRADE = "Upgrade";
+    public static final class Builder {
+        private final List<String> namesAndValues = new ArrayList<>();
 
-    // 响应头
+        private Builder() {
+        }
 
-    /**
-     * Content-Disposition: 内容处理方式
-     * <p>
-     * 例如: attachment; filename="file.txt"
-     */
-    public static final String CONTENT_DISPOSITION = "Content-Disposition";
+        public Builder add(String name, String value) {
+            requireName(name);
+            requireValue(value);
+            namesAndValues.add(name);
+            namesAndValues.add(value);
+            return this;
+        }
 
-    /**
-     * Content-Encoding: 响应体的编码格式
-     * <p>
-     * 例如: gzip, deflate
-     */
-    public static final String CONTENT_ENCODING = "Content-Encoding";
+        public Builder set(String name, String value) {
+            requireName(name);
+            requireValue(value);
+            remove(name);
+            return add(name, value);
+        }
 
-    /**
-     * Set-Cookie: 设置Cookie
-     */
-    public static final String SET_COOKIE = "Set-Cookie";
+        public Builder remove(String name) {
+            requireName(name);
+            for (int index = namesAndValues.size() - 2; index >= 0; index -= 2) {
+                if (namesAndValues.get(index).equalsIgnoreCase(name)) {
+                    namesAndValues.remove(index + 1);
+                    namesAndValues.remove(index);
+                }
+            }
+            return this;
+        }
 
-    /**
-     * Location: 重定向地址
-     */
-    public static final String LOCATION = "Location";
+        public Builder addAll(Map<String, String> headers) {
+            ValidationUtils.requireNonNull(headers, "headers must not be null");
+            headers.forEach(this::add);
+            return this;
+        }
 
-    /**
-     * ETag: 资源的唯一标识
-     */
-    public static final String ETAG = "ETag";
+        public Builder addAll(HttpHeaders headers) {
+            ValidationUtils.requireNonNull(headers, "headers must not be null");
+            for (int index = 0; index < headers.size(); index++) {
+                add(headers.name(index), headers.value(index));
+            }
+            return this;
+        }
 
-    /**
-     * Last-Modified: 资源的最后修改时间
-     */
-    public static final String LAST_MODIFIED = "Last-Modified";
-
-    /**
-     * Expires: 响应过期时间
-     */
-    public static final String EXPIRES = "Expires";
-
-    /**
-     * Transfer-Encoding: 传输编码方式
-     * <p>
-     * 例如: chunked
-     */
-    public static final String TRANSFER_ENCODING = "Transfer-Encoding";
-
-    /**
-     * Access-Control-Allow-Origin: CORS允许的源
-     */
-    public static final String ACCESS_CONTROL_ALLOW_ORIGIN = "Access-Control-Allow-Origin";
-
-    /**
-     * Access-Control-Allow-Methods: CORS允许的HTTP方法
-     */
-    public static final String ACCESS_CONTROL_ALLOW_METHODS = "Access-Control-Allow-Methods";
-
-    /**
-     * Access-Control-Allow-Headers: CORS允许的请求头
-     */
-    public static final String ACCESS_CONTROL_ALLOW_HEADERS = "Access-Control-Allow-Headers";
-
-    /**
-     * Access-Control-Allow-Credentials: CORS是否允许携带认证信息
-     */
-    public static final String ACCESS_CONTROL_ALLOW_CREDENTIALS = "Access-Control-Allow-Credentials";
-
-    /**
-     * Access-Control-Max-Age: CORS预检请求的有效期
-     */
-    public static final String ACCESS_CONTROL_MAX_AGE = "Access-Control-Max-Age";
+        public HttpHeaders build() {
+            return namesAndValues.isEmpty() ? EMPTY : new HttpHeaders(namesAndValues);
+        }
+    }
 }

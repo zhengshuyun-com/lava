@@ -26,6 +26,10 @@
         <groupId>com.zhengshuyun</groupId>
         <artifactId>lava-mail</artifactId>
     </dependency>
+    <dependency>
+        <groupId>com.zhengshuyun</groupId>
+        <artifactId>lava-ai</artifactId>
+    </dependency>
 </dependencies>
 ```
 
@@ -35,7 +39,7 @@
 
 | 版本 | 构件 |
 | --- | --- |
-| 与 BOM 相同 | `lava-core`、`lava-json`、`lava-http`、`lava-schedule`、`lava-crypto`、`lava-mail` |
+| 与 BOM 相同 | `lava-core`、`lava-json`、`lava-http`、`lava-ai`、`lava-schedule`、`lava-crypto`、`lava-mail` |
 
 BOM 管理版本不等于声明依赖。应用仍需在自己的 `<dependencies>` 中声明实际使用的 Lava 模块，只省略 `<version>`；声明 Lava 模块后，该模块的生产依赖会按 Maven 规则传递。只有应用直接使用 Jackson、OkHttp、JUnit 等第三方 API 时，才需要自行声明对应依赖并管理其版本。
 

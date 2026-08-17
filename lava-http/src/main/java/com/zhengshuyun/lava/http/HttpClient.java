@@ -3,509 +3,882 @@
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
  */
 
 package com.zhengshuyun.lava.http;
 
-import com.zhengshuyun.lava.core.id.IdUtil;
-import com.zhengshuyun.lava.core.io.IoUtil;
-import com.zhengshuyun.lava.core.lang.Validate;
+import com.zhengshuyun.lava.core.id.IdUtils;
+import com.zhengshuyun.lava.core.lang.ValidationUtils;
+import com.zhengshuyun.lava.json.JsonCodec;
 import okhttp3.*;
 import okhttp3.sse.EventSource;
 import okhttp3.sse.EventSourceListener;
 import okhttp3.sse.EventSources;
 import org.jspecify.annotations.Nullable;
+import tools.jackson.core.type.TypeReference;
 
+import javax.net.ssl.SSLException;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.InterruptedIOException;
+import java.net.*;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 
 /**
- * HTTP 客户端封装类
- * <p>
- * 基于 OkHttp 实现的同步 HTTP 客户端, 提供统一的请求执行接口和灵活的配置能力.
+ * 实例作用域的同步 HTTP 和 SSE 客户端。
  *
- * @author Toint
- * @since 2026/1/8
+ * <p>通过 {@link #builder()} 创建的客户端拥有其传输资源。外部 OkHttp 客户端只能通过
+ * {@link OkHttpInterop} 包装，并明确选择借入或拥有语义；关闭包装器只会取消由该包装器创建的调用。</p>
  */
-public final class HttpClient {
+public final class HttpClient implements AutoCloseable {
+    /**
+     * 默认缓冲响应正文的最大字节数。
+     */
+    public static final int DEFAULT_MAX_BUFFERED_RESPONSE_BYTES = 16 * 1024 * 1024;
+    /**
+     * 失败 SSE 握手中允许保留的最大响应正文字节数。
+     */
+    private static final long MAX_SSE_FAILURE_BODY_BYTES = 1024 * 1024L;
 
     /**
-     * 底层 OkHttp 客户端实例
+     * 执行 HTTP 调用的底层客户端。
      */
     private final OkHttpClient okHttpClient;
-
     /**
-     * 私有无参构造函数, 防止直接实例化
+     * 是否由当前实例关闭底层连接池、调度器和缓存。
      */
-    private HttpClient() {
-        throw new RuntimeException();
+    private final boolean ownsResources;
+    /**
+     * 默认的缓冲响应正文大小上限。
+     */
+    private final int maxBufferedResponseBytes;
+    /**
+     * 相对 URL 的解析基准；未配置时为 null。
+     */
+    private final @Nullable URI baseUrl;
+    /**
+     * 每个请求都会合并的默认请求头。
+     */
+    private final HttpHeaders defaultHeaders;
+    /**
+     * JSON 请求和响应使用的编解码器。
+     */
+    private final JsonCodec jsonCodec;
+    /**
+     * 简洁 SSE API 使用的默认读取空闲超时。
+     */
+    private final Duration sseIdleTimeout;
+    /**
+     * 客户端关闭标记，阻止新调用加入活动集合。
+     */
+    private final AtomicBoolean closed = new AtomicBoolean();
+    /**
+     * 当前正在执行或等待调用方关闭的 HTTP 调用。
+     */
+    private final Set<Call> activeCalls = ConcurrentHashMap.newKeySet();
+    /**
+     * 当前仍可能接收事件的 SSE 会话。
+     */
+    private final Set<HttpSseSession> activeSseSessions = ConcurrentHashMap.newKeySet();
+
+    HttpClient(OkHttpClient okHttpClient, boolean ownsResources, int maxBufferedResponseBytes) {
+        this(okHttpClient, ownsResources, maxBufferedResponseBytes, null,
+                HttpHeaders.of(), JsonCodec.defaultCodec(), SseOptions.DEFAULT_IDLE_TIMEOUT);
+    }
+
+    HttpClient(OkHttpClient okHttpClient, boolean ownsResources, int maxBufferedResponseBytes,
+               @Nullable URI baseUrl, HttpHeaders defaultHeaders, JsonCodec jsonCodec,
+               Duration sseIdleTimeout) {
+        this.okHttpClient = ValidationUtils.requireNonNull(okHttpClient, "okHttpClient must not be null");
+        this.ownsResources = ownsResources;
+        this.maxBufferedResponseBytes = requireBufferLimit(maxBufferedResponseBytes);
+        this.baseUrl = baseUrl;
+        this.defaultHeaders = ValidationUtils.requireNonNull(defaultHeaders,
+                "defaultHeaders must not be null");
+        this.jsonCodec = ValidationUtils.requireNonNull(jsonCodec,
+                "jsonCodec must not be null");
+        Duration idleTimeout = ValidationUtils.requireNonNull(sseIdleTimeout,
+                "sseIdleTimeout must be non-negative");
+        ValidationUtils.requireTrue(!idleTimeout.isNegative(),
+                "sseIdleTimeout must be non-negative");
+        this.sseIdleTimeout = idleTimeout;
     }
 
     /**
-     * 使用已有的 OkHttpClient 实例构造 HttpClient
+     * 创建客户端构建器。
      *
-     * @param client 非 null 的 OkHttpClient 实例
-     */
-    public HttpClient(OkHttpClient client) {
-        Validate.notNull(client, "OkHttpClient must not be null");
-        this.okHttpClient = client;
-    }
-
-    /**
-     * 创建 Builder 实例用于构建 HttpClient
-     *
-     * @return Builder 构建器
+     * @return 新的客户端构建器
      */
     public static Builder builder() {
         return new Builder();
     }
 
     /**
-     * @see HttpClient#execute(HttpRequest, Builder)
+     * 使用默认调用选项执行请求并完整缓冲响应。
+     *
+     * @param request 待执行的请求
+     * @return HTTP 响应，包含已缓冲的响应体
      */
-    public HttpResponse execute(HttpRequest request) {
-        return execute(request, null);
+    public HttpResponse send(HttpRequest request) {
+        return send(request, RequestOptions.defaults());
     }
 
     /**
-     * 同步执行请求
-     *
-     * @param request HTTP 请求
-     * @param config  方法级自定义配置 (仅支持部分配置)
-     * @return HTTP 响应
-     * @throws HttpException 请求失败时抛出
+     * 使用新命名的单次请求选项发送缓冲请求。
      */
-    public HttpResponse execute(HttpRequest request, @Nullable Builder config) {
-        Validate.notNull(request, "HttpRequest must not be null");
+    public HttpResponse send(HttpRequest request, RequestOptions options) {
+        RequestOptions effectiveOptions = ValidationUtils.requireNonNull(options, "options must not be null");
+        return sendBuffered(request, effectiveOptions, effectiveOptions.maxBufferedResponseBytes());
+    }
 
-        final OkHttpClient client = getClient(config);
+    /**
+     * 使用客户端 JSON 编解码器编码请求体；传入的 body 会替换 request 原有请求体。
+     */
+    public HttpResponse sendJson(HttpRequest request, Object body) {
+        return send(ValidationUtils.requireNonNull(request, "request must not be null")
+                .withBody(HttpBodyUtils.json(body, jsonCodec)));
+    }
 
-        Response response = null;
-        try {
-            // 记录开始时间
-            Instant requestTime = Instant.now();
-            // 执行请求
-            response = client.newCall(request.toOkHttpRequest()).execute();
-            // 记录结束时间
-            Instant responseTime = Instant.now();
+    /**
+     * 发送 JSON 并在成功时直接解码目标类型。
+     */
+    public <T> T sendJson(HttpRequest request, Object body, Class<T> responseType) {
+        ValidationUtils.requireNonNull(request, "request must not be null");
+        ValidationUtils.requireNonNull(responseType, "responseType must not be null");
+        return sendJson(request, body).requireSuccess()
+                .bodyAs(responseType);
+    }
 
-            // 构建元数据
-            HttpCallMetadata metadata = HttpCallMetadata.builder()
-                    .setRequestId(IdUtil.randomUUIDWithoutDash())
-                    .setUrl(request.getUrl())
-                    .setMethod(request.getMethod().getName())
-                    .setRequestTime(requestTime)
-                    .setResponseTime(responseTime)
-                    .setRequestHeaders(request.getHeaders())
-                    .setResponseHeaders(response.headers())
-                    .setProtocol(response.protocol().name())
-                    .setStatusCode(response.code())
-                    .setStatusMessage(response.message())
-                    .build();
+    /**
+     * 使用泛型类型信息发送并解码 JSON。
+     */
+    public <T> T sendJson(HttpRequest request, Object body, TypeReference<T> responseType) {
+        ValidationUtils.requireNonNull(request, "request must not be null");
+        ValidationUtils.requireNonNull(responseType, "responseType must not be null");
+        return sendJson(request, body).requireSuccess()
+                .bodyAs(responseType);
+    }
 
-            // 创建并返回 HttpResponse (response 的生命周期由 HttpResponse 管理, 此处无需 close) 
-            return HttpResponse.of(response, metadata);
-        } catch (IOException e) {
-            // 确保 response 被关闭以避免资源泄漏
-            IoUtil.closeQuietly(response);
-            throw new HttpException("HTTP request failed: " + e.getMessage(), e);
-        } catch (RuntimeException e) {
-            IoUtil.closeQuietly(response);
-            throw e;
+    /**
+     * 执行请求并完整缓冲响应。即使服务端省略或谎报 Content-Length，仍会强制执行配置的响应上限。
+     * HTTP 4xx/5xx 响应会作为正常响应返回。
+     *
+     * @param request 待执行的请求
+     * @param options 本次调用的超时选项
+     * @return HTTP 响应，包含已缓冲的响应体
+     */
+    private HttpResponse sendBuffered(HttpRequest request, RequestOptions options) {
+        return sendBuffered(request, options, maxBufferedResponseBytes);
+    }
+
+    private HttpResponse sendBuffered(HttpRequest request, RequestOptions options,
+                                      @Nullable Integer maxResponseBytesOverride) {
+        requireRequestAndOptions(request, options);
+        ensureOpen();
+        Call call = newCall(request, options);
+        register(call);
+        Instant requestTime = Instant.now();
+        long startedNanos = System.nanoTime();
+
+        // try-with-resources 覆盖所有返回路径，确保缓冲完成后连接可以复用。
+        try (Response response = call.execute()) {
+            long declaredLength = response.body().contentLength();
+            int maximum = maxResponseBytesOverride == null
+                    ? maxBufferedResponseBytes : maxResponseBytesOverride;
+            if (declaredLength > maximum) {
+                throw responseTooLarge(request, maximum);
+            }
+            byte[] body = readBounded(response.body(), maximum, request);
+            ensureCallNotCancelled(call, request);
+            HttpCallMetadata metadata = metadata(request, response, requestTime, startedNanos);
+            return new HttpResponse(response.code(), response.message(),
+                    HttpHeaders.fromOkHttp(response.headers()), body,
+                    HttpResponse.responseCharset(response), metadata, response.protocol().toString(), jsonCodec);
+        } catch (IOException exception) {
+            throw transportFailure(request, exception, call.isCanceled());
+        } finally {
+            activeCalls.remove(call);
         }
     }
 
     /**
-     * 执行 SSE 请求.
+     * 执行请求但不缓冲响应；调用方必须关闭返回的响应。
      *
-     * @param request  HTTP 请求
-     * @param listener SSE 监听器
-     * @return SSE 会话
+     * @param request 待执行的请求
+     * @param options 本次调用的超时选项
+     * @return 调用方负责关闭的流式响应
      */
-    public HttpSseSession executeSse(HttpRequest request, HttpSseListener listener) {
-        return executeSse(request, listener, null);
+    private HttpStreamingResponse streamInternal(HttpRequest request, RequestOptions options) {
+        requireRequestAndOptions(request, options);
+        ensureOpen();
+        Call call = newCall(request, options);
+        register(call);
+        Instant requestTime = Instant.now();
+        long startedNanos = System.nanoTime();
+        Response response = null;
+        boolean handedOff = false;
+        try {
+            response = call.execute();
+            ensureCallNotCancelled(call, request);
+            // 响应所有权在此转交给 HttpStreamingResponse；关闭其句柄时才移除活动调用。
+            HttpStreamingResponse result = new HttpStreamingResponse(
+                    response, metadata(request, response, requestTime, startedNanos),
+                    () -> activeCalls.remove(call));
+            handedOff = true;
+            return result;
+        } catch (IOException exception) {
+            closeQuietly(response);
+            throw transportFailure(request, exception, call.isCanceled());
+        } catch (RuntimeException exception) {
+            closeQuietly(response);
+            throw exception;
+        } finally {
+            if (!handedOff) {
+                activeCalls.remove(call);
+            }
+        }
     }
 
     /**
-     * 执行 SSE 请求.
+     * 使用默认调用选项打开简洁的流式响应句柄。
      *
-     * @param request  HTTP 请求
-     * @param listener SSE 监听器
-     * @param config   方法级自定义配置
-     * @return SSE 会话
+     * @param request 待执行的请求
+     * @return 调用方负责关闭的流式响应句柄
      */
-    public HttpSseSession executeSse(HttpRequest request, HttpSseListener listener, @Nullable Builder config) {
-        Validate.notNull(request, "HttpRequest must not be null");
-        Validate.notNull(listener, "HttpSseListener must not be null");
+    public HttpStream openStream(HttpRequest request) {
+        return new HttpStream(streamInternal(request, RequestOptions.defaults()));
+    }
 
-        final OkHttpClient client = getClient(config);
-        final HttpSseSession session = new HttpSseSession();
+    /**
+     * 使用单次调用选项打开简洁的流式响应句柄。
+     *
+     * @param request 待执行的请求
+     * @param options 本次调用的超时选项
+     * @return 调用方负责关闭的流式响应句柄
+     */
+    public HttpStream openStream(HttpRequest request, RequestOptions options) {
+        return new HttpStream(streamInternal(request,
+                ValidationUtils.requireNonNull(options, "options must not be null")));
+    }
+
+    /**
+     * 启动一个 SSE 会话。取消、远端关闭和失败是不同的终态事件。
+     *
+     * @param request  SSE 请求
+     * @param options  本次调用的超时选项
+     * @param listener 接收会话事件的监听器
+     * @return 可用于取消会话的句柄
+     */
+    HttpSseSession openSse(HttpRequest request, RequestOptions options,
+                           HttpSseListener listener) {
+        requireRequestAndOptions(request, options);
+        ValidationUtils.requireNonNull(listener, "listener must not be null");
+        ensureOpen();
+        // 请求配置错误在注册会话前同步暴露，避免同时产生异常和终态回调。
+        Request transportRequest = request.toOkHttpRequest(baseUrl, defaultHeaders);
+        HttpSseSession session = new HttpSseSession(listener, activeSseSessions::remove);
+        activeSseSessions.add(session);
+        if (closed.get()) {
+            session.cancel();
+            throw new IllegalStateException("HTTP client is closed");
+        }
 
         try {
-            EventSource.Factory factory = EventSources.createFactory(client);
-            EventSource eventSource = factory.newEventSource(request.toOkHttpRequest(), new EventSourceListener() {
-                @Override
-                public void onOpen(EventSource eventSource, Response response) {
-                    // SSE 握手已经成功建立, 这里通常用于感知建连成功并暴露响应头、状态码等元信息.
-                    listener.onOpen(session, new HttpSseOpen(response.code(), response.headers()));
-                }
-
-                @Override
-                public void onEvent(EventSource eventSource, String id, String type, String data) {
-                    // 每收到一条完整 SSE 事件就回调一次, 框架层负责把 OkHttp 原生参数收敛成稳定事件对象.
-                    HttpSseEvent event = new HttpSseEvent(id, type, data);
-                    listener.onEvent(session, event);
-                }
-
-                @Override
-                public void onClosed(EventSource eventSource) {
-                    // 服务端正常结束流或客户端正常关闭时回调, 这里统一更新会话关闭状态.
-                    session.markClosed();
-                    listener.onClosed(session);
-                }
-
-                @Override
-                public void onFailure(EventSource eventSource, Throwable throwable, Response response) {
-                    // 建连失败、HTTP 非 2xx、流中断等异常场景都会进入这里, 尽量补齐状态码和错误响应体.
-                    session.markClosed();
-
-                    Integer statusCode = null;
-                    Headers headers = null;
-                    String responseBody = null;
-                    if (response != null) {
-                        statusCode = response.code();
-                        headers = response.headers();
-                        if (response.body() != null) {
-                            try {
-                                responseBody = response.peekBody(1024 * 1024L).string();
-                            } catch (IOException ignored) {
-                                // 忽略错误响应体读取失败, 交给调用方处理主异常.
-                            }
+            // SSE 请求默认不可重放，禁止 OkHttp 在底层静默重试造成重复生成。
+            OkHttpClient callClient = clientFor(options, true);
+            EventSource.Factory factory = EventSources.createFactory(callClient);
+            EventSource source = factory.newEventSource(
+                    transportRequest, new EventSourceListener() {
+                        @Override
+                        public void onOpen(EventSource eventSource, Response response) {
+                            session.bind(eventSource);
+                            session.opened(new HttpSseOpen(response.code(),
+                                    HttpHeaders.fromOkHttp(response.headers())));
                         }
-                    }
-                    HttpSseFailure failure = new HttpSseFailure(throwable, statusCode, headers, responseBody);
-                    listener.onFailure(session, failure);
-                }
-            });
-            session.bind(eventSource);
+
+                        @Override
+                        public void onEvent(EventSource eventSource, @Nullable String id,
+                                            @Nullable String type, String data) {
+                            session.bind(eventSource);
+                            session.event(new HttpSseEvent(id,
+                                    type == null ? HttpSseEvent.DEFAULT_TYPE : type, data));
+                        }
+
+                        @Override
+                        public void onClosed(EventSource eventSource) {
+                            session.bind(eventSource);
+                            session.remoteClosed();
+                        }
+
+                        @Override
+                        public void onFailure(EventSource eventSource, @Nullable Throwable throwable,
+                                              @Nullable Response response) {
+                            session.bind(eventSource);
+                            Integer status = null;
+                            HttpHeaders headers = null;
+                            String body = null;
+                            if (response != null) {
+                                status = response.code();
+                                headers = HttpHeaders.fromOkHttp(response.headers());
+                                body = peekFailureBody(response);
+                            }
+                            HttpFailureKind kind = throwable == null
+                                    ? HttpFailureKind.PROTOCOL : classify(throwable, false);
+                            session.fail(new HttpSseFailure(kind, throwable, status, headers, body));
+                        }
+                    });
+            session.bind(source);
             return session;
         } catch (RuntimeException exception) {
-            throw new HttpException("HTTP SSE request failed: " + exception.getMessage(), exception);
+            HttpSseFailure failure = new HttpSseFailure(
+                    classify(exception, false), exception, null, null, null);
+            session.fail(failure);
+            throw new HttpException(failure.kind(), request.getMethod().getName(), requestUrl(request),
+                    "could not start SSE session", exception);
         }
     }
 
     /**
-     * 获取客户端实例 (支持方法级配置覆盖)
-     * <p>
-     * 当传入 config 时, 基于基础客户端创建一个新实例并应用配置覆盖；
-     * 否则直接返回基础客户端.
-     *
-     * @param config 方法级自定义配置, 可能为 null
-     * @return OkHttpClient 实例
+     * 使用简洁命名的通用 SSE 入口。
      */
-    private OkHttpClient getClient(@Nullable Builder config) {
-        if (config == null) {
-            return okHttpClient;
+    public SseSession openSse(HttpRequest request, SseListener listener) {
+        return openSse(request, SseOptions.builder().idleTimeout(sseIdleTimeout).build(), listener);
+    }
+
+    /** 使用底层 SSE 事件模型打开会话。 */
+    HttpSseSession openSse(HttpRequest request, HttpSseListener listener) {
+        return openSse(request, RequestOptions.defaults(), listener);
+    }
+
+    /**
+     * 启动 SSE，并将总调用超时关闭为空闲超时。
+     */
+    public SseSession openSse(HttpRequest request, SseOptions options, SseListener listener) {
+        ValidationUtils.requireNonNull(request, "request must not be null");
+        ValidationUtils.requireNonNull(options, "options must not be null");
+        ValidationUtils.requireNonNull(listener, "listener must not be null");
+        SseSession wrapper = new SseSession(listener);
+        HttpRequest effective = request;
+        // 显式指定 Accept，避免服务端按普通 HTTP 响应协商；调用方自己的请求头优先。
+        if (!effective.getHeaders().contains(HttpHeaderNames.ACCEPT)) {
+            effective = copyWithHeader(effective, HttpHeaderNames.ACCEPT, "text/event-stream");
+        }
+        if (options.lastEventId() != null) {
+            effective = copyWithHeader(effective, HttpHeaderNames.LAST_EVENT_ID,
+                    options.lastEventId());
+        }
+        RequestOptions callOptions = RequestOptions.builder()
+                .readTimeout(options.idleTimeout())
+                // SSE 可能长期没有业务事件，总调用超时会错误地截断有效会话。
+                .callTimeout(Duration.ZERO)
+                .build();
+        HttpSseSession delegate = openSse(effective, callOptions, new HttpSseListener() {
+            @Override
+            public void onOpen(HttpSseSession session, HttpSseOpen open) {
+                wrapper.opened(open.statusCode(), open.headers());
+            }
+
+            @Override
+            public void onEvent(HttpSseSession session, HttpSseEvent event) {
+                wrapper.event(SseEvent.from(event));
+            }
+
+            @Override
+            public void onTerminal(HttpSseSession session, HttpSseTerminal terminal) {
+                wrapper.terminal(SseTerminal.from(terminal));
+            }
+        });
+        wrapper.bind(delegate);
+        return wrapper;
+    }
+
+    /**
+     * 判断客户端是否已经关闭。
+     *
+     * @return 已关闭时为 true
+     */
+    public boolean isClosed() {
+        return closed.get();
+    }
+
+    @Override
+    public void close() {
+        if (!closed.compareAndSet(false, true)) {
+            return;
+        }
+
+        // 绝不能调用 dispatcher.cancelAll()：借入的客户端可能被无关使用方共享。
+        for (HttpSseSession session : List.copyOf(activeSseSessions)) {
+            session.cancel();
+        }
+        for (Call call : List.copyOf(activeCalls)) {
+            call.cancel();
+        }
+
+        if (ownsResources) {
+            okHttpClient.dispatcher().executorService().shutdown();
+            okHttpClient.connectionPool().evictAll();
+            okhttp3.Cache cache = okHttpClient.cache();
+            if (cache != null) {
+                try {
+                    cache.close();
+                } catch (IOException ignored) {
+                    // 调用和传输资源均已释放。
+                }
+            }
+        }
+    }
+
+    OkHttpClient okHttpClient() {
+        return okHttpClient;
+    }
+
+    int maxBufferedResponseBytes() {
+        return maxBufferedResponseBytes;
+    }
+
+    private Call newCall(HttpRequest request, RequestOptions options) {
+        return clientFor(options).newCall(request.toOkHttpRequest(baseUrl, defaultHeaders));
+    }
+
+    private static HttpRequest copyWithHeader(HttpRequest request, String name, String value) {
+        return request.withHeader(name, value);
+    }
+
+    private OkHttpClient clientFor(RequestOptions options) {
+        return clientFor(options, false);
+    }
+
+    private OkHttpClient clientFor(RequestOptions options, boolean disableRetry) {
+        if (options.isDefault()) {
+            return disableRetry ? okHttpClient.newBuilder()
+                    .retryOnConnectionFailure(false).build() : okHttpClient;
         }
         OkHttpClient.Builder builder = okHttpClient.newBuilder();
-        return config.applyTo(builder).build();
+        // 每次覆盖都基于原客户端派生，连接池、调度器和拦截器仍保持一致。
+        if (disableRetry) {
+            builder.retryOnConnectionFailure(false);
+        }
+        if (options.connectTimeout() != null) {
+            builder.connectTimeout(options.connectTimeout());
+        }
+        if (options.readTimeout() != null) {
+            builder.readTimeout(options.readTimeout());
+        }
+        if (options.writeTimeout() != null) {
+            builder.writeTimeout(options.writeTimeout());
+        }
+        if (options.callTimeout() != null) {
+            builder.callTimeout(options.callTimeout());
+        }
+        return builder.build();
+    }
+
+    private void register(Call call) {
+        activeCalls.add(call);
+        if (closed.get()) {
+            activeCalls.remove(call);
+            call.cancel();
+            throw new IllegalStateException("HTTP client is closed");
+        }
+    }
+
+    private void ensureOpen() {
+        if (closed.get()) {
+            throw new IllegalStateException("HTTP client is closed");
+        }
+    }
+
+    private void ensureCallNotCancelled(Call call, HttpRequest request) {
+        if (call.isCanceled() || closed.get()) {
+            throw new HttpException(HttpFailureKind.CANCELLED, request.getMethod().getName(),
+                    requestUrl(request), "call was cancelled", null);
+        }
+    }
+
+    private HttpException responseTooLarge(HttpRequest request, int maximum) {
+        return new HttpException(HttpFailureKind.RESPONSE_TOO_LARGE,
+                request.getMethod().getName(), requestUrl(request),
+                "buffered response exceeds " + maximum + " bytes", null);
+    }
+
+    private String requestUrl(HttpRequest request) {
+        return request.resolvedUrl(baseUrl);
+    }
+
+    private byte[] readBounded(ResponseBody body, int maximum, HttpRequest request)
+            throws IOException {
+        try (InputStream input = body.byteStream()) {
+            ByteArrayOutputStream output = new ByteArrayOutputStream(Math.min(maximum, 8192));
+            byte[] buffer = new byte[Math.min(maximum + 1, 8192)];
+            while (true) {
+                int remaining = maximum - output.size();
+                int read = input.read(buffer, 0, Math.min(buffer.length, remaining + 1));
+                if (read < 0) {
+                    return output.toByteArray();
+                }
+                if (read > remaining) {
+                    throw new HttpException(HttpFailureKind.RESPONSE_TOO_LARGE,
+                            request.getMethod().getName(), requestUrl(request),
+                            "buffered response exceeds " + maximum + " bytes", null);
+                }
+                output.write(buffer, 0, read);
+            }
+        }
+    }
+
+    private HttpCallMetadata metadata(HttpRequest request, Response response,
+                                      Instant requestTime, long startedNanos) {
+        Duration duration = Duration.ofNanos(Math.max(0L, System.nanoTime() - startedNanos));
+        return HttpCallMetadata.builder()
+                .requestId(IdUtils.nextUUIDString())
+                .url(requestUrl(request))
+                .method(request.getMethod().getName())
+                .requestTime(requestTime)
+                .responseTime(requestTime.plus(duration))
+                .duration(duration)
+                .requestHeaders(request.effectiveHeaders(defaultHeaders))
+                .responseHeaders(HttpHeaders.fromOkHttp(response.headers()))
+                .protocol(response.protocol().toString())
+                .statusCode(response.code())
+                .statusMessage(response.message())
+                .build();
+    }
+
+    private HttpException transportFailure(HttpRequest request, Throwable throwable,
+                                           boolean cancelled) {
+        return new HttpException(classify(throwable, cancelled), request.getMethod().getName(),
+                requestUrl(request), "transport failure", throwable);
+    }
+
+    static HttpFailureKind classify(Throwable throwable, boolean cancelled) {
+        // OkHttp 在配置的超时触发时会将调用标记为已取消。查询 isCanceled() 前应保留 TIMEOUT，
+        // 同时显式取消仍优先于下方的套接字关闭噪声。
+        for (Throwable current = throwable; current != null; current = current.getCause()) {
+            if (current instanceof InterruptedIOException) {
+                return HttpFailureKind.TIMEOUT;
+            }
+        }
+        if (cancelled) {
+            return HttpFailureKind.CANCELLED;
+        }
+        for (Throwable current = throwable; current != null; current = current.getCause()) {
+            switch (current) {
+                case UnknownHostException unknownHostException -> {
+                    return HttpFailureKind.DNS;
+                }
+                case SSLException sslException -> {
+                    return HttpFailureKind.TLS;
+                }
+                case ProtocolException protocolException -> {
+                    return HttpFailureKind.PROTOCOL;
+                }
+                case SocketException socketException -> {
+                    return HttpFailureKind.CONNECTION;
+                }
+                default -> {
+                }
+            }
+        }
+        return HttpFailureKind.IO;
+    }
+
+    private static @Nullable String peekFailureBody(Response response) {
+        try {
+            return response.peekBody(MAX_SSE_FAILURE_BODY_BYTES).string();
+        } catch (IOException | RuntimeException ignored) {
+            return null;
+        }
+    }
+
+    private static void closeQuietly(@Nullable Response response) {
+        if (response != null) {
+            response.close();
+        }
+    }
+
+    private static void requireRequestAndOptions(@Nullable HttpRequest request,
+                                                 @Nullable RequestOptions options) {
+        ValidationUtils.requireNonNull(request, "request must not be null");
+        ValidationUtils.requireNonNull(options, "options must not be null");
+    }
+
+    private static int requireBufferLimit(int value) {
+        ValidationUtils.requireTrue(value >= 0 && value != Integer.MAX_VALUE,
+                "maxBufferedResponseBytes must be between 0 and 2147483646");
+        return value;
     }
 
     /**
-     * HTTP 客户端构建器
-     * <p>
-     * 用于构建 HttpClient 实例, 支持配置超时、连接池、重试、重定向、拦截器、Cookie、代理等.
-     * 也可作为方法级配置传递给 execute() 方法, 覆盖默认配置.
+     * 客户端级配置；单次调用的超时属于 {@link RequestOptions}。
      */
-    public final static class Builder {
+    public static final class Builder {
+        public static final Duration DEFAULT_CONNECT_TIMEOUT = Duration.ofSeconds(10);
+        public static final Duration DEFAULT_READ_TIMEOUT = Duration.ofSeconds(30);
+        public static final Duration DEFAULT_WRITE_TIMEOUT = Duration.ofSeconds(10);
+        public static final Duration DEFAULT_CALL_TIMEOUT = Duration.ofSeconds(60);
+        public static final int DEFAULT_MAX_IDLE_CONNECTIONS = 10;
+        public static final Duration DEFAULT_KEEP_ALIVE_DURATION = Duration.ofMinutes(5);
 
-        /**
-         * 连接超时时间
-         * <p>
-         * 建立TCP连接的最长等待时间
-         */
-        private Duration connectTimeout = Duration.ofSeconds(10);
-
-        /**
-         * 读取超时时间
-         * <p>
-         * 从服务器读取响应数据的最长等待时间.
-         * <p>
-         * 注意: 不是"整个读取过程的总时间", 而是"两次读取数据之间的最大间隔"
-         */
-        private Duration readTimeout = Duration.ofSeconds(30);
-
-        /**
-         * 写入超时时间
-         * <p>
-         * 向服务器写入请求数据的最长等待时间
-         * <p>
-         * 注意: 大文件上传需单独配置更长的时间
-         */
-        private Duration writeTimeout = Duration.ofSeconds(10);
-
-        /**
-         * 总调用超时时间
-         * <p>
-         * 整个请求的最长时间 (连接+写入+读取)
-         * <p>
-         * 为什么必须修改：
-         * - OkHttp默认0 (不限制) , 可能导致请求永久挂起
-         * - 防止重试、重定向等导致的累积延迟
-         * - 给用户一个明确的最长等待时间
-         */
-        private Duration callTimeout = Duration.ofSeconds(60);
-
-        /**
-         * 连接池最大空闲连接数
-         */
-        private int maxIdleConnections = 10;
-
-        /**
-         * 连接保持存活时间
-         * <p>
-         * 空闲连接在池中的最长保持时间
-         */
-        private Duration keepAliveDuration = Duration.ofMinutes(5);
-
-        /**
-         * 连接失败时是否自动重试
-         * <p>
-         * 默认情况下, 只有少数几种[连接/握手层面的失败]会自动重试, 而且有很多硬性限制.
-         * 而且对于「非幂等、不能重复执行」的业务 (支付、下单、扣款等) 有影响
-         * 最安全的方式: 让业务层控制重试, 底层库只负责发送请求
-         */
-        private final boolean retryOnConnectionFailure = false;
-
-        /**
-         * 是否自动跟随协议内重定向 (如 301, 302, 303 等状态码)
-         * <p>
-         * 如果为 true, OkHttp 会自动请求 Location 指定的新地址；
-         * 如果为 false, 则将重定向响应当作普通响应直接返回给开发者.
-         */
+        /** 建立连接的默认超时时间；零表示不限制。 */
+        private Duration connectTimeout = DEFAULT_CONNECT_TIMEOUT;
+        /** 读取响应数据的默认超时时间；零表示不限制。 */
+        private Duration readTimeout = DEFAULT_READ_TIMEOUT;
+        /** 写出请求数据的默认超时时间；零表示不限制。 */
+        private Duration writeTimeout = DEFAULT_WRITE_TIMEOUT;
+        /** 单次 HTTP 调用的默认总超时时间；零表示不限制。 */
+        private Duration callTimeout = DEFAULT_CALL_TIMEOUT;
+        /** 连接池允许保留的最大空闲连接数。 */
+        private int maxIdleConnections = DEFAULT_MAX_IDLE_CONNECTIONS;
+        /** 空闲连接在连接池中的最长保留时间。 */
+        private Duration keepAliveDuration = DEFAULT_KEEP_ALIVE_DURATION;
+        /** 是否启用连接失败后的底层自动重试。 */
+        private boolean retryOnConnectionFailure;
+        /** 是否自动跟随同协议 HTTP 重定向。 */
         private boolean followRedirects = true;
+        /** 是否允许跟随 HTTP 与 HTTPS 之间的重定向。 */
+        private boolean followSslRedirects;
+        /** 客户端级代理配置；未设置时直连。 */
+        private @Nullable HttpProxy proxy;
+        /** 缓冲响应正文允许的最大字节数。 */
+        private int maxBufferedResponseBytes = DEFAULT_MAX_BUFFERED_RESPONSE_BYTES;
+        /** 解析相对请求 URL 时使用的客户端基地址。 */
+        private @Nullable URI baseUrl;
+        /** 每个请求都会继承的默认请求头。 */
+        private HttpHeaders.Builder defaultHeaders = HttpHeaders.builder();
+        /** 客户端级 JSON 请求体和响应使用的编解码器。 */
+        private JsonCodec jsonCodec = JsonCodec.defaultCodec();
+        /** SSE 事件之间允许的默认空闲时间；零表示不限制。 */
+        private Duration sseIdleTimeout = SseOptions.DEFAULT_IDLE_TIMEOUT;
+        /** 在构建底层 OkHttp 客户端前执行的定制器。 */
+        private final List<Consumer<OkHttpClient.Builder>> okHttpCustomizers = new ArrayList<>();
+
+        private Builder() {
+        }
 
         /**
-         * 是否允许跨协议重定向 (例如从 HTTP 重定向到 HTTPS, 或反之)
-         * <p>
-         * 仅当 {@link #followRedirects} 为 true 时此配置才生效.
-         * 出于安全考虑, 建议结合业务场景谨慎开启 (通常建议关闭, 防止 HTTPS 被降级到 HTTP) .
-         */
-        private boolean followSslRedirects = false;
-        /**
-         * 自定义应用拦截器
-         * <p>
-         * 作用：添加通用逻辑 (认证、公共参数、加解密等)
-         * <p>
-         * 为什么必须配置：
-         * - 几乎所有生产应用都需要添加认证信息
-         * - 需要统一处理公共Header (User-Agent、Accept-Language等)
-         * - 需要统一错误处理和重试逻辑
-         * <p>
-         * 国际主流用途：
-         * - 添加Authorization头 (JWT、OAuth2等)
-         * - 添加API Key
-         * - 添加请求签名
-         * - 添加设备信息
-         * - 统一错误码处理
-         * - 请求加密/响应解密
-         * <p>
-         * 示例：
-         * builder.addInterceptor(chain -> {
-         * Request request = chain.request().newBuilder()
-         * .header("Authorization", "Bearer " + token)
-         * .header("User-Agent", "MyApp/1.0")
-         * .build();
-         * return chain.proceed(request);
-         * });
-         */
-        private final List<Interceptor> interceptors = new ArrayList<>();
-
-        /**
-         * Cookie管理器
-         * <p>
-         * 作用：自动保存和发送Cookie
-         * <p>
-         * 为什么需要配置：
-         * - OkHttp默认不管理Cookie (CookieJar.NO_COOKIES)
-         * - Web应用几乎都需要会话管理
-         * - 移动端可能需要持久化Cookie
-         * <p>
-         * 国际主流用途：
-         * - Web应用：必须实现 (会话保持)
-         * - 移动应用：看需求 (登录态保持)
-         * - 服务端调用：通常不需要
-         * <p>
-         * 默认值：NO_COOKIES (不管理Cookie, 适合无状态的API调用)
-         */
-        private CookieJar cookieJar = CookieJar.NO_COOKIES;
-
-        /**
-         * 代理
-         */
-        private HttpProxy proxy;
-
-        /**
-         * 设置连接超时时间
+         * 设置建立连接的超时时间。
          *
-         * @param timeout 超时时间, Duration.ZERO 表示禁用超时
+         * @param timeout 非负的超时时间，零表示不超时
+         * @return 当前构建器
          */
-        public Builder setConnectTimeout(Duration timeout) {
-            Validate.notNull(timeout, "connectTimeout must not be null");
-            Validate.isFalse(timeout.isNegative(), "connectTimeout must not be negative, use Duration.ZERO to disable");
-            this.connectTimeout = timeout;
+        public Builder connectTimeout(Duration timeout) {
+            connectTimeout = requireTimeout(timeout, "connectTimeout");
             return this;
         }
 
         /**
-         * 设置读取超时时间
+         * 设置读取响应数据的超时时间。
          *
-         * @param timeout 超时时间, Duration.ZERO 表示禁用超时
+         * @param timeout 非负的超时时间，零表示不超时
+         * @return 当前构建器
          */
-        public Builder setReadTimeout(Duration timeout) {
-            Validate.notNull(timeout, "readTimeout must not be null");
-            Validate.isFalse(timeout.isNegative(), "readTimeout must not be negative, use Duration.ZERO to disable");
-            this.readTimeout = timeout;
+        public Builder readTimeout(Duration timeout) {
+            readTimeout = requireTimeout(timeout, "readTimeout");
             return this;
         }
 
         /**
-         * 设置写入超时时间
+         * 设置写出请求数据的超时时间。
          *
-         * @param timeout 超时时间, Duration.ZERO 表示禁用超时
+         * @param timeout 非负的超时时间，零表示不超时
+         * @return 当前构建器
          */
-        public Builder setWriteTimeout(Duration timeout) {
-            Validate.notNull(timeout, "writeTimeout must not be null");
-            Validate.isFalse(timeout.isNegative(), "writeTimeout must not be negative, use Duration.ZERO to disable");
-            this.writeTimeout = timeout;
+        public Builder writeTimeout(Duration timeout) {
+            writeTimeout = requireTimeout(timeout, "writeTimeout");
             return this;
         }
 
         /**
-         * 设置总调用超时时间
+         * 设置整个 HTTP 调用的超时时间。
          *
-         * @param timeout 超时时间, Duration.ZERO 表示禁用超时
+         * @param timeout 非负的超时时间，零表示不超时
+         * @return 当前构建器
          */
-        public Builder setCallTimeout(Duration timeout) {
-            Validate.notNull(timeout, "callTimeout must not be null");
-            Validate.isFalse(timeout.isNegative(), "callTimeout must not be negative, use Duration.ZERO to disable");
-            this.callTimeout = timeout;
+        public Builder callTimeout(Duration timeout) {
+            callTimeout = requireTimeout(timeout, "callTimeout");
             return this;
         }
 
         /**
-         * 设置是否自动跟随协议内重定向
+         * 设置是否自动跟随 HTTP 重定向。
+         *
+         * @param followRedirects 为 true 时自动跟随重定向
+         * @return 当前构建器
          */
-        public Builder setFollowRedirects(boolean followRedirects) {
+        public Builder followRedirects(boolean followRedirects) {
             this.followRedirects = followRedirects;
             return this;
         }
 
         /**
-         * 设置是否允许跨协议重定向
+         * 设置是否允许跨协议 SSL 重定向。
+         *
+         * @param followSslRedirects 为 true 时允许跨协议重定向
+         * @return 当前构建器
          */
-        public Builder setFollowSslRedirects(boolean followSslRedirects) {
+        public Builder followSslRedirects(boolean followSslRedirects) {
             this.followSslRedirects = followSslRedirects;
             return this;
         }
 
         /**
-         * 设置连接池配置
-         */
-        public Builder setConnectionPool(int maxIdleConnections, Duration keepAliveDuration) {
-            this.maxIdleConnections = maxIdleConnections;
-            this.keepAliveDuration = keepAliveDuration;
-            return this;
-        }
-
-        /**
-         * 添加应用拦截器
-         */
-        public Builder addInterceptor(Interceptor interceptor) {
-            this.interceptors.add(interceptor);
-            return this;
-        }
-
-        /**
-         * 设置Cookie管理器
-         */
-        public Builder setCookieJar(CookieJar cookieJar) {
-            this.cookieJar = cookieJar;
-            return this;
-        }
-
-        /**
-         * 设置代理配置
+         * 设置连接失败时是否由底层客户端自动重试。
          *
-         * @param proxy 代理配置 (包含代理选择器和认证器)
-         * @return this
+         * @param retryOnConnectionFailure 为 true 时启用自动重试
+         * @return 当前构建器
          */
-        public Builder setProxy(HttpProxy proxy) {
-            this.proxy = proxy;
+        public Builder retryOnConnectionFailure(boolean retryOnConnectionFailure) {
+            this.retryOnConnectionFailure = retryOnConnectionFailure;
             return this;
         }
 
         /**
-         * 构建 OkHttpClient
+         * 设置连接池保留的空闲连接数和存活时间。
+         *
+         * @param maxIdleConnections 最大空闲连接数，不能为负数
+         * @param keepAliveDuration  空闲连接存活时间，必须为正数
+         * @return 当前构建器
+         */
+        public Builder connectionPool(int maxIdleConnections, Duration keepAliveDuration) {
+            ValidationUtils.requireTrue(maxIdleConnections >= 0,
+                    "maxIdleConnections must not be negative");
+            Duration keepAlive = ValidationUtils.requireNonNull(keepAliveDuration,
+                    "keepAliveDuration must be positive");
+            ValidationUtils.requireTrue(!keepAlive.isZero() && !keepAlive.isNegative(),
+                    "keepAliveDuration must be positive");
+            this.maxIdleConnections = maxIdleConnections;
+            this.keepAliveDuration = keepAlive;
+            return this;
+        }
+
+        /**
+         * 设置客户端级代理配置。
+         *
+         * @param proxy 代理配置
+         * @return 当前构建器
+         */
+        public Builder proxy(HttpProxy proxy) {
+            this.proxy = ValidationUtils.requireNonNull(proxy, "proxy must not be null");
+            return this;
+        }
+
+        /**
+         * 设置完整缓冲响应允许的最大字节数。
+         *
+         * @param maximum 最大字节数，范围为 0 至 2147483646
+         * @return 当前构建器
+         */
+        public Builder maxBufferedResponseBytes(int maximum) {
+            maxBufferedResponseBytes = requireBufferLimit(maximum);
+            return this;
+        }
+
+        /**
+         * 设置客户端默认基地址；请求可以继续使用绝对 URL。
+         */
+        public Builder baseUrl(String value) {
+            ValidationUtils.requireNotBlank(value, "baseUrl must not be blank");
+            try {
+                return baseUrl(new URI(value));
+            } catch (java.net.URISyntaxException exception) {
+                throw new IllegalArgumentException("baseUrl must be a valid URI", exception);
+            }
+        }
+
+        /**
+         * 设置客户端默认基地址。
+         */
+        public Builder baseUrl(URI value) {
+            ValidationUtils.requireNonNull(value, "baseUrl must not be null");
+            if (!value.isAbsolute()
+                    || !("http".equalsIgnoreCase(value.getScheme())
+                    || "https".equalsIgnoreCase(value.getScheme()))) {
+                throw new IllegalArgumentException("baseUrl must be an absolute HTTP or HTTPS URI");
+            }
+            if (value.getQuery() != null || value.getFragment() != null) {
+                throw new IllegalArgumentException("baseUrl must not contain query or fragment");
+            }
+            String text = value.toString();
+            baseUrl = URI.create(text.endsWith("/") ? text : text + "/");
+            return this;
+        }
+
+        /**
+         * 添加一个客户端默认 header。
+         */
+        public Builder defaultHeader(String name, String value) {
+            defaultHeaders.set(name, value);
+            return this;
+        }
+
+        /**
+         * 替换客户端全部默认 header。
+         */
+        public Builder defaultHeaders(HttpHeaders headers) {
+            ValidationUtils.requireNonNull(headers, "headers must not be null");
+            defaultHeaders = HttpHeaders.builder();
+            defaultHeaders.addAll(headers);
+            return this;
+        }
+
+        public Builder bearerToken(String value) {
+            return defaultHeader(HttpHeaderNames.AUTHORIZATION,
+                    "Bearer " + ValidationUtils.requireNonNull(value, "token must not be null"));
+        }
+
+        /**
+         * 设置 JSON 编解码器。
+         */
+        public Builder jsonCodec(JsonCodec value) {
+            jsonCodec = ValidationUtils.requireNonNull(value, "jsonCodec must not be null");
+            return this;
+        }
+
+        /**
+         * 设置 SSE 的默认空闲超时；零表示不限制。
+         */
+        public Builder sseIdleTimeout(Duration value) {
+            Duration timeout = ValidationUtils.requireNonNull(value,
+                    "sseIdleTimeout must be non-negative");
+            ValidationUtils.requireTrue(!timeout.isNegative(),
+                    "sseIdleTimeout must be non-negative");
+            sseIdleTimeout = timeout;
+            return this;
+        }
+
+        Builder customizeOkHttp(Consumer<OkHttpClient.Builder> customizer) {
+            ValidationUtils.requireNonNull(customizer, "customizer must not be null");
+            okHttpCustomizers.add(customizer);
+            return this;
+        }
+
+        /**
+         * 创建拥有其底层传输资源的 HTTP 客户端。
+         *
+         * @return 新的 HTTP 客户端
          */
         public HttpClient build() {
-            OkHttpClient.Builder builder = new OkHttpClient.Builder();
-
-            // 连接池 (仅在 build 时设置, 方法级配置不支持修改连接池) 
-            builder.connectionPool(new ConnectionPool(
-                    maxIdleConnections,
-                    keepAliveDuration.toMillis(),
-                    TimeUnit.MILLISECONDS
-            ));
-
-            // 应用其他配置
-            OkHttpClient okHttpClient = applyTo(builder).build();
-            return new HttpClient(okHttpClient);
-        }
-
-        /**
-         * 将当前配置应用到 OkHttpClient.Builder
-         * <p>
-         * 用于 build() 和 execute() 方法级配置覆盖, 避免重复代码
-         *
-         * @param builder OkHttpClient.Builder 实例
-         */
-        private OkHttpClient.Builder applyTo(OkHttpClient.Builder builder) {
-            // 超时配置
-            builder.connectTimeout(connectTimeout)
+            OkHttpClient.Builder builder = new OkHttpClient.Builder()
+                    .connectionPool(new ConnectionPool(maxIdleConnections,
+                            keepAliveDuration.toMillis(), TimeUnit.MILLISECONDS))
+                    .connectTimeout(connectTimeout)
                     .readTimeout(readTimeout)
                     .writeTimeout(writeTimeout)
-                    .callTimeout(callTimeout);
-
-            // 重试与重定向配置
-            builder.retryOnConnectionFailure(retryOnConnectionFailure)
+                    .callTimeout(callTimeout)
+                    .retryOnConnectionFailure(retryOnConnectionFailure)
                     .followRedirects(followRedirects)
                     .followSslRedirects(followSslRedirects);
-
-            // 自定义拦截器
-            for (Interceptor interceptor : interceptors) {
-                builder.addInterceptor(interceptor);
-            }
-
-            // Cookie 管理
-            if (cookieJar != null) {
-                builder.cookieJar(cookieJar);
-            }
-
-            // 代理配置
             if (proxy != null) {
                 if (proxy.getProxySelector() != null) {
                     builder.proxySelector(proxy.getProxySelector());
@@ -514,8 +887,17 @@ public final class HttpClient {
                     builder.proxyAuthenticator(proxy.getAuthenticator());
                 }
             }
+            for (Consumer<OkHttpClient.Builder> customizer : okHttpCustomizers) {
+                customizer.accept(builder);
+            }
+            return new HttpClient(builder.build(), true, maxBufferedResponseBytes, baseUrl,
+                    defaultHeaders.build(), jsonCodec, sseIdleTimeout);
+        }
 
-            return builder;
+        private static Duration requireTimeout(@Nullable Duration value, String name) {
+            Duration timeout = ValidationUtils.requireNonNull(value, name + " must be non-negative");
+            ValidationUtils.requireTrue(!timeout.isNegative(), name + " must be non-negative");
+            return timeout;
         }
     }
 }

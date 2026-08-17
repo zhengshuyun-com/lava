@@ -68,6 +68,12 @@
                 <artifactId>lava-http</artifactId>
                 <version>${project.version}</version>
             </dependency>
+            <!-- 协议中立的 AI JSON/SSE 便利层。 -->
+            <dependency>
+                <groupId>com.zhengshuyun</groupId>
+                <artifactId>lava-ai</artifactId>
+                <version>${project.version}</version>
+            </dependency>
             <!-- 进程内定时调度。 -->
             <dependency>
                 <groupId>com.zhengshuyun</groupId>

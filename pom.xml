@@ -54,6 +54,7 @@
         <module>lava-core</module>
         <module>lava-json</module>
         <module>lava-http</module>
+        <module>lava-ai</module>
         <module>lava-schedule</module>
         <module>lava-bom</module>
         <module>lava-crypto</module>

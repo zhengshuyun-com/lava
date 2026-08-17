@@ -16,8 +16,7 @@
 
 package com.zhengshuyun.lava.http;
 
-import com.zhengshuyun.lava.core.lang.Validate;
-import okhttp3.Headers;
+import com.zhengshuyun.lava.core.lang.ValidationUtils;
 
 /**
  * SSE 建连成功上下文.
@@ -27,8 +26,8 @@ import okhttp3.Headers;
  * @author Toint
  * @since 2026/4/18
  */
-public record HttpSseOpen(int statusCode, Headers headers) {
+record HttpSseOpen(int statusCode, HttpHeaders headers) {
     public HttpSseOpen {
-        Validate.notNull(headers, "headers must not be null");
+        ValidationUtils.requireNonNull(headers, "headers must not be null");
     }
 }
