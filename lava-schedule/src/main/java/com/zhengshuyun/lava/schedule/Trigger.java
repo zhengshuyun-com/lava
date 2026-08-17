@@ -16,276 +16,189 @@
 
 package com.zhengshuyun.lava.schedule;
 
-import com.zhengshuyun.lava.core.lang.Validate;
-import com.zhengshuyun.lava.core.time.ZoneIds;
-import org.quartz.CronScheduleBuilder;
-import org.quartz.SimpleScheduleBuilder;
-import org.quartz.TriggerBuilder;
+import org.jspecify.annotations.Nullable;
+import org.quartz.CronExpression;
 
+import java.text.ParseException;
+import java.time.Duration;
+import java.time.DateTimeException;
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.Date;
+import com.zhengshuyun.lava.core.lang.ValidationUtils;
 import java.util.TimeZone;
-import java.util.function.Supplier;
 
 /**
- * 不可变触发器
- * <p>
- * 支持三种内置模式和自定义扩展: cron, interval(固定间隔), delay(延迟一次), custom(自定义)
- * <pre>{@code
- * // 固定间隔
- * Trigger trigger = Trigger.interval(5000)
- *     .initialDelay(1000)
- *     .repeatCount(10)
- *     .build();
- *
- * // Cron
- * Trigger trigger = Trigger.cron("0 0 2 * * ?").build();
- *
- * // 延迟一次
- * Trigger trigger = Trigger.delay(10000).build();
- *
- * // 自定义策略
- * Trigger trigger = Trigger.custom(() ->
- *     TriggerBuilder.newTrigger()
- *         .startNow()
- *         .withSchedule(...));
- * }</pre>
- *
- * @author Toint
- * @since 2026/2/6
+ * 不可变的进程内调度。Quartz 仅用于计算 Cron 触发时刻；不会向 Quartz 传递用户对象，
+ * 也不会创建 Quartz 调度器。
  */
 public final class Trigger {
 
-    /**
-     * 触发器策略接口
-     * <p>
-     * 用于扩展自定义触发逻辑, 如动态 cron、条件触发等复杂场景
-     */
     @FunctionalInterface
-    interface TriggerStrategy {
+    private interface NextFireTime {
+        @Nullable Instant after(Instant afterExclusive);
+    }
 
-        /**
-         * 转换为 Quartz Trigger
-         *
-         * @param triggerId 触发器 ID
-         * @return Quartz Trigger
-         */
-        org.quartz.Trigger toQuartzTrigger(String triggerId);
+    @FunctionalInterface
+    private interface FirstFireTime {
+        @Nullable Instant from(Instant now);
+    }
+
+    private final FirstFireTime firstFireTime;
+    private final NextFireTime nextFireTime;
+
+    private Trigger(FirstFireTime firstFireTime, NextFireTime nextFireTime) {
+        this.firstFireTime = firstFireTime;
+        this.nextFireTime = nextFireTime;
     }
 
     /**
-     * 触发器策略
-     */
-    private final TriggerStrategy strategy;
-
-    private Trigger(TriggerStrategy strategy) {
-        this.strategy = strategy;
-    }
-
-    // 静态工厂方法
-
-    /**
-     * 创建 Cron 触发器构建器
+     * 创建在指定时刻触发一次的触发器。
      *
-     * @param cronExpression Cron 表达式
-     * @return CronBuilder
+     * @param instant 绝对触发时刻
+     * @return 一次性触发器
      */
-    public static CronBuilder cron(String cronExpression) {
-        return new CronBuilder(cronExpression);
+    public static Trigger at(Instant instant) {
+        Instant fireTime = ValidationUtils.requireNonNull(instant, "instant must not be null");
+        return new Trigger(
+                ignored -> fireTime,
+                afterExclusive -> afterExclusive.isBefore(fireTime) ? fireTime : null);
     }
 
     /**
-     * 创建固定间隔触发器构建器
+     * 创建在指定延迟后触发一次的触发器。
      *
-     * @param intervalMillis 间隔时间(毫秒)
-     * @return IntervalBuilder
+     * @param delay 相对于调度器时钟的延迟；允许为零
+     * @return 一次性触发器
      */
-    public static IntervalBuilder interval(long intervalMillis) {
-        return new IntervalBuilder(intervalMillis);
+    public static Trigger after(Duration delay) {
+        requirePositiveOrZero(delay, "delay");
+        return new Trigger(now -> safePlus(now, delay), ignored -> null);
     }
 
     /**
-     * 创建延迟触发器构建器
+     * 创建固定频率触发器；首次执行发生在一个间隔之后。
      *
-     * @param delayMillis 延迟时间(毫秒)
-     * @return DelayBuilder
+     * @param interval 两次计划执行之间的间隔
+     * @return 固定频率触发器
      */
-    public static DelayBuilder delay(long delayMillis) {
-        return new DelayBuilder(delayMillis);
+    public static Trigger fixedRate(Duration interval) {
+        return fixedRate(interval, interval);
     }
 
     /**
-     * 创建自定义触发器
-     * <p>
-     * 框架自动处理 {@code withIdentity()} 和 {@code build()}, 用户只需提供 {@link TriggerBuilder} 配置
+     * 创建具有相对初始延迟的固定频率触发器。
      *
-     * @param triggerBuilder 触发器构建器供应商
-     * @return 不可变的 Trigger 实例
+     * @param initialDelay 首次执行相对调度时钟的延迟
+     * @param interval 两次计划执行之间的间隔
+     * @return 固定频率触发器
      */
-    public static Trigger custom(Supplier<TriggerBuilder<?>> triggerBuilder) {
-        Validate.notNull(triggerBuilder, "triggerBuilder must not be null");
-        return new Trigger(triggerId -> triggerBuilder.get()
-                .withIdentity(triggerId)
-                .build());
+    public static Trigger fixedRate(Duration initialDelay, Duration interval) {
+        requirePositiveOrZero(initialDelay, "initialDelay");
+        requirePositive(interval, "interval");
+        return new Trigger(
+                now -> safePlus(now, initialDelay),
+                previous -> safePlus(previous, interval));
     }
 
     /**
-     * 转换为 Quartz Trigger
+     * 创建锚定于绝对首次执行时刻的固定频率触发器。
      *
-     * @param triggerId 触发器 ID
-     * @return Quartz Trigger
+     * @param firstExecution 首次执行的绝对时刻
+     * @param interval 两次计划执行之间的间隔
+     * @return 固定频率触发器
      */
-    org.quartz.Trigger toQuartzTrigger(String triggerId) {
-        return strategy.toQuartzTrigger(triggerId);
-    }
-
-    // Builder 类
-
-    /**
-     * Cron 触发器构建器
-     */
-    public static final class CronBuilder {
-
-        /**
-         * Cron 表达式
-         */
-        private final String cron;
-
-        private CronBuilder(String cron) {
-            this.cron = Validate.notBlank(cron, "cron must not be blank");
-        }
-
-        /**
-         * 构建 Trigger
-         *
-         * @return 不可变的 Trigger 实例
-         */
-        public Trigger build() {
-            String cronExpr = this.cron;
-            return new Trigger(triggerId ->
-                    TriggerBuilder.newTrigger()
-                            .withIdentity(triggerId)
-                            .withSchedule(CronScheduleBuilder.cronSchedule(cronExpr)
-                                    .inTimeZone(TimeZone.getTimeZone(ZoneIds.UTC)))
-                            .build());
-        }
+    public static Trigger fixedRate(Instant firstExecution, Duration interval) {
+        Instant first = ValidationUtils.requireNonNull(firstExecution, "firstExecution must not be null");
+        requirePositive(interval, "interval");
+        return new Trigger(
+                ignored -> first,
+                previous -> safePlus(previous, interval));
     }
 
     /**
-     * 固定间隔触发器构建器
+     * 创建 UTC Cron 触发器。
+     *
+     * @param expression Quartz Cron 表达式
+     * @return Cron 触发器
      */
-    public static final class IntervalBuilder {
-
-        /**
-         * 固定间隔(毫秒)
-         */
-        private final long intervalMillis;
-
-        /**
-         * 初始延迟(毫秒)
-         */
-        private long initialDelayMillis;
-
-        /**
-         * 重复次数, -1 表示无限
-         */
-        private int repeatCount = -1;
-
-        private IntervalBuilder(long intervalMillis) {
-            Validate.isTrue(intervalMillis > 0, "intervalMillis must be positive");
-            this.intervalMillis = intervalMillis;
-        }
-
-        /**
-         * 设置初始延迟(毫秒)
-         *
-         * @param initialDelayMillis 初始延迟(毫秒)
-         * @return this
-         */
-        public IntervalBuilder initialDelay(long initialDelayMillis) {
-            Validate.isTrue(initialDelayMillis >= 0, "initialDelayMillis must be non-negative");
-            this.initialDelayMillis = initialDelayMillis;
-            return this;
-        }
-
-        /**
-         * 设置重复次数
-         * <p>
-         * Quartz 语义: 总执行次数 = repeatCount + 1, -1 表示无限重复(默认)
-         *
-         * @param repeatCount 重复次数
-         * @return this
-         */
-        public IntervalBuilder repeatCount(int repeatCount) {
-            Validate.isTrue(repeatCount >= -1, "repeatCount must be >= -1");
-            this.repeatCount = repeatCount;
-            return this;
-        }
-
-        /**
-         * 构建 Trigger
-         *
-         * @return 不可变的 Trigger 实例
-         */
-        public Trigger build() {
-            long interval = this.intervalMillis;
-            long initialDelay = this.initialDelayMillis;
-            int repeat = this.repeatCount;
-            return new Trigger(triggerId -> {
-                TriggerBuilder<org.quartz.Trigger> tb = TriggerBuilder.newTrigger()
-                        .withIdentity(triggerId);
-
-                if (initialDelay > 0) {
-                    tb.startAt(Date.from(Instant.now().plusMillis(initialDelay)));
-                } else {
-                    tb.startNow();
-                }
-
-                SimpleScheduleBuilder ssb = SimpleScheduleBuilder.simpleSchedule()
-                        .withIntervalInMilliseconds(interval);
-
-                if (repeat == -1) {
-                    ssb.repeatForever();
-                } else {
-                    ssb.withRepeatCount(repeat);
-                }
-
-                return tb.withSchedule(ssb).build();
-            });
-        }
+    public static Trigger cron(String expression) {
+        return cron(expression, ZoneOffset.UTC);
     }
 
     /**
-     * 延迟触发器构建器(一次性执行)
+     * 在显式时区中创建 Cron 触发器，并立即校验表达式。
+     *
+     * @param expression Quartz Cron 表达式
+     * @param zoneId 计算本地日期和时间时使用的时区
+     * @return Cron 触发器
+     * @throws IllegalArgumentException 表达式无效或为空白
      */
-    public static final class DelayBuilder {
+    public static Trigger cron(String expression, ZoneId zoneId) {
+        String cron = requireNotBlank(expression, "expression");
+        ZoneId zone = ValidationUtils.requireNonNull(zoneId, "zoneId must not be null");
+        // 在构造时解析一次，确保错误表达式在调用处失败。
+        newCronExpression(cron, zone);
+        NextFireTime calculator = afterExclusive -> {
+            CronExpression parsed = newCronExpression(cron, zone);
+            Date next = parsed.getNextValidTimeAfter(Date.from(afterExclusive));
+            return next == null ? null : next.toInstant();
+        };
+        return new Trigger(calculator::after, calculator);
+    }
 
-        /**
-         * 延迟时间(毫秒)
-         */
-        private final long delayMillis;
+    @Nullable Instant firstFireTime(Instant now) {
+        return firstFireTime.from(now);
+    }
 
-        private DelayBuilder(long delayMillis) {
-            Validate.isTrue(delayMillis > 0, "delayMillis must be positive");
-            this.delayMillis = delayMillis;
+    @Nullable Instant nextFireTime(Instant afterExclusive) {
+        return nextFireTime.after(afterExclusive);
+    }
+
+    /**
+     * 返回严格晚于指定时刻的下一次执行；不存在时返回空。
+     *
+     * @param afterExclusive 查询起点，不包含该时刻
+     * @return 下一次执行时刻；不存在时为 {@code null}
+     */
+    public @Nullable Instant nextExecutionAfter(Instant afterExclusive) {
+        return nextFireTime(ValidationUtils.requireNonNull(afterExclusive, "afterExclusive must not be null"));
+    }
+
+    private static CronExpression newCronExpression(String expression, ZoneId zoneId) {
+        try {
+            CronExpression parsed = new CronExpression(expression);
+            parsed.setTimeZone(TimeZone.getTimeZone(zoneId));
+            return parsed;
+        } catch (ParseException e) {
+            throw new IllegalArgumentException("Invalid Cron expression", e);
         }
+    }
 
-        /**
-         * 构建 Trigger
-         *
-         * @return 不可变的 Trigger 实例
-         */
-        public Trigger build() {
-            long delay = this.delayMillis;
-            return new Trigger(triggerId -> {
-                Date startTime = Date.from(Instant.now().plusMillis(delay));
-                return TriggerBuilder.newTrigger()
-                        .withIdentity(triggerId)
-                        .startAt(startTime)
-                        .withSchedule(SimpleScheduleBuilder.simpleSchedule()
-                                .withRepeatCount(0))
-                        .build();
-            });
+    private static Instant safePlus(Instant instant, Duration duration) {
+        try {
+            return instant.plus(duration);
+        } catch (DateTimeException | ArithmeticException e) {
+            throw new ScheduleException("Trigger time is outside the supported Instant range", e);
         }
+    }
+
+    private static void requirePositive(Duration duration, String name) {
+        requirePositiveOrZero(duration, name);
+        if (duration.isZero()) {
+            throw new IllegalArgumentException(name + " must be positive");
+        }
+    }
+
+    private static void requirePositiveOrZero(Duration duration, String name) {
+        ValidationUtils.requireNonNull(duration, name + " must not be null");
+        if (duration.isNegative()) {
+            throw new IllegalArgumentException(name + " must not be negative");
+        }
+    }
+
+    private static String requireNotBlank(String value, String name) {
+        return ValidationUtils.requireNotBlank(value, name + " must not be blank");
     }
 }

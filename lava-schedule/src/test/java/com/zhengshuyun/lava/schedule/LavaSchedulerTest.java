@@ -1,0 +1,603 @@
+/*
+ * Copyright 2026 zhengshuyun.com
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ */
+
+package com.zhengshuyun.lava.schedule;
+
+import org.junit.jupiter.api.Test;
+
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class LavaSchedulerTest {
+
+    @Test
+    void executesOneShotAndEmitsStructuredSuccessEvent() throws Exception {
+        CountDownLatch completed = new CountDownLatch(1);
+        List<TaskEvent> events = new CopyOnWriteArrayList<>();
+        try (LavaScheduler scheduler = LavaScheduler.builder().listener(event -> {
+            events.add(event);
+            completed.countDown();
+        }).build()) {
+            ScheduledTask task = scheduler.schedule(
+                    "once", () -> { }, Trigger.after(Duration.ofMillis(20)));
+
+            assertTrue(completed.await(2, TimeUnit.SECONDS));
+            assertEquals("once", task.id());
+            assertEquals(TaskEventStatus.SUCCESS, events.getFirst().status());
+            assertNotNull(events.getFirst().startedAt());
+            assertFalse(events.getFirst().completedAt().isBefore(events.getFirst().startedAt()));
+            assertNull(events.getFirst().failure());
+            assertNull(task.nextExecution());
+        }
+    }
+
+    @Test
+    void zeroDelayIsDueNowRatherThanAClockReadMisfire() throws Exception {
+        CountDownLatch completed = new CountDownLatch(1);
+        try (LavaScheduler scheduler = LavaScheduler.create()) {
+            scheduler.schedule("now", completed::countDown, Trigger.after(Duration.ZERO));
+
+            assertTrue(completed.await(2, TimeUnit.SECONDS));
+        }
+    }
+
+    @Test
+    void generatedTaskIdsAreUUIDv7() {
+        try (LavaScheduler scheduler = LavaScheduler.create()) {
+            ScheduledTask task = scheduler.schedule(() -> { }, Trigger.after(Duration.ofHours(1)));
+            java.util.UUID id = java.util.UUID.fromString(task.id());
+
+            assertEquals(7, id.version());
+        }
+    }
+
+    @Test
+    void initialMisfireListenerCannotBlockScheduleWhileClosingTheScheduler() throws Exception {
+        Instant now = Instant.parse("2026-08-17T00:00:00Z");
+        CountDownLatch listenerStarted = new CountDownLatch(1);
+        CountDownLatch allowClose = new CountDownLatch(1);
+        AtomicReference<LavaScheduler> schedulerReference = new AtomicReference<>();
+        LavaScheduler scheduler = LavaScheduler.builder()
+                .clock(Clock.fixed(now, ZoneOffset.UTC))
+                .listener(event -> {
+                    if (event.taskId().equals("initial-misfire")) {
+                        listenerStarted.countDown();
+                        awaitUnchecked(allowClose);
+                        schedulerReference.get().close();
+                    }
+                })
+                .build();
+        schedulerReference.set(scheduler);
+
+        try (ExecutorService caller = Executors.newSingleThreadExecutor()) {
+            var scheduled = caller.submit(() -> scheduler.schedule(
+                    "initial-misfire",
+                    () -> { },
+                    Trigger.at(now.minusSeconds(1)),
+                    new ScheduleOptions(ConcurrencyPolicy.SERIAL_SKIP, MisfirePolicy.SKIP)));
+
+            assertNotNull(scheduled.get(2, TimeUnit.SECONDS));
+            assertTrue(listenerStarted.await(2, TimeUnit.SECONDS));
+            allowClose.countDown();
+            assertTrue(awaitClosed(scheduler));
+        } finally {
+            allowClose.countDown();
+            scheduler.close(Duration.ZERO);
+        }
+    }
+
+    @Test
+    void defaultSerialSkipNeverOverlaps() throws Exception {
+        CountDownLatch started = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        List<TaskEvent> events = new CopyOnWriteArrayList<>();
+        try (LavaScheduler scheduler = LavaScheduler.builder().listener(events::add).build()) {
+            ScheduledTask task = scheduler.schedule("serial", () -> {
+                started.countDown();
+                awaitUnchecked(release);
+            }, Trigger.after(Duration.ofHours(1)));
+
+            task.triggerNow();
+            assertTrue(started.await(2, TimeUnit.SECONDS));
+            task.triggerNow();
+
+            assertTrue(awaitStatus(events, TaskEventStatus.SKIPPED));
+            release.countDown();
+            assertTrue(awaitStatus(events, TaskEventStatus.SUCCESS));
+        }
+    }
+
+    @Test
+    void serialQueueAndParallelPoliciesHaveBoundedPendingQueues() throws Exception {
+        verifyBoundedPolicy(ConcurrencyPolicy.serialQueue(1), 1, 2);
+        verifyBoundedPolicy(ConcurrencyPolicy.parallel(2, 1), 2, 3);
+    }
+
+    @Test
+    void cancelPreventsSubmittedButUnstartedWorkOnBorrowedExecutor() throws Exception {
+        ExecutorService borrowed = Executors.newSingleThreadExecutor();
+        CountDownLatch executorOccupied = new CountDownLatch(1);
+        CountDownLatch releaseExecutor = new CountDownLatch(1);
+        borrowed.execute(() -> {
+            executorOccupied.countDown();
+            awaitUnchecked(releaseExecutor);
+        });
+        assertTrue(executorOccupied.await(2, TimeUnit.SECONDS));
+
+        AtomicInteger executions = new AtomicInteger();
+        LavaScheduler scheduler = LavaScheduler.builder().executor(borrowed).build();
+        try {
+            ScheduledTask task = scheduler.schedule(
+                    "cancel-queued", executions::incrementAndGet, Trigger.after(Duration.ofHours(1)));
+            task.triggerNow();
+
+            assertTrue(task.cancel());
+            releaseExecutor.countDown();
+            borrowed.submit(() -> { }).get(2, TimeUnit.SECONDS);
+
+            assertEquals(0, executions.get());
+            assertFalse(borrowed.isShutdown());
+        } finally {
+            releaseExecutor.countDown();
+            scheduler.close(Duration.ZERO);
+            borrowed.shutdownNow();
+        }
+    }
+
+    @Test
+    void runtimeCoordinatorDelayAppliesSkipAndFireOnceMisfirePolicies() throws Exception {
+        CountDownLatch runningStarted = new CountDownLatch(1);
+        CountDownLatch releaseRunning = new CountDownLatch(1);
+        CountDownLatch coordinatorBlocked = new CountDownLatch(1);
+        CountDownLatch releaseCoordinator = new CountDownLatch(1);
+        CountDownLatch skipObserved = new CountDownLatch(1);
+        CountDownLatch fireOnceRan = new CountDownLatch(1);
+        AtomicInteger skippedExecutions = new AtomicInteger();
+
+        LavaScheduler scheduler = LavaScheduler.builder().listener(event -> {
+            if (event.taskId().equals("coordinator-blocker")
+                    && event.status() == TaskEventStatus.SKIPPED) {
+                coordinatorBlocked.countDown();
+                awaitUnchecked(releaseCoordinator);
+            }
+            if (event.taskId().equals("runtime-skip")
+                    && event.status() == TaskEventStatus.SKIPPED) {
+                skipObserved.countDown();
+            }
+        }).build();
+        try {
+            ScheduledTask blocker = scheduler.schedule("coordinator-blocker", () -> {
+                runningStarted.countDown();
+                awaitUnchecked(releaseRunning);
+            }, Trigger.after(Duration.ofMillis(30)));
+            blocker.triggerNow();
+            assertTrue(runningStarted.await(2, TimeUnit.SECONDS));
+
+            scheduler.schedule(
+                    "runtime-skip",
+                    skippedExecutions::incrementAndGet,
+                    Trigger.after(Duration.ofMillis(100)),
+                    new ScheduleOptions(ConcurrencyPolicy.SERIAL_SKIP, MisfirePolicy.SKIP));
+            scheduler.schedule(
+                    "runtime-fire-once",
+                    fireOnceRan::countDown,
+                    Trigger.after(Duration.ofMillis(100)),
+                    new ScheduleOptions(ConcurrencyPolicy.SERIAL_SKIP, MisfirePolicy.FIRE_ONCE));
+
+            assertTrue(coordinatorBlocked.await(2, TimeUnit.SECONDS));
+            Thread.sleep(150);
+            releaseCoordinator.countDown();
+
+            assertTrue(skipObserved.await(2, TimeUnit.SECONDS));
+            assertTrue(fireOnceRan.await(2, TimeUnit.SECONDS));
+            assertEquals(0, skippedExecutions.get());
+        } finally {
+            releaseCoordinator.countDown();
+            releaseRunning.countDown();
+            scheduler.close();
+        }
+    }
+
+    @Test
+    void sustainedExecutorRejectionDrainsPendingIteratively() throws Exception {
+        int pendingCount = 5_000;
+        ExecutorService borrowed = Executors.newSingleThreadExecutor();
+        CountDownLatch started = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        CountDownLatch rejected = new CountDownLatch(pendingCount);
+        AtomicInteger executions = new AtomicInteger();
+        LavaScheduler scheduler = LavaScheduler.builder()
+                .executor(borrowed)
+                .listener(event -> {
+                    if (event.taskId().equals("iterative-rejection")
+                            && event.status() == TaskEventStatus.REJECTED) {
+                        rejected.countDown();
+                    }
+                })
+                .build();
+        try {
+            ScheduledTask task = scheduler.schedule("iterative-rejection", () -> {
+                executions.incrementAndGet();
+                started.countDown();
+                awaitUnchecked(release);
+            }, Trigger.after(Duration.ofHours(1)), new ScheduleOptions(
+                    ConcurrencyPolicy.serialQueue(pendingCount), MisfirePolicy.SKIP));
+
+            task.triggerNow();
+            assertTrue(started.await(2, TimeUnit.SECONDS));
+            for (int index = 0; index < pendingCount; index++) {
+                task.triggerNow();
+            }
+
+            borrowed.shutdown();
+            release.countDown();
+
+            assertTrue(rejected.await(5, TimeUnit.SECONDS));
+            assertEquals(1, executions.get());
+        } finally {
+            release.countDown();
+            scheduler.close(Duration.ZERO);
+            borrowed.shutdownNow();
+        }
+    }
+
+    private static void verifyBoundedPolicy(
+            ConcurrencyPolicy policy, int initialConcurrency, int expectedExecutions) throws Exception {
+        CountDownLatch started = new CountDownLatch(initialConcurrency);
+        CountDownLatch release = new CountDownLatch(1);
+        AtomicInteger executions = new AtomicInteger();
+        List<TaskEvent> events = new CopyOnWriteArrayList<>();
+        ScheduleOptions options = new ScheduleOptions(policy, MisfirePolicy.SKIP);
+        try (LavaScheduler scheduler = LavaScheduler.builder().listener(events::add).build()) {
+            ScheduledTask task = scheduler.schedule("bounded-" + policy.kind(), () -> {
+                executions.incrementAndGet();
+                started.countDown();
+                awaitUnchecked(release);
+            }, Trigger.after(Duration.ofHours(1)), options);
+
+            for (int index = 0; index < initialConcurrency; index++) {
+                task.triggerNow();
+            }
+            assertTrue(started.await(2, TimeUnit.SECONDS));
+            task.triggerNow();
+            task.triggerNow();
+            assertTrue(awaitStatus(events, TaskEventStatus.REJECTED));
+            release.countDown();
+            assertTrue(awaitCount(executions, expectedExecutions));
+        }
+    }
+
+    @Test
+    void failuresAndListenerFailuresDoNotStopLaterExecutions() throws Exception {
+        CountDownLatch ranTwice = new CountDownLatch(2);
+        AtomicInteger attempts = new AtomicInteger();
+        List<TaskEvent> captured = new CopyOnWriteArrayList<>();
+        try (LavaScheduler scheduler = LavaScheduler.builder().listener(event -> {
+            captured.add(event);
+            throw new IllegalStateException("listener failure");
+        }).build()) {
+            ScheduledTask task = scheduler.schedule("fail", () -> {
+                ranTwice.countDown();
+                if (attempts.getAndIncrement() == 0) {
+                    throw new IllegalArgumentException("task failure");
+                }
+            }, Trigger.after(Duration.ofHours(1)));
+
+            task.triggerNow();
+            assertTrue(awaitStatus(captured, TaskEventStatus.FAILURE));
+            task.triggerNow();
+            assertTrue(ranTwice.await(2, TimeUnit.SECONDS));
+            assertTrue(awaitStatus(captured, TaskEventStatus.SUCCESS));
+            assertEquals(IllegalArgumentException.class,
+                    captured.stream()
+                            .filter(event -> event.status() == TaskEventStatus.FAILURE)
+                            .findFirst()
+                            .orElseThrow()
+                            .failure()
+                            .getClass());
+        }
+    }
+
+    @Test
+    void fixedClockMakesAllMisfirePoliciesDeterministic() throws Exception {
+        Instant now = Instant.parse("2026-08-17T00:00:00Z");
+        Clock clock = Clock.fixed(now, ZoneOffset.UTC);
+        Trigger overdue = Trigger.fixedRate(now.minusSeconds(3), Duration.ofSeconds(1));
+
+        CountDownLatch currentOccurrence = new CountDownLatch(1);
+        List<TaskEvent> skippedEvents = new CopyOnWriteArrayList<>();
+        try (LavaScheduler scheduler = LavaScheduler.builder()
+                .clock(clock)
+                .listener(skippedEvents::add)
+                .build()) {
+            scheduler.schedule("skip", currentOccurrence::countDown, overdue,
+                    new ScheduleOptions(ConcurrencyPolicy.SERIAL_SKIP, MisfirePolicy.SKIP));
+            assertTrue(currentOccurrence.await(2, TimeUnit.SECONDS));
+            assertEquals(3, skippedEvents.stream()
+                    .filter(event -> event.status() == TaskEventStatus.SKIPPED)
+                    .count());
+        }
+
+        CountDownLatch fireOnce = new CountDownLatch(1);
+        try (LavaScheduler scheduler = LavaScheduler.builder().clock(clock).build()) {
+            scheduler.schedule("once-misfire", fireOnce::countDown, overdue,
+                    new ScheduleOptions(ConcurrencyPolicy.SERIAL_SKIP, MisfirePolicy.FIRE_ONCE));
+            assertTrue(fireOnce.await(2, TimeUnit.SECONDS));
+        }
+
+        CountDownLatch catchUp = new CountDownLatch(4);
+        try (LavaScheduler scheduler = LavaScheduler.builder().clock(clock).build()) {
+            scheduler.schedule("catch-up", catchUp::countDown, overdue,
+                    new ScheduleOptions(ConcurrencyPolicy.serialQueue(4), MisfirePolicy.CATCH_UP));
+            assertTrue(catchUp.await(2, TimeUnit.SECONDS));
+        }
+    }
+
+    @Test
+    void catchUpLimitRejectsTheFirstUnprocessedOccurrenceWithoutDuplicatingAStatus()
+            throws Exception {
+        Instant now = Instant.parse("2026-08-17T00:00:00Z");
+        Clock clock = Clock.fixed(now, ZoneOffset.UTC);
+        List<TaskEvent> events = new CopyOnWriteArrayList<>();
+        CountDownLatch rejected = new CountDownLatch(1);
+        try (LavaScheduler scheduler = LavaScheduler.builder()
+                .clock(clock)
+                .listener(event -> {
+                    events.add(event);
+                    if (event.status() == TaskEventStatus.REJECTED) {
+                        rejected.countDown();
+                    }
+                })
+                .build()) {
+            scheduler.schedule(
+                    "catch-up-limit",
+                    () -> { },
+                    Trigger.fixedRate(now.minusSeconds(10_001), Duration.ofSeconds(1)),
+                    new ScheduleOptions(ConcurrencyPolicy.SERIAL_SKIP, MisfirePolicy.SKIP));
+
+            assertTrue(rejected.await(2, TimeUnit.SECONDS));
+            TaskEvent rejectedEvent = events.stream()
+                    .filter(event -> event.status() == TaskEventStatus.REJECTED)
+                    .findFirst()
+                    .orElseThrow();
+            assertEquals(10_000, events.stream()
+                    .filter(event -> event.status() == TaskEventStatus.SKIPPED)
+                    .count());
+            assertFalse(events.stream()
+                    .filter(event -> event.status() == TaskEventStatus.SKIPPED)
+                    .anyMatch(event -> event.scheduledAt().equals(rejectedEvent.scheduledAt())));
+        }
+    }
+
+    @Test
+    void pauseResumeAndCancelAreInstanceScoped() {
+        try (LavaScheduler first = LavaScheduler.create(); LavaScheduler second = LavaScheduler.create()) {
+            ScheduledTask firstTask = first.schedule("same-id", () -> { }, Trigger.after(Duration.ofHours(1)));
+            ScheduledTask secondTask = second.schedule("same-id", () -> { }, Trigger.after(Duration.ofHours(1)));
+
+            firstTask.pause();
+            assertTrue(firstTask.isPaused());
+            assertFalse(secondTask.isPaused());
+            firstTask.resume();
+            assertFalse(firstTask.isPaused());
+            assertTrue(firstTask.cancel());
+            assertFalse(firstTask.exists());
+            assertTrue(secondTask.exists());
+            assertFalse(first.cancel("missing"));
+        }
+    }
+
+    @Test
+    void borrowedExecutorIsNeverClosedAndClosedSchedulerRejectsWork() {
+        ExecutorService borrowed = Executors.newSingleThreadExecutor();
+        LavaScheduler scheduler = LavaScheduler.builder().executor(borrowed).build();
+        scheduler.schedule("borrowed", () -> { }, Trigger.after(Duration.ofHours(1)));
+
+        scheduler.close();
+
+        assertFalse(borrowed.isShutdown());
+        assertThrows(IllegalStateException.class,
+                () -> scheduler.schedule("late", () -> { }, Trigger.after(Duration.ofSeconds(1))));
+        borrowed.shutdownNow();
+    }
+
+    @Test
+    void closeWaitsToTimeoutThenInterruptsOnlyItsBorrowedExecutions() throws Exception {
+        ExecutorService borrowed = Executors.newSingleThreadExecutor();
+        CountDownLatch started = new CountDownLatch(1);
+        CountDownLatch interrupted = new CountDownLatch(1);
+        LavaScheduler scheduler = LavaScheduler.builder().executor(borrowed).build();
+        ScheduledTask task = scheduler.schedule("blocking", () -> {
+            started.countDown();
+            try {
+                new CountDownLatch(1).await();
+            } catch (InterruptedException e) {
+                interrupted.countDown();
+                Thread.currentThread().interrupt();
+            }
+        }, Trigger.after(Duration.ofHours(1)));
+        task.triggerNow();
+        assertTrue(started.await(2, TimeUnit.SECONDS));
+
+        assertFalse(scheduler.close(Duration.ZERO));
+        assertTrue(interrupted.await(2, TimeUnit.SECONDS));
+        assertFalse(borrowed.isShutdown());
+        borrowed.shutdownNow();
+    }
+
+    @Test
+    void taskCanCloseItsSchedulerWithoutWaitingForItself() throws Exception {
+        AtomicReference<LavaScheduler> schedulerReference = new AtomicReference<>();
+        AtomicReference<Boolean> closeResult = new AtomicReference<>();
+        CountDownLatch closeReturned = new CountDownLatch(1);
+        LavaScheduler scheduler = LavaScheduler.builder()
+                .shutdownTimeout(Duration.ofSeconds(5))
+                .build();
+        schedulerReference.set(scheduler);
+        try {
+            ScheduledTask task = scheduler.schedule("self-close-task", () -> {
+                closeResult.set(schedulerReference.get().close(Duration.ofSeconds(5)));
+                closeReturned.countDown();
+            }, Trigger.after(Duration.ofHours(1)));
+
+            task.triggerNow();
+
+            assertTrue(closeReturned.await(2, TimeUnit.SECONDS));
+            assertEquals(Boolean.TRUE, closeResult.get());
+            assertTrue(scheduler.isClosed());
+        } finally {
+            scheduler.close(Duration.ZERO);
+        }
+    }
+
+    @Test
+    void terminalListenerCanCloseItsSchedulerWithoutWaitingForItself() throws Exception {
+        AtomicReference<LavaScheduler> schedulerReference = new AtomicReference<>();
+        AtomicReference<Boolean> closeResult = new AtomicReference<>();
+        CountDownLatch closeReturned = new CountDownLatch(1);
+        LavaScheduler scheduler = LavaScheduler.builder()
+                .shutdownTimeout(Duration.ofSeconds(5))
+                .listener(event -> {
+                    if (event.taskId().equals("self-close-listener")
+                            && event.status() == TaskEventStatus.SUCCESS) {
+                        closeResult.set(schedulerReference.get().close(Duration.ofSeconds(5)));
+                        closeReturned.countDown();
+                    }
+                })
+                .build();
+        schedulerReference.set(scheduler);
+        try {
+            ScheduledTask task = scheduler.schedule(
+                    "self-close-listener", () -> { }, Trigger.after(Duration.ofHours(1)));
+
+            task.triggerNow();
+
+            assertTrue(closeReturned.await(2, TimeUnit.SECONDS));
+            assertEquals(Boolean.TRUE, closeResult.get());
+            assertTrue(scheduler.isClosed());
+        } finally {
+            scheduler.close(Duration.ZERO);
+        }
+    }
+
+    @Test
+    void duplicateIdsAndInvalidOptionsAreRejected() {
+        try (LavaScheduler scheduler = LavaScheduler.create()) {
+            scheduler.schedule("duplicate", () -> { }, Trigger.after(Duration.ofHours(1)));
+            assertThrows(ScheduleException.class,
+                    () -> scheduler.schedule("duplicate", () -> { }, Trigger.after(Duration.ofHours(1))));
+        }
+        assertThrows(IllegalArgumentException.class, () -> ConcurrencyPolicy.serialQueue(0));
+        assertThrows(IllegalArgumentException.class, () -> ConcurrencyPolicy.parallel(0, 0));
+        assertThrows(IllegalArgumentException.class,
+                () -> LavaScheduler.builder().executionBounds(1, 0));
+        assertThrows(IllegalArgumentException.class,
+                () -> LavaScheduler.builder().shutdownTimeout(Duration.ofSeconds(-1)));
+        Instant now = Instant.parse("2026-08-17T00:00:00Z");
+        assertThrows(IllegalArgumentException.class,
+                () -> new TaskEvent(" ", TaskEventStatus.SUCCESS, now, now, now, null, null));
+        assertThrows(IllegalArgumentException.class,
+                () -> new TaskEvent("task", TaskEventStatus.SUCCESS, now, null, now, null, null));
+        assertThrows(IllegalArgumentException.class,
+                () -> new TaskEvent("task", TaskEventStatus.SKIPPED, now, now, now, null, "paused"));
+    }
+
+    @Test
+    void scheduleCloseRaceNeverLeavesAnOrphanedTask() throws Exception {
+        for (int iteration = 0; iteration < 100; iteration++) {
+            LavaScheduler scheduler = LavaScheduler.create();
+            CountDownLatch start = new CountDownLatch(1);
+            AtomicReference<ScheduledTask> returned = new AtomicReference<>();
+            try (var racers = Executors.newVirtualThreadPerTaskExecutor()) {
+                var scheduleFuture = racers.submit(() -> {
+                    awaitUnchecked(start);
+                    try {
+                        returned.set(scheduler.schedule(
+                                "race", () -> { }, Trigger.after(Duration.ofHours(1))));
+                    } catch (IllegalStateException expected) {
+                        // 关闭先取得生命周期锁。
+                    }
+                });
+                var closeFuture = racers.submit(() -> {
+                    awaitUnchecked(start);
+                    scheduler.close();
+                });
+                start.countDown();
+                scheduleFuture.get();
+                closeFuture.get();
+            }
+
+            assertFalse(scheduler.hasTask("race"));
+            ScheduledTask task = returned.get();
+            if (task != null) {
+                assertFalse(task.exists());
+            }
+        }
+    }
+
+    private static boolean awaitStatus(List<TaskEvent> events, TaskEventStatus status)
+            throws InterruptedException {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
+        while (System.nanoTime() < deadline) {
+            if (events.stream().anyMatch(event -> event.status() == status)) {
+                return true;
+            }
+            Thread.sleep(5);
+        }
+        return false;
+    }
+
+    private static boolean awaitCount(AtomicInteger value, int expected) throws InterruptedException {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
+        while (System.nanoTime() < deadline) {
+            if (value.get() == expected) {
+                return true;
+            }
+            Thread.sleep(5);
+        }
+        return false;
+    }
+
+    private static boolean awaitClosed(LavaScheduler scheduler) throws InterruptedException {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
+        while (System.nanoTime() < deadline) {
+            if (scheduler.isClosed()) {
+                return true;
+            }
+            Thread.sleep(5);
+        }
+        return false;
+    }
+
+    private static void awaitUnchecked(CountDownLatch latch) {
+        try {
+            latch.await();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+}

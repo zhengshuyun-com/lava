@@ -17,160 +17,94 @@
 package com.zhengshuyun.lava.schedule;
 
 import org.jspecify.annotations.Nullable;
-import org.quartz.JobKey;
-import org.quartz.Scheduler;
-import org.quartz.SchedulerException;
-import org.quartz.Trigger.TriggerState;
-import org.quartz.TriggerKey;
 
-import java.util.Date;
+import java.time.Instant;
 
-/**
- * 已调度任务的句柄
- * <p>
- * 提供任务的生命周期管理和状态查询
- * <pre>{@code
- * ScheduledTask task = ScheduleUtil.scheduler(() -> check())
- *     .setId("health-check")
- *     .setTrigger(Trigger.interval(5000).build())
- *     .schedule();
- *
- * task.pause();
- * task.resume();
- * task.delete();
- * }</pre>
- *
- * @author Toint
- * @since 2026/2/6
- */
-public class ScheduledTask {
+/** 由一个 {@link LavaScheduler} 拥有的任务生命周期句柄。 */
+public final class ScheduledTask {
 
-    /**
-     * 任务 ID
-     */
-    private final String id;
+    private final LavaScheduler.TaskControl control;
 
-    /**
-     * Quartz 调度器
-     */
-    private final Scheduler scheduler;
-
-    ScheduledTask(String id, Scheduler scheduler) {
-        this.id = id;
-        this.scheduler = scheduler;
+    ScheduledTask(LavaScheduler.TaskControl control) {
+        this.control = control;
     }
 
     /**
-     * 获取任务 ID
-     */
-    public String getId() {
-        return id;
-    }
-
-    /**
-     * 暂停任务
-     */
-    public void pause() {
-        try {
-            scheduler.pauseTrigger(TriggerKey.triggerKey(id));
-        } catch (SchedulerException e) {
-            throw new ScheduleException("暂停任务失败: " + id, e);
-        }
-    }
-
-    /**
-     * 恢复任务
-     */
-    public void resume() {
-        try {
-            scheduler.resumeTrigger(TriggerKey.triggerKey(id));
-        } catch (SchedulerException e) {
-            throw new ScheduleException("恢复任务失败: " + id, e);
-        }
-    }
-
-    /**
-     * 删除任务
-     * <p>
-     * 幂等操作, 任务不存在时返回 false
+     * 返回任务标识。
      *
-     * @return true 表示任务存在并已删除, false 表示任务不存在
+     * @return 任务标识
      */
-    public boolean delete() {
-        try {
-            return scheduler.deleteJob(JobKey.jobKey(id));
-        } catch (SchedulerException e) {
-            throw new ScheduleException("删除任务失败: " + id, e);
-        }
+    public String id() {
+        return control.id();
+    }
+
+    /** 暂停后续触发，不会打断已经开始的执行。 */
+    public void pause() {
+        control.pause();
+    }
+
+    /** 恢复已暂停任务的后续触发。 */
+    public void resume() {
+        control.resume();
     }
 
     /**
-     * 任务是否存在于调度器中
-     */
-    public boolean exists() {
-        try {
-            return scheduler.checkExists(JobKey.jobKey(id));
-        } catch (SchedulerException e) {
-            throw new ScheduleException("查询任务是否存在失败: " + id, e);
-        }
-    }
-
-    /**
-     * 立即触发一次
-     */
-    public void triggerNow() {
-        try {
-            scheduler.triggerJob(JobKey.jobKey(id));
-        } catch (SchedulerException e) {
-            throw new ScheduleException("立即触发任务失败: " + id, e);
-        }
-    }
-
-    /**
-     * 是否已暂停
+     * 判断任务是否已暂停。
+     *
+     * @return 已暂停时为 true
      */
     public boolean isPaused() {
-        try {
-            TriggerState state = scheduler.getTriggerState(TriggerKey.triggerKey(id));
-            return state == TriggerState.PAUSED;
-        } catch (SchedulerException e) {
-            throw new ScheduleException("查询任务状态失败: " + id, e);
-        }
+        return control.isPaused();
     }
 
     /**
-     * 获取下次执行时间(毫秒时间戳)
+     * 取消后续和排队中的任务，但不打断正在执行的任务。
      *
-     * @return 毫秒时间戳, 无下次执行时返回 null
+     * @return 成功取消时为 true
      */
-    public @Nullable Long getNextFireTime() {
-        try {
-            org.quartz.Trigger trigger = scheduler.getTrigger(TriggerKey.triggerKey(id));
-            if (trigger == null) {
-                return null;
-            }
-            Date next = trigger.getNextFireTime();
-            return next != null ? next.getTime() : null;
-        } catch (SchedulerException e) {
-            throw new ScheduleException("查询下次执行时间失败: " + id, e);
-        }
+    public boolean cancel() {
+        return control.cancel(false);
     }
 
     /**
-     * 获取上次执行时间(毫秒时间戳)
+     * 取消此任务，并可选择打断该调度器创建的执行。
      *
-     * @return 毫秒时间戳, 从未执行过时返回 null
+     * @param mayInterruptIfRunning 为 true 时请求打断正在执行的任务
+     * @return 成功取消时为 true
      */
-    public @Nullable Long getPreviousFireTime() {
-        try {
-            org.quartz.Trigger trigger = scheduler.getTrigger(TriggerKey.triggerKey(id));
-            if (trigger == null) {
-                return null;
-            }
-            Date prev = trigger.getPreviousFireTime();
-            return prev != null ? prev.getTime() : null;
-        } catch (SchedulerException e) {
-            throw new ScheduleException("查询上次执行时间失败: " + id, e);
-        }
+    public boolean cancel(boolean mayInterruptIfRunning) {
+        return control.cancel(mayInterruptIfRunning);
+    }
+
+    /**
+     * 判断任务是否仍由调度器管理。
+     *
+     * @return 仍存在时为 true
+     */
+    public boolean exists() {
+        return control.exists();
+    }
+
+    /** 将一次立即执行交给相同的有界并发策略。 */
+    public void triggerNow() {
+        control.triggerNow();
+    }
+
+    /**
+     * 返回下一次计划执行时间。
+     *
+     * @return 下一次执行时间；没有下一次执行时为 null
+     */
+    public @Nullable Instant nextExecution() {
+        return control.nextExecution();
+    }
+
+    /**
+     * 返回最近一次计划执行时间。
+     *
+     * @return 最近一次执行时间；尚未执行时为 null
+     */
+    public @Nullable Instant previousExecution() {
+        return control.previousExecution();
     }
 }

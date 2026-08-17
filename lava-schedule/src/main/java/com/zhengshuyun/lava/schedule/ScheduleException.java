@@ -16,18 +16,24 @@
 
 package com.zhengshuyun.lava.schedule;
 
-/**
- * 定时任务异常
- *
- * @author Toint
- * @since 2026/2/5
- */
-public class ScheduleException extends RuntimeException {
+/** 调度器无法完成调度操作时抛出的通用异常。 */
+public final class ScheduleException extends RuntimeException {
 
+    /**
+     * 创建带消息的调度异常。
+     *
+     * @param message 异常消息
+     */
     public ScheduleException(String message) {
         super(message);
     }
 
+    /**
+     * 创建带消息和原因的调度异常。
+     *
+     * @param message 异常消息
+     * @param cause 原始异常
+     */
     public ScheduleException(String message, Throwable cause) {
         super(message, cause);
     }

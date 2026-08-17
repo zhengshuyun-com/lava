@@ -1,0 +1,23 @@
+/*
+ * Copyright 2026 zhengshuyun.com
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ */
+
+package com.zhengshuyun.lava.schedule;
+
+/** 单次调度执行的终态结果。 */
+public enum TaskEventStatus {
+    /** 任务运行结束且未抛出异常。 */
+    SUCCESS,
+    /** 任务运行时抛出异常。 */
+    FAILURE,
+    /** occurrence 因并发策略、暂停、取消或 misfire 策略而未运行。 */
+    SKIPPED,
+    /** occurrence 因队列已满、执行器拒绝或补偿上限而未被接受。 */
+    REJECTED
+}
