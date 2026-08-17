@@ -14,18 +14,13 @@
  * limitations under the License.
  */
 
-package com.zhengshuyun.lava.core.retry;
-
 /**
- * @author Toint
- * @since 2026/1/16
+ * 语言层工具: 前置校验与格式校验
+ * <p>
+ * 本包为 {@link org.jspecify.annotations.NullMarked} 作用域: 所有类型默认非空,
+ * 可为 null 的位置显式标注 {@link org.jspecify.annotations.Nullable}.
  */
-public class RetryException extends RuntimeException {
-    public RetryException(String message) {
-        super(message);
-    }
+@NullMarked
+package com.zhengshuyun.lava.core.lang;
 
-    public RetryException(String message, Throwable cause) {
-        super(message, cause);
-    }
-}
+import org.jspecify.annotations.NullMarked;

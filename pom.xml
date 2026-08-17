@@ -23,13 +23,19 @@
 
     <groupId>com.zhengshuyun</groupId>
     <artifactId>lava-parent</artifactId>
-    <version>1.0.4-SNAPSHOT</version>
-
+    <version>2.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <name>Lava</name>
-    <description>一套一致, 安全, 开箱即用的 Java 基础设施工具库</description>
+    <description>一套一致、安全、开箱即用的 Java 基础设施工具库</description>
     <url>https://github.com/zhengshuyuncom/lava</url>
+
+    <licenses>
+        <license>
+            <name>The Apache License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+        </license>
+    </licenses>
 
     <developers>
         <developer>
@@ -40,16 +46,9 @@
 
     <scm>
         <connection>scm:git:https://github.com/zhengshuyuncom/lava.git</connection>
-        <developerConnection>scm:git:git@github.com:zhengshuyun-com/lava.git</developerConnection>
+        <developerConnection>scm:git:git@github.com:zhengshuyuncom/lava.git</developerConnection>
         <url>https://github.com/zhengshuyuncom/lava</url>
     </scm>
-
-    <licenses>
-        <license>
-            <name>The Apache License, Version 2.0</name>
-            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
-        </license>
-    </licenses>
 
     <modules>
         <module>lava-core</module>
@@ -57,174 +56,105 @@
         <module>lava-http</module>
         <module>lava-schedule</module>
         <module>lava-bom</module>
-        <module>lava-jwt</module>
         <module>lava-crypto</module>
         <module>lava-mail</module>
     </modules>
 
     <properties>
-        <java.version>25</java.version>
-        <maven.compiler.source>${java.version}</maven.compiler.source>
-        <maven.compiler.target>${java.version}</maven.compiler.target>
+        <maven.compiler.release>25</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
         <versions-maven-plugin.version>2.21.0</versions-maven-plugin.version>
-        <central-publishing-maven-plugin.version>0.10.0</central-publishing-maven-plugin.version>
+        <central-publishing-maven-plugin.version>0.11.0</central-publishing-maven-plugin.version>
         <maven-source-plugin.version>3.4.0</maven-source-plugin.version>
-        <maven-compiler-plugin.version>3.15.0</maven-compiler-plugin.version>
         <maven-gpg-plugin.version>3.2.8</maven-gpg-plugin.version>
         <maven-javadoc-plugin.version>3.12.0</maven-javadoc-plugin.version>
 
-        <junit-jupiter.version>6.0.3</junit-jupiter.version>
-        <guava.version>33.6.0-jre</guava.version>
+        <junit.version>6.1.3</junit.version>
         <jspecify.version>1.0.0</jspecify.version>
         <jackson.version>3.2.1</jackson.version>
-        <okhttp.version>4.12.0</okhttp.version>
+        <okhttp.version>5.4.0</okhttp.version>
         <quartz.version>2.5.2</quartz.version>
         <slf4j.version>2.0.18</slf4j.version>
-        <java-jwt.version>4.6.0</java-jwt.version>
         <bcprov-jdk18on.version>1.85.2</bcprov-jdk18on.version>
         <angus-mail.version>2.0.5</angus-mail.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
+            <!-- Jackson 全家族组件的版本清单。 -->
             <dependency>
-                <groupId>com.google.guava</groupId>
-                <artifactId>guava</artifactId>
-                <version>${guava.version}</version>
+                <groupId>tools.jackson</groupId>
+                <artifactId>jackson-bom</artifactId>
+                <version>${jackson.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
             </dependency>
-
-            <!--
-              各模块直接使用 @Nullable 等注解, 必须显式声明.
-              此前仅靠 guava 的传递依赖引入, guava 升级后若移除或改变其 scope,
-              或使用方 exclude 了它, 会直接导致编译失败.
-            -->
+            <!-- OkHttp 客户端及 SSE 扩展的版本清单。 -->
+            <dependency>
+                <groupId>com.squareup.okhttp3</groupId>
+                <artifactId>okhttp-bom</artifactId>
+                <version>${okhttp.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!-- JUnit 测试框架组件的版本清单。 -->
+            <dependency>
+                <groupId>org.junit</groupId>
+                <artifactId>junit-bom</artifactId>
+                <version>${junit.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!-- 空值标注。 -->
             <dependency>
                 <groupId>org.jspecify</groupId>
                 <artifactId>jspecify</artifactId>
                 <version>${jspecify.version}</version>
             </dependency>
-
-            <dependency>
-                <groupId>tools.jackson.core</groupId>
-                <artifactId>jackson-databind</artifactId>
-                <version>${jackson.version}</version>
-            </dependency>
-
-            <dependency>
-                <groupId>com.squareup.okhttp3</groupId>
-                <artifactId>okhttp</artifactId>
-                <version>${okhttp.version}</version>
-            </dependency>
-
-            <dependency>
-                <groupId>com.squareup.okhttp3</groupId>
-                <artifactId>okhttp-sse</artifactId>
-                <version>${okhttp.version}</version>
-            </dependency>
-
+            <!-- Cron 表达式解析与下一次触发时间计算。 -->
             <dependency>
                 <groupId>org.quartz-scheduler</groupId>
                 <artifactId>quartz</artifactId>
                 <version>${quartz.version}</version>
             </dependency>
-
+            <!-- 调度模块的日志 API。 -->
             <dependency>
-                <groupId>com.auth0</groupId>
-                <artifactId>java-jwt</artifactId>
-                <version>${java-jwt.version}</version>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-api</artifactId>
+                <version>${slf4j.version}</version>
             </dependency>
-
+            <!-- Argon2id 密码哈希与 PEM 密钥处理。 -->
             <dependency>
                 <groupId>org.bouncycastle</groupId>
                 <artifactId>bcprov-jdk18on</artifactId>
                 <version>${bcprov-jdk18on.version}</version>
             </dependency>
-
+            <!-- Jakarta Mail 的运行时实现。 -->
             <dependency>
                 <groupId>org.eclipse.angus</groupId>
                 <artifactId>angus-mail</artifactId>
                 <version>${angus-mail.version}</version>
-            </dependency>
-
-            <!--子模块-->
-            <dependency>
-                <groupId>com.zhengshuyun</groupId>
-                <artifactId>lava-mail</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-
-            <dependency>
-                <groupId>com.zhengshuyun</groupId>
-                <artifactId>lava-bom</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-
-            <dependency>
-                <groupId>com.zhengshuyun</groupId>
-                <artifactId>lava-core</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-
-            <dependency>
-                <groupId>com.zhengshuyun</groupId>
-                <artifactId>lava-crypto</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-
-            <dependency>
-                <groupId>com.zhengshuyun</groupId>
-                <artifactId>lava-http</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-
-            <dependency>
-                <groupId>com.zhengshuyun</groupId>
-                <artifactId>lava-json</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-
-            <dependency>
-                <groupId>com.zhengshuyun</groupId>
-                <artifactId>lava-jwt</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-
-            <dependency>
-                <groupId>com.zhengshuyun</groupId>
-                <artifactId>lava-schedule</artifactId>
-                <version>${project.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
 
     <dependencies>
         <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
-            <version>${slf4j.version}</version>
-            <scope>test</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-simple</artifactId>
-            <version>${slf4j.version}</version>
-            <scope>test</scope>
-        </dependency>
-
-        <dependency>
             <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter</artifactId>
-            <version>${junit-jupiter.version}</version>
+            <artifactId>junit-jupiter-engine</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.platform</groupId>
+            <artifactId>junit-platform-launcher</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
 
     <build>
         <plugins>
+            <!-- 手工批量修改多模块项目版本，不参与正常构建生命周期。 -->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>versions-maven-plugin</artifactId>
@@ -233,78 +163,67 @@
                     <generateBackupPoms>false</generateBackupPoms>
                 </configuration>
             </plugin>
-
-            <plugin>
-                <groupId>org.sonatype.central</groupId>
-                <artifactId>central-publishing-maven-plugin</artifactId>
-                <version>${central-publishing-maven-plugin.version}</version>
-                <extensions>true</extensions>
-                <configuration>
-                    <publishingServerId>central</publishingServerId>
-                    <autoPublish>false</autoPublish>
-                </configuration>
-            </plugin>
-
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-source-plugin</artifactId>
-                <version>${maven-source-plugin.version}</version>
-                <executions>
-                    <execution>
-                        <id>attach-sources</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>jar-no-fork</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>${maven-compiler-plugin.version}</version>
-                <configuration>
-                    <source>${java.version}</source>
-                    <target>${java.version}</target>
-                    <encoding>${project.build.sourceEncoding}</encoding>
-                </configuration>
-            </plugin>
         </plugins>
     </build>
 
     <profiles>
+        <!-- 仅在执行 -Prelease 时启用；执行到 deploy 阶段才会上传发布产物。 -->
         <profile>
-            <id>repository</id>
+            <id>release</id>
             <build>
                 <plugins>
+                    <!-- 将签名后的构件上传至 Maven Central；默认不自动发布。 -->
+                    <plugin>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <version>${central-publishing-maven-plugin.version}</version>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <publishingServerId>central</publishingServerId>
+                            <autoPublish>false</autoPublish>
+                        </configuration>
+                    </plugin>
+                    <!-- 为每个 jar 附加源码包。 -->
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-gpg-plugin</artifactId>
-                        <version>${maven-gpg-plugin.version}</version>
+                        <artifactId>maven-source-plugin</artifactId>
+                        <version>${maven-source-plugin.version}</version>
                         <executions>
                             <execution>
-                                <phase>verify</phase>
+                                <id>attach-sources</id>
+                                <phase>package</phase>
                                 <goals>
-                                    <goal>sign</goal>
+                                    <goal>jar-no-fork</goal>
                                 </goals>
                             </execution>
                         </executions>
                     </plugin>
-
+                    <!-- 为每个 jar 附加 API 文档包。 -->
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-javadoc-plugin</artifactId>
                         <version>${maven-javadoc-plugin.version}</version>
-                        <configuration>
-                            <doclint>none</doclint>
-                        </configuration>
                         <executions>
                             <execution>
                                 <id>attach-javadocs</id>
                                 <phase>package</phase>
                                 <goals>
                                     <goal>jar</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <!-- 使用本机 GPG 密钥为发布构件签名。 -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <version>${maven-gpg-plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
                                 </goals>
                             </execution>
                         </executions>

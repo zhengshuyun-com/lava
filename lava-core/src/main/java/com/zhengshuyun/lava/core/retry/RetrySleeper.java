@@ -10,14 +10,17 @@
 
 package com.zhengshuyun.lava.core.retry;
 
-/** 接收已完成的重试尝试。监听器失败会传播给调用方。 */
+import java.time.Duration;
+
+/** 供 {@link RetryExecutor} 注入的休眠边界。 */
 @FunctionalInterface
-public interface RetryListener<T> {
+public interface RetrySleeper {
 
     /**
-     * 接收一次已完成尝试的状态。
+     * 暂停当前线程指定时长。
      *
-     * @param attempt 本次尝试的不可变状态
+     * @param duration 非负的暂停时长
+     * @throws InterruptedException 线程在暂停期间被中断时抛出
      */
-    void onAttempt(RetryAttempt<T> attempt);
+    void sleep(Duration duration) throws InterruptedException;
 }

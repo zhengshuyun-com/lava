@@ -16,7 +16,6 @@
 
 package com.zhengshuyun.lava.core.time;
 
-import com.google.common.base.Strings;
 import org.jspecify.annotations.Nullable;
 
 import java.time.LocalDateTime;
@@ -32,9 +31,9 @@ import java.time.temporal.ChronoField;
  * @author Toint
  * @since 2026/01/17
  */
-public final class TimeUtil {
+public final class TimeUtils {
 
-    private TimeUtil() {
+    private TimeUtils() {
     }
 
     /**
@@ -152,7 +151,7 @@ public final class TimeUtil {
      *   <li>{@code yyyy年MM月dd日} - 中文日期, 如: 2026年01月01日 (时间部分默认为 00:00:00)</li>
      * </ul>
      *
-     * <h2>解析规则</h2>
+     * <h4>解析规则</h4>
      * <ul>
      *   <li>输入前后空白会被裁剪</li>
      *   <li>小数秒接受 1~9 位, 如 {@code .1} / {@code .123} / {@code .123456789}</li>
@@ -166,7 +165,7 @@ public final class TimeUtil {
      * @return LocalDateTime 对象, 解析失败或输入为空时返回 null
      */
     public static @Nullable LocalDateTime parse(@Nullable String dateTime) {
-        String text = Strings.nullToEmpty(dateTime).trim();
+        String text = dateTime == null ? "" : dateTime.trim();
 
         if (text.isEmpty()) {
             return null;

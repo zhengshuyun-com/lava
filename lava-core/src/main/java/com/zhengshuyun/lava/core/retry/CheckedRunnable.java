@@ -10,14 +10,14 @@
 
 package com.zhengshuyun.lava.core.retry;
 
-/** 接收已完成的重试尝试。监听器失败会传播给调用方。 */
+/** 执行操作时可能抛出受检异常的 runnable。 */
 @FunctionalInterface
-public interface RetryListener<T> {
+public interface CheckedRunnable {
 
     /**
-     * 接收一次已完成尝试的状态。
+     * 执行操作。
      *
-     * @param attempt 本次尝试的不可变状态
+     * @throws Exception 执行失败时抛出
      */
-    void onAttempt(RetryAttempt<T> attempt);
+    void run() throws Exception;
 }

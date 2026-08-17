@@ -16,7 +16,7 @@
 
 package com.zhengshuyun.lava.core.time;
 
-import com.zhengshuyun.lava.core.lang.Validate;
+import com.zhengshuyun.lava.core.lang.ValidationUtils;
 
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
@@ -90,18 +90,15 @@ public final class DurationFormatter {
     /**
      * 格式化时长
      *
-     * <p><b>注意</b>: 年和月的计算是近似值:
-     * <ul>
-     *   <li>1年 = 365天 (不考虑闰年) </li>
-     *   <li>1月 = 30天 (不考虑实际天数) </li>
-     * </ul>
+     * <p>Only exact {@link Duration} units from days through nanoseconds are supported. Calendar
+     * 有意不接受月和年，因为其长度依赖日期和时区。
      *
      * @param duration 时长 (不能为 null 或负数)
      * @return 格式化后的字符串
      */
     public String format(Duration duration) {
-        Validate.notNull(duration, "duration cannot be null");
-        Validate.isFalse(duration.isNegative(), "duration cannot be negative");
+        ValidationUtils.requireNonNull(duration, "duration cannot be null");
+        ValidationUtils.requireFalse(duration.isNegative(), "duration cannot be negative");
 
         // 特殊处理: 只显示纳秒
         if (largestUnit == ChronoUnit.NANOS && smallestUnit == ChronoUnit.NANOS) {
@@ -121,22 +118,12 @@ public final class DurationFormatter {
         List<String> parts = new ArrayList<>();
 
         // 计算各个单位的值
-        long totalSeconds = duration.getSeconds();
+        long totalSeconds = duration.toSeconds();
 
-        long years = 0, months = 0, days = 0, hours = 0, minutes = 0, seconds = 0;
+        long days = 0, hours = 0, minutes = 0, seconds = 0;
         long millis = 0, micros = 0, nanos = 0;
 
         // 从大到小依次计算
-        if (shouldInclude(ChronoUnit.YEARS)) {
-            years = totalSeconds / (365L * 24 * 3600);
-            totalSeconds %= (365L * 24 * 3600);
-        }
-
-        if (shouldInclude(ChronoUnit.MONTHS)) {
-            months = totalSeconds / (30L * 24 * 3600);
-            totalSeconds %= (30L * 24 * 3600);
-        }
-
         if (shouldInclude(ChronoUnit.DAYS)) {
             days = totalSeconds / (24 * 3600);
             totalSeconds %= (24 * 3600);
@@ -162,7 +149,8 @@ public final class DurationFormatter {
         // 用 multiplyExact 而非裸乘: 当 largestUnit 为 MILLIS 及以下时 totalSeconds 是完整秒数,
         // 超过约 292 年就会溢出. 溢出时抛 ArithmeticException, 与 NANOS 特例路径
         // (duration.toNanos() 同样抛该异常) 行为一致, 而不是静默返回 "0ns"
-        long remainingNanos = Math.multiplyExact(totalSeconds, 1_000_000_000L) + duration.toNanosPart();
+        long remainingNanos = Math.addExact(
+                Math.multiplyExact(totalSeconds, 1_000_000_000L), duration.toNanosPart());
 
         if (shouldInclude(ChronoUnit.MILLIS)) {
             millis = remainingNanos / 1_000_000;
@@ -179,8 +167,6 @@ public final class DurationFormatter {
         }
 
         // 添加各个单位到结果
-        addPart(parts, years, ChronoUnit.YEARS);
-        addPart(parts, months, ChronoUnit.MONTHS);
         addPart(parts, days, ChronoUnit.DAYS);
         addPart(parts, hours, ChronoUnit.HOURS);
         addPart(parts, minutes, ChronoUnit.MINUTES);
@@ -209,10 +195,8 @@ public final class DurationFormatter {
     }
 
     private String getUnitSuffix(ChronoUnit unit) {
-        if (locale.equals(Locale.CHINESE) || locale.equals(Locale.SIMPLIFIED_CHINESE)) {
+        if (locale.getLanguage().equals(Locale.CHINESE.getLanguage())) {
             return switch (unit) {
-                case YEARS -> "年";
-                case MONTHS -> "月";
                 case DAYS -> "天";
                 case HOURS -> "小时";
                 case MINUTES -> "分钟";
@@ -224,8 +208,6 @@ public final class DurationFormatter {
             };
         } else {
             return switch (unit) {
-                case YEARS -> "y";
-                case MONTHS -> "mo";
                 case DAYS -> "d";
                 case HOURS -> "h";
                 case MINUTES -> "min";
@@ -240,8 +222,6 @@ public final class DurationFormatter {
 
     private static int getUnitOrder(ChronoUnit unit) {
         return switch (unit) {
-            case YEARS -> 9;
-            case MONTHS -> 8;
             case DAYS -> 7;
             case HOURS -> 6;
             case MINUTES -> 5;
@@ -292,20 +272,24 @@ public final class DurationFormatter {
         /**
          * 设置最大单位
          *
-         * @param largestUnit 最大单位 (YEARS/MONTHS/DAYS/HOURS/MINUTES/SECONDS/MILLIS/MICROS/NANOS)
+         * @param largestUnit 最大单位 (DAYS/HOURS/MINUTES/SECONDS/MILLIS/MICROS/NANOS)
+         * @return 当前构建器
          */
         public Builder setLargestUnit(ChronoUnit largestUnit) {
-            this.largestUnit = Validate.notNull(largestUnit, "largestUnit cannot be null");
+            this.largestUnit = ValidationUtils.requireNonNull(
+                    largestUnit, "largestUnit cannot be null");
             return this;
         }
 
         /**
          * 设置最小单位
          *
-         * @param smallestUnit 最小单位 (YEARS/MONTHS/DAYS/HOURS/MINUTES/SECONDS/MILLIS/MICROS/NANOS)
+         * @param smallestUnit 最小单位 (DAYS/HOURS/MINUTES/SECONDS/MILLIS/MICROS/NANOS)
+         * @return 当前构建器
          */
         public Builder setSmallestUnit(ChronoUnit smallestUnit) {
-            this.smallestUnit = Validate.notNull(smallestUnit, "smallestUnit cannot be null");
+            this.smallestUnit = ValidationUtils.requireNonNull(
+                    smallestUnit, "smallestUnit cannot be null");
             return this;
         }
 
@@ -317,6 +301,7 @@ public final class DurationFormatter {
          *
          * @param largestUnit  最大单位
          * @param smallestUnit 最小单位
+         * @return 当前构建器
          * @throws IllegalArgumentException 如果 largestUnit &lt; smallestUnit 或单位不支持
          */
         public Builder setRange(ChronoUnit largestUnit, ChronoUnit smallestUnit) {
@@ -337,30 +322,37 @@ public final class DurationFormatter {
             // 不受支持的单位 order 为 0, 会让 shouldInclude 的区间判断失去意义:
             // largestUnit 非法时所有单位都被排除 (格式化结果恒为 "0"),
             // smallestUnit 非法时所有单位都被包含 (整点时长会渲染出 "1h 5ns")
-            Validate.isTrue(largestOrder > 0 && smallestOrder > 0,
-                    "Unsupported unit: only YEARS/MONTHS/DAYS/HOURS/MINUTES/SECONDS/MILLIS/MICROS/NANOS are supported");
+            ValidationUtils.requireTrue(largestOrder > 0 && smallestOrder > 0,
+                    "Unsupported unit: only DAYS/HOURS/MINUTES/SECONDS/MILLIS/MICROS/NANOS are supported");
             // 区间反向时没有任何单位落在范围内, 时长会被静默丢弃
-            Validate.isTrue(largestOrder >= smallestOrder,
+            ValidationUtils.requireTrue(largestOrder >= smallestOrder,
                     "largestUnit must be >= smallestUnit");
         }
 
         /**
          * 设置语言 (中文/英文等)
+         *
+         * @param locale 单位文本使用的区域设置
+         * @return 当前构建器
          */
         public Builder setLocale(Locale locale) {
-            this.locale = Validate.notNull(locale, "locale cannot be null");
+            this.locale = ValidationUtils.requireNonNull(locale, "locale cannot be null");
             return this;
         }
 
         /**
-         * 设置为中文
+         * 设置为中文。
+         *
+         * @return 当前构建器
          */
         public Builder setChinese() {
             return setLocale(Locale.CHINESE);
         }
 
         /**
-         * 设置为英文
+         * 设置为英文。
+         *
+         * @return 当前构建器
          */
         public Builder setEnglish() {
             return setLocale(Locale.ENGLISH);
@@ -370,6 +362,7 @@ public final class DurationFormatter {
          * 设置是否显示零值单位
          *
          * @param showZeroValues true: "1h 0m 30s", false: "1h 30s"
+         * @return 当前构建器
          */
         public Builder setShowZeroValues(boolean showZeroValues) {
             this.showZeroValues = showZeroValues;
@@ -377,10 +370,14 @@ public final class DurationFormatter {
         }
 
         /**
-         * 设置单位之间的分隔符
+         * 设置单位之间的分隔符。
+         *
+         * @param separator 单位文本之间使用的分隔符
+         * @return 当前构建器
          */
         public Builder setSeparator(String separator) {
-            this.separator = Validate.notNull(separator, "separator cannot be null");
+            this.separator = ValidationUtils.requireNonNull(
+                    separator, "separator cannot be null");
             return this;
         }
 
