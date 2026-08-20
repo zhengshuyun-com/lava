@@ -19,13 +19,7 @@ package com.zhengshuyun.lava.http;
 import com.zhengshuyun.lava.core.lang.ValidationUtils;
 import org.jspecify.annotations.Nullable;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 /**
  * 不可变且保持插入顺序的 HTTP 请求头。
@@ -38,7 +32,9 @@ public final class HttpHeaders {
 
     private static final HttpHeaders EMPTY = new HttpHeaders(List.of());
 
-    /** 交替存放的名称和值条目。 */
+    /**
+     * 交替存放的名称和值条目。
+     */
     private final List<String> namesAndValues;
 
     private HttpHeaders(List<String> namesAndValues) {
@@ -120,7 +116,9 @@ public final class HttpHeaders {
         return namesAndValues.get(index * 2 + 1);
     }
 
-    /** 返回适用于元数据和诊断的安全快照。 */
+    /**
+     * 返回适用于元数据和诊断的安全快照。
+     */
     public HttpHeaders redacted() {
         if (isEmpty()) {
             return this;
@@ -196,7 +194,9 @@ public final class HttpHeaders {
         return namesAndValues.hashCode();
     }
 
-    /** 敏感值始终会被脱敏。 */
+    /**
+     * 敏感值始终会被脱敏。
+     */
     @Override
     public String toString() {
         StringBuilder result = new StringBuilder();

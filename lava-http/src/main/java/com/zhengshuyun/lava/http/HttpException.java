@@ -7,15 +7,25 @@ package com.zhengshuyun.lava.http;
 
 import org.jspecify.annotations.Nullable;
 
-/** 凭证安全的 HTTP 传输或响应缓冲失败。 */
+/**
+ * 凭证安全的 HTTP 传输或响应缓冲失败。
+ */
 public final class HttpException extends RuntimeException {
-    /** 供调用方稳定判断的失败分类。 */
+    /**
+     * 供调用方稳定判断的失败分类。
+     */
     private final HttpFailureKind kind;
-    /** 出错请求的方法；无法确定时为 null。 */
+    /**
+     * 出错请求的方法；无法确定时为 null。
+     */
     private final @Nullable String method;
-    /** 已脱敏的出错请求 URL；无法确定时为 null。 */
+    /**
+     * 已脱敏的出错请求 URL；无法确定时为 null。
+     */
     private final @Nullable String url;
-    /** 原始传输异常的类名，避免保留可能含凭证的异常对象。 */
+    /**
+     * 原始传输异常的类名，避免保留可能含凭证的异常对象。
+     */
     private final @Nullable String transportCauseType;
 
     HttpException(HttpFailureKind kind, @Nullable String method, @Nullable String rawUrl,
@@ -45,7 +55,9 @@ public final class HttpException extends RuntimeException {
         return method;
     }
 
-    /** 返回已脱敏用户信息和敏感查询参数的 URL。 */
+    /**
+     * 返回已脱敏用户信息和敏感查询参数的 URL。
+     */
     public @Nullable String getUrl() {
         return url;
     }

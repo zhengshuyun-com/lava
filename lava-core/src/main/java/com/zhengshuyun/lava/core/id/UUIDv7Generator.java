@@ -16,9 +16,10 @@
 
 package com.zhengshuyun.lava.core.id;
 
+import com.zhengshuyun.lava.core.lang.ValidationUtils;
+
 import java.security.SecureRandom;
 import java.time.Clock;
-import com.zhengshuyun.lava.core.lang.ValidationUtils;
 import java.util.UUID;
 
 /**
@@ -46,7 +47,9 @@ public final class UUIDv7Generator {
     private int randomA;
     private long randomB;
 
-    /** 使用 UTC 系统时钟和安全随机源创建生成器。 */
+    /**
+     * 使用 UTC 系统时钟和安全随机源创建生成器。
+     */
     public UUIDv7Generator() {
         this(Clock.systemUTC(), new SecureRandom());
     }
@@ -54,7 +57,7 @@ public final class UUIDv7Generator {
     /**
      * 使用指定时钟和安全随机源创建生成器。
      *
-     * @param clock 读取当前时间的时钟
+     * @param clock  读取当前时间的时钟
      * @param random 用于 UUIDv7 随机位的安全随机源
      */
     public UUIDv7Generator(Clock clock, SecureRandom random) {

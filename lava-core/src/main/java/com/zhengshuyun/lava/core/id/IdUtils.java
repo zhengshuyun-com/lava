@@ -18,10 +18,14 @@ package com.zhengshuyun.lava.core.id;
 
 import java.util.UUID;
 
-/** UUID 与雪花算法标识符的便捷入口。 */
+/**
+ * UUID 与雪花算法标识符的便捷入口。
+ */
 public final class IdUtils {
 
-    /** 进程内复用的 UUIDv7 生成器，用于保留同一毫秒内的单调序列状态。 */
+    /**
+     * 进程内复用的 UUIDv7 生成器，用于保留同一毫秒内的单调序列状态。
+     */
     private static final UUIDv7Generator DEFAULT_UUID_V7_GENERATOR = new UUIDv7Generator();
 
     private IdUtils() {

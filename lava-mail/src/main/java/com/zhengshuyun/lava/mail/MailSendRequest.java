@@ -4,10 +4,10 @@
  */
 package com.zhengshuyun.lava.mail;
 
+import com.zhengshuyun.lava.core.lang.ValidationUtils;
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;
-import com.zhengshuyun.lava.core.lang.ValidationUtils;
 
 /**
  * 提交一封邮件所需的完整数据。
@@ -15,14 +15,14 @@ import com.zhengshuyun.lava.core.lang.ValidationUtils;
  * <p>至少需要一个主送、抄送或密送收件人，并且纯文本正文和 HTML 正文至少提供一种。
  * 所有集合在构造时都会复制为不可变列表。</p>
  *
- * @param from 发件人
- * @param to 主送收件人
- * @param cc 抄送收件人
- * @param bcc 密送收件人
- * @param replyTo 回复地址
- * @param subject 主题，允许为空字符串但不能包含控制字符
- * @param textBody 纯文本正文
- * @param htmlBody HTML 正文
+ * @param from        发件人
+ * @param to          主送收件人
+ * @param cc          抄送收件人
+ * @param bcc         密送收件人
+ * @param replyTo     回复地址
+ * @param subject     主题，允许为空字符串但不能包含控制字符
+ * @param textBody    纯文本正文
+ * @param htmlBody    HTML 正文
  * @param attachments 附件列表
  */
 public record MailSendRequest(
@@ -39,14 +39,14 @@ public record MailSendRequest(
     /**
      * 校验发信请求并复制所有列表字段。
      *
-     * @param from 发件人
-     * @param to 主送收件人
-     * @param cc 抄送收件人
-     * @param bcc 密送收件人
-     * @param replyTo 回复地址
-     * @param subject 主题
-     * @param textBody 可选纯文本正文
-     * @param htmlBody 可选 HTML 正文
+     * @param from        发件人
+     * @param to          主送收件人
+     * @param cc          抄送收件人
+     * @param bcc         密送收件人
+     * @param replyTo     回复地址
+     * @param subject     主题
+     * @param textBody    可选纯文本正文
+     * @param htmlBody    可选 HTML 正文
      * @param attachments 附件列表
      */
     public MailSendRequest {
@@ -71,10 +71,10 @@ public record MailSendRequest(
     /**
      * 创建只有主送收件人和纯文本正文的简单发信请求。
      *
-     * @param from 发件人
-     * @param to 主送收件人
+     * @param from    发件人
+     * @param to      主送收件人
      * @param subject 主题
-     * @param body 纯文本正文
+     * @param body    纯文本正文
      * @return 发信请求
      */
     public static MailSendRequest text(

@@ -217,7 +217,9 @@ public final class HttpHeaderNames {
      */
     public static final String LAST_MODIFIED = "Last-Modified";
 
-    /** Last-Event-ID: SSE 显式恢复时使用的事件游标。 */
+    /**
+     * Last-Event-ID: SSE 显式恢复时使用的事件游标。
+     */
     public static final String LAST_EVENT_ID = "Last-Event-ID";
 
     /**

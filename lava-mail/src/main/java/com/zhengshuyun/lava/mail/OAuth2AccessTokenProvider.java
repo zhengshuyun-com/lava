@@ -3,14 +3,17 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  */
 package com.zhengshuyun.lava.mail;
+
+import com.zhengshuyun.lava.core.lang.ValidationUtils;
 import org.jspecify.annotations.Nullable;
 
 import java.time.Clock;
 import java.time.Duration;
-import com.zhengshuyun.lava.core.lang.ValidationUtils;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-/** 为单个邮件客户端提供带提前刷新窗口的线程安全 token 缓存。 */
+/**
+ * 为单个邮件客户端提供带提前刷新窗口的线程安全 token 缓存。
+ */
 final class OAuth2AccessTokenProvider implements AutoCloseable {
     private final OAuth2RefreshTokenCredential credential;
     private final OAuth2TokenClient tokenClient;

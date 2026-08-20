@@ -12,7 +12,9 @@ package com.zhengshuyun.lava.core.retry;
 
 import java.time.Duration;
 
-/** 供 {@link RetryExecutor} 注入的休眠边界。 */
+/**
+ * 供 {@link RetryExecutor} 注入的休眠边界。
+ */
 @FunctionalInterface
 public interface RetrySleeper {
 

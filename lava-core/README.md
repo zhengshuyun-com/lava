@@ -1,6 +1,7 @@
 # lava-core
 
-`lava-core` 提供不依赖通用第三方工具包的基础能力：RFC 9562 UUIDv7、显式 worker 的 Snowflake、实例化重试、有界流读取、IEC/SI 数据量格式化、严格时间格式和实用校验。生产依赖只有 JSpecify。
+`lava-core` 提供不依赖通用第三方工具包的基础能力：RFC 9562 UUIDv7、显式 worker 的 Snowflake、实例化重试、有界流读取、IEC/SI
+数据量格式化、严格时间格式和实用校验。生产依赖只有 JSpecify。
 
 ```xml
 <dependency>
@@ -22,7 +23,8 @@ String compactText = IdUtils.nextUUIDStringWithoutHyphens();
 UUID orderedId = IdUtils.nextUUIDv7();
 ```
 
-`nextUUIDv7()` 使用进程内共享生成器，在并发、同毫秒和时钟回拨时仍保持唯一且严格单调；需要可注入时间和熵源时，直接创建 `UUIDv7Generator(Clock, SecureRandom)`。这个保证不跨进程共享。
+`nextUUIDv7()` 使用进程内共享生成器，在并发、同毫秒和时钟回拨时仍保持唯一且严格单调；需要可注入时间和熵源时，直接创建
+`UUIDv7Generator(Clock, SecureRandom)`。这个保证不跨进程共享。
 
 雪花算法要求由部署配置分配 `workerId`，生成器需在进程内复用：
 
@@ -32,8 +34,8 @@ long id = ids.nextId();
 Instant createdAt = SnowflakeIdGenerator.timestamp(id);
 ```
 
-`workerId` 从哪里来由调用方决定——环境变量、系统属性或配置中心都可以。若 Kubernetes 集群为
-StatefulSet Pod 提供 `apps.kubernetes.io/pod-index` 标签，其序号可作为唯一且重启后稳定的来源：
+`workerId` 从哪里来由调用方决定——环境变量、系统属性或配置中心都可以。若 Kubernetes 集群为 StatefulSet Pod 提供
+`apps.kubernetes.io/pod-index` 标签，其序号可作为唯一且重启后稳定的来源：
 
 ```yaml
 env:
@@ -43,7 +45,10 @@ env:
         fieldPath: metadata.labels['apps.kubernetes.io/pod-index']
 ```
 
-布局为 41 位时间、10 位 worker、12 位序列，Lava epoch 是 `2026-01-01T00:00:00Z`。`workerId` 范围是 0–1023；两个实例复用同一个 worker ID 会产出逐位相同的 ID 序列，因此这里没有默认值可用——`workerId` 无法由主机名、IP 或进程号可靠推导，10 位只有 1024 个取值，20 个实例哈希取值的碰撞概率已达 17%，而 Pod IP 的低位熵远小于 10 位。时钟回拨或单毫秒 4096 个序列耗尽时统一抛出 `IdGenerationException`，具体原因写入异常消息，生成器不会隐藏等待。
+布局为 41 位时间、10 位 worker、12 位序列，Lava epoch 是 `2026-01-01T00:00:00Z`。`workerId` 范围是 0–1023；两个实例复用同一个
+worker ID 会产出逐位相同的 ID 序列，因此这里没有默认值可用——`workerId` 无法由主机名、IP 或进程号可靠推导，10 位只有 1024
+个取值，20 个实例哈希取值的碰撞概率已达 17%，而 Pod IP 的低位熵远小于 10 位。时钟回拨或单毫秒 4096 个序列耗尽时统一抛出
+`IdGenerationException`，具体原因写入异常消息，生成器不会隐藏等待。
 
 ## 重试
 
@@ -62,7 +67,8 @@ RetryPolicy<String> policy = RetryPolicy.<String>builder()
 String result = new RetryExecutor().execute(policy, service::load);
 ```
 
-`maxAttempts` 包含第一次调用。最终 checked exception 会原样抛出；`InterruptedException` 不会被重试，并会恢复线程中断标志。只有幂等或具有明确去重语义的操作才应自动重试。
+`maxAttempts` 包含第一次调用。最终 checked exception 会原样抛出；`InterruptedException`
+不会被重试，并会恢复线程中断标志。只有幂等或具有明确去重语义的操作才应自动重试。
 
 ## IO 与所有权
 

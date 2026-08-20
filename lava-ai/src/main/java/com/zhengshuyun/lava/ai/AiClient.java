@@ -6,16 +6,7 @@
 package com.zhengshuyun.lava.ai;
 
 import com.zhengshuyun.lava.core.lang.ValidationUtils;
-import com.zhengshuyun.lava.http.HttpClient;
-import com.zhengshuyun.lava.http.HttpHeaderNames;
-import com.zhengshuyun.lava.http.HttpHeaders;
-import com.zhengshuyun.lava.http.HttpRequest;
-import com.zhengshuyun.lava.http.HttpResponse;
-import com.zhengshuyun.lava.http.SseEvent;
-import com.zhengshuyun.lava.http.SseListener;
-import com.zhengshuyun.lava.http.SseOptions;
-import com.zhengshuyun.lava.http.SseSession;
-import com.zhengshuyun.lava.http.SseTerminal;
+import com.zhengshuyun.lava.http.*;
 import com.zhengshuyun.lava.json.JsonCodec;
 import tools.jackson.core.type.TypeReference;
 
@@ -23,7 +14,9 @@ import java.net.URI;
 import java.time.Duration;
 import java.util.Optional;
 
-/** 协议中立的 AI 请求便利层，不包含任何供应商字段模型。 */
+/**
+ * 协议中立的 AI 请求便利层，不包含任何供应商字段模型。
+ */
 public final class AiClient implements AutoCloseable {
     private final HttpClient http;
     private final boolean ownsHttp;
@@ -42,7 +35,9 @@ public final class AiClient implements AutoCloseable {
         return new Builder();
     }
 
-    /** 包装外部 HTTP 客户端；关闭 AI 客户端不会关闭传入的客户端。 */
+    /**
+     * 包装外部 HTTP 客户端；关闭 AI 客户端不会关闭传入的客户端。
+     */
     public static AiClient using(HttpClient client) {
         ValidationUtils.requireNonNull(client, "client must not be null");
         return new AiClient(client, false, JsonCodec.defaultCodec(),
@@ -53,18 +48,24 @@ public final class AiClient implements AutoCloseable {
         return http;
     }
 
-    /** 发送已经构造好的普通请求。 */
+    /**
+     * 发送已经构造好的普通请求。
+     */
     public HttpResponse send(HttpRequest request) {
         return http.send(request);
     }
 
-    /** 将对象编码为 JSON 后发送，状态码仍由返回响应表达。 */
+    /**
+     * 将对象编码为 JSON 后发送，状态码仍由返回响应表达。
+     */
     public HttpResponse sendJson(HttpRequest request, Object body) {
         ValidationUtils.requireNonNull(request, "request must not be null");
         return http.send(request.withBody(com.zhengshuyun.lava.http.HttpBodyUtils.json(body, jsonCodec)));
     }
 
-    /** 发送 JSON 并在成功时直接解码目标类型。 */
+    /**
+     * 发送 JSON 并在成功时直接解码目标类型。
+     */
     public <T> T sendJson(HttpRequest request, Object body, Class<T> responseType) {
         ValidationUtils.requireNonNull(responseType, "responseType must not be null");
         return jsonCodec.read(sendJson(request, body).requireSuccess().getBodyAsBytes(), responseType);

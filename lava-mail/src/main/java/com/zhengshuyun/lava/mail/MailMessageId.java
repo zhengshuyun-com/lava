@@ -7,9 +7,9 @@ package com.zhengshuyun.lava.mail;
 /**
  * 由文件夹名、UIDVALIDITY 和 UID 组成的稳定 IMAP 消息标识。
  *
- * @param folder 文件夹全名
+ * @param folder      文件夹全名
  * @param uidValidity 邮箱的 UIDVALIDITY
- * @param uid 消息 UID
+ * @param uid         消息 UID
  */
 public record MailMessageId(String folder, long uidValidity, long uid) {
     static final long MAX_IMAP_UID = 0xffff_ffffL;
@@ -17,9 +17,9 @@ public record MailMessageId(String folder, long uidValidity, long uid) {
     /**
      * 校验并规范化消息标识。
      *
-     * @param folder 文件夹全名
+     * @param folder      文件夹全名
      * @param uidValidity 邮箱 UIDVALIDITY
-     * @param uid 消息 UID
+     * @param uid         消息 UID
      */
     public MailMessageId {
         folder = PasswordCredential.requireNonBlankWithoutControls(folder, "folder");

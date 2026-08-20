@@ -9,10 +9,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
-import java.net.URI;
 import java.net.ProtocolException;
 import java.net.Proxy;
 import java.net.SocketTimeoutException;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -23,14 +23,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 class HttpApiTest {
 
@@ -321,7 +314,9 @@ class HttpApiTest {
         assertFalse(terminalDelivered.get());
     }
 
-    /** 避免在参数校验断言中混入无关的构造细节。 */
+    /**
+     * 避免在参数校验断言中混入无关的构造细节。
+     */
     private static final class RequestBodyFactory {
         private RequestBodyFactory() {
         }
@@ -331,7 +326,9 @@ class HttpApiTest {
         }
     }
 
-    /** 创建一个行为确定的直连 ProxySelector。 */
+    /**
+     * 创建一个行为确定的直连 ProxySelector。
+     */
     private static final class ProxySelectorFactory {
         private ProxySelectorFactory() {
         }

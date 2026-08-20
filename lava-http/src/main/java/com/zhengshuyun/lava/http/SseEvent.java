@@ -11,12 +11,14 @@ import org.jspecify.annotations.Nullable;
 /**
  * 简洁命名的通用 SSE 事件。
  *
- * @param id 服务端事件 ID；未提供时为 null
+ * @param id   服务端事件 ID；未提供时为 null
  * @param type 事件类型；空白值归一化为 {@link #DEFAULT_TYPE}
  * @param data 事件数据
  */
 public record SseEvent(@Nullable String id, String type, String data) {
-    /** SSE 规范约定的默认事件类型。 */
+    /**
+     * SSE 规范约定的默认事件类型。
+     */
     public static final String DEFAULT_TYPE = "message";
 
     public SseEvent {

@@ -11,6 +11,7 @@
 package com.zhengshuyun.lava.json;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.zhengshuyun.lava.core.lang.ValidationUtils;
 import org.jspecify.annotations.Nullable;
 import tools.jackson.databind.JacksonModule;
 import tools.jackson.databind.ObjectMapper;
@@ -23,11 +24,12 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import com.zhengshuyun.lava.core.lang.ValidationUtils;
 import java.util.TimeZone;
 import java.util.function.Consumer;
 
-/** 使用确定性的 Lava 默认配置创建不可变 Jackson 3 mapper。 */
+/**
+ * 使用确定性的 Lava 默认配置创建不可变 Jackson 3 mapper。
+ */
 public final class JsonMapperFactory {
 
     private JsonMapperFactory() {
@@ -51,28 +53,44 @@ public final class JsonMapperFactory {
         return new Builder();
     }
 
-    /** 一次性 builder；{@link #build()} 返回的 mapper 不可变且线程安全。 */
+    /**
+     * 一次性 builder；{@link #build()} 返回的 mapper 不可变且线程安全。
+     */
     public static final class Builder {
 
-        /** {@link LocalDateTime} 的可选格式模式。 */
+        /**
+         * {@link LocalDateTime} 的可选格式模式。
+         */
         private @Nullable String dateTimePattern;
 
-        /** {@link LocalDate} 的可选格式模式。 */
+        /**
+         * {@link LocalDate} 的可选格式模式。
+         */
         private @Nullable String datePattern;
 
-        /** {@link LocalTime} 的可选格式模式。 */
+        /**
+         * {@link LocalTime} 的可选格式模式。
+         */
         private @Nullable String timePattern;
 
-        /** 绝对时间类型使用的可选默认时区。 */
+        /**
+         * 绝对时间类型使用的可选默认时区。
+         */
         private @Nullable ZoneId zone;
 
-        /** 日期时间格式化使用的区域设置，默认为根区域。 */
+        /**
+         * 日期时间格式化使用的区域设置，默认为根区域。
+         */
         private Locale locale = Locale.ROOT;
 
-        /** 按注册顺序加入 mapper 的 Jackson 模块。 */
+        /**
+         * 按注册顺序加入 mapper 的 Jackson 模块。
+         */
         private final List<JacksonModule> modules = new ArrayList<>();
 
-        /** 对底层 Jackson Builder 的可选自定义配置回调。 */
+        /**
+         * 对底层 Jackson Builder 的可选自定义配置回调。
+         */
         private @Nullable Consumer<JsonMapper.Builder> customizer;
 
         private Builder() {

@@ -10,6 +10,7 @@
 
 package com.zhengshuyun.lava.json;
 
+import com.zhengshuyun.lava.core.lang.ValidationUtils;
 import org.jspecify.annotations.Nullable;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.JavaType;
@@ -23,7 +24,6 @@ import java.io.FilterInputStream;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import com.zhengshuyun.lava.core.lang.ValidationUtils;
 
 /**
  * 不可变且线程安全的 JSON 编解码器。
@@ -33,10 +33,14 @@ import com.zhengshuyun.lava.core.lang.ValidationUtils;
  */
 public final class JsonCodec {
 
-    /** 使用默认 mapper 的进程级共享编解码器。 */
+    /**
+     * 使用默认 mapper 的进程级共享编解码器。
+     */
     private static final JsonCodec DEFAULT = new JsonCodec(JsonMapperFactory.defaultMapper());
 
-    /** 此编解码器使用的不可变 Jackson mapper。 */
+    /**
+     * 此编解码器使用的不可变 Jackson mapper。
+     */
     private final ObjectMapper mapper;
 
     /**
@@ -48,12 +52,16 @@ public final class JsonCodec {
         this.mapper = ValidationUtils.requireNonNull(mapper, "mapper");
     }
 
-    /** 返回急切初始化的确定性默认编解码器。 */
+    /**
+     * 返回急切初始化的确定性默认编解码器。
+     */
     public static JsonCodec defaultCodec() {
         return DEFAULT;
     }
 
-    /** 返回此编解码器使用的不可变 Jackson mapper。 */
+    /**
+     * 返回此编解码器使用的不可变 Jackson mapper。
+     */
     public ObjectMapper mapper() {
         return mapper;
     }
@@ -104,8 +112,8 @@ public final class JsonCodec {
      * 将 JSON 文本反序列化为指定的原始类型。
      *
      * @param content 非空 JSON 文本
-     * @param type 目标类型
-     * @param <T> 目标类型
+     * @param type    目标类型
+     * @param <T>     目标类型
      * @return 反序列化结果，永不为 null
      */
     public <T> T read(String content, Class<T> type) {
@@ -122,8 +130,8 @@ public final class JsonCodec {
      * 将 JSON 文本反序列化为包含泛型信息的目标类型。
      *
      * @param content 非空 JSON 文本
-     * @param type 保存泛型类型信息的类型引用
-     * @param <T> 目标类型
+     * @param type    保存泛型类型信息的类型引用
+     * @param <T>     目标类型
      * @return 反序列化结果，永不为 null
      */
     public <T> T read(String content, TypeReference<T> type) {
@@ -140,7 +148,7 @@ public final class JsonCodec {
      * 将 JSON 文本反序列化为 Jackson 类型模型指定的对象。
      *
      * @param content 非空 JSON 文本
-     * @param type Jackson 目标类型模型
+     * @param type    Jackson 目标类型模型
      * @return 反序列化结果，永不为 null
      */
     public Object read(String content, JavaType type) {
@@ -157,8 +165,8 @@ public final class JsonCodec {
      * 将 JSON 字节反序列化为指定的原始类型。
      *
      * @param content 非空 JSON 字节
-     * @param type 目标类型
-     * @param <T> 目标类型
+     * @param type    目标类型
+     * @param <T>     目标类型
      * @return 反序列化结果，永不为 null
      */
     public <T> T read(byte[] content, Class<T> type) {
@@ -175,8 +183,8 @@ public final class JsonCodec {
      * 将 JSON 字节反序列化为包含泛型信息的目标类型。
      *
      * @param content 非空 JSON 字节
-     * @param type 保存泛型类型信息的类型引用
-     * @param <T> 目标类型
+     * @param type    保存泛型类型信息的类型引用
+     * @param <T>     目标类型
      * @return 反序列化结果，永不为 null
      */
     public <T> T read(byte[] content, TypeReference<T> type) {
@@ -193,8 +201,8 @@ public final class JsonCodec {
      * 从借入的流中反序列化指定的原始类型，不会关闭调用方的流。
      *
      * @param input 待读取的流
-     * @param type 目标类型
-     * @param <T> 目标类型
+     * @param type  目标类型
+     * @param <T>   目标类型
      * @return 反序列化结果，永不为 null
      */
     public <T> T read(InputStream input, Class<T> type) {
@@ -211,8 +219,8 @@ public final class JsonCodec {
      * 从借入的流中反序列化包含泛型信息的目标类型，不会关闭调用方的流。
      *
      * @param input 待读取的流
-     * @param type 保存泛型类型信息的类型引用
-     * @param <T> 目标类型
+     * @param type  保存泛型类型信息的类型引用
+     * @param <T>   目标类型
      * @return 反序列化结果，永不为 null
      */
     public <T> T read(InputStream input, TypeReference<T> type) {
@@ -230,7 +238,7 @@ public final class JsonCodec {
      *
      * @param path JSON 文件路径
      * @param type 目标类型
-     * @param <T> 目标类型
+     * @param <T>  目标类型
      * @return 反序列化结果，永不为 null
      */
     public <T> T read(Path path, Class<T> type) {
@@ -248,7 +256,7 @@ public final class JsonCodec {
      *
      * @param path JSON 文件路径
      * @param type 保存泛型类型信息的类型引用
-     * @param <T> 目标类型
+     * @param <T>  目标类型
      * @return 反序列化结果，永不为 null
      */
     public <T> T read(Path path, TypeReference<T> type) {
@@ -295,8 +303,8 @@ public final class JsonCodec {
      * 在内存中将 JSON 兼容值转换为指定类型。
      *
      * @param value 待转换的值，可以为 null
-     * @param type 目标类型
-     * @param <T> 目标类型
+     * @param type  目标类型
+     * @param <T>   目标类型
      * @return 转换结果，永不为 null
      */
     public <T> T convert(@Nullable Object value, Class<T> type) {

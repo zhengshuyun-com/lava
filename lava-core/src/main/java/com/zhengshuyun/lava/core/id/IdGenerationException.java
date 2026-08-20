@@ -16,7 +16,9 @@
 
 package com.zhengshuyun.lava.core.id;
 
-/** 标识符生成器因运行状态异常而无法继续生成标识符时抛出。 */
+/**
+ * 标识符生成器因运行状态异常而无法继续生成标识符时抛出。
+ */
 public final class IdGenerationException extends IllegalStateException {
 
     /**

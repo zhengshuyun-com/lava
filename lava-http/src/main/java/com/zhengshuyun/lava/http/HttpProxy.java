@@ -177,10 +177,14 @@ public final class HttpProxy {
      */
     private static class ProxyAuthenticator implements Authenticator {
 
-        /** HTTP 407：需要代理身份验证。 */
+        /**
+         * HTTP 407：需要代理身份验证。
+         */
         private static final int HTTP_PROXY_AUTH = 407;
 
-        /** 同一条请求链上最多尝试的认证次数, 防止凭据错误时无限重试 */
+        /**
+         * 同一条请求链上最多尝试的认证次数, 防止凭据错误时无限重试
+         */
         private static final int MAX_AUTH_ATTEMPTS = 3;
 
         private final String username;

@@ -6,7 +6,9 @@ package com.zhengshuyun.lava.mail;
 
 import java.time.Clock;
 
-/** 由单个发件器或收件器实例独占的 token 传输客户端。 */
+/**
+ * 由单个发件器或收件器实例独占的 token 传输客户端。
+ */
 @FunctionalInterface
 interface OAuth2TokenClient extends AutoCloseable {
     OAuth2AccessToken fetchAccessToken(OAuth2RefreshTokenCredential credential, Clock clock);

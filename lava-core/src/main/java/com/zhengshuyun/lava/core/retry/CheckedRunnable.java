@@ -10,7 +10,9 @@
 
 package com.zhengshuyun.lava.core.retry;
 
-/** 执行操作时可能抛出受检异常的 runnable。 */
+/**
+ * 执行操作时可能抛出受检异常的 runnable。
+ */
 @FunctionalInterface
 public interface CheckedRunnable {
 

@@ -4,19 +4,18 @@
  */
 package com.zhengshuyun.lava.mail.provider;
 
+import com.zhengshuyun.lava.core.lang.ValidationUtils;
 import com.zhengshuyun.lava.mail.ImapServerConfig;
 import com.zhengshuyun.lava.mail.OAuth2RefreshTokenCredential;
 import com.zhengshuyun.lava.mail.SmtpServerConfig;
 import org.jspecify.annotations.Nullable;
 
-import com.zhengshuyun.lava.core.lang.ValidationUtils;
-
 /**
  * 邮件服务商的已知连接默认值。
  *
- * @param name 服务商名称
- * @param imap IMAP 默认配置
- * @param smtp SMTP 默认配置
+ * @param name   服务商名称
+ * @param imap   IMAP 默认配置
+ * @param smtp   SMTP 默认配置
  * @param oauth2 可选 OAuth2 配置
  */
 public record MailProviderPreset(
@@ -27,9 +26,9 @@ public record MailProviderPreset(
     /**
      * 校验服务商预设。
      *
-     * @param name 服务商名称
-     * @param imap IMAP 默认配置
-     * @param smtp SMTP 默认配置
+     * @param name   服务商名称
+     * @param imap   IMAP 默认配置
+     * @param smtp   SMTP 默认配置
      * @param oauth2 可选 OAuth2 配置
      */
     public MailProviderPreset {
@@ -41,8 +40,8 @@ public record MailProviderPreset(
     /**
      * 使用服务商 OAuth2 配置创建凭证。
      *
-     * @param username 邮箱登录用户名
-     * @param clientId OAuth2 client ID
+     * @param username     邮箱登录用户名
+     * @param clientId     OAuth2 client ID
      * @param refreshToken refresh token
      * @param clientSecret 可选 client secret
      * @return OAuth2 凭证

@@ -4,18 +4,19 @@
  */
 package com.zhengshuyun.lava.mail;
 
-import java.time.Duration;
 import com.zhengshuyun.lava.core.lang.ValidationUtils;
+
+import java.time.Duration;
 
 /**
  * 不可变的 SMTP 连接配置。
  *
- * @param host 服务器主机名
- * @param port 服务器端口，范围为 1 到 65535
- * @param securityMode 传输安全模式
+ * @param host           服务器主机名
+ * @param port           服务器端口，范围为 1 到 65535
+ * @param securityMode   传输安全模式
  * @param connectTimeout 建立连接的超时时间
- * @param readTimeout 读取响应的超时时间
- * @param writeTimeout 写入请求的超时时间
+ * @param readTimeout    读取响应的超时时间
+ * @param writeTimeout   写入请求的超时时间
  */
 public record SmtpServerConfig(
         String host,
@@ -30,12 +31,12 @@ public record SmtpServerConfig(
     /**
      * 校验并规范化 SMTP 配置。
      *
-     * @param host 服务器主机名
-     * @param port 服务器端口
-     * @param securityMode 传输安全模式
+     * @param host           服务器主机名
+     * @param port           服务器端口
+     * @param securityMode   传输安全模式
      * @param connectTimeout 建连超时
-     * @param readTimeout 读取超时
-     * @param writeTimeout 写入超时
+     * @param readTimeout    读取超时
+     * @param writeTimeout   写入超时
      */
     public SmtpServerConfig {
         host = requireHost(host);

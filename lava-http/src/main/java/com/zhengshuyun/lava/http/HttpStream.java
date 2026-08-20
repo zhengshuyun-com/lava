@@ -10,9 +10,13 @@ import org.jspecify.annotations.Nullable;
 import java.io.InputStream;
 import java.nio.charset.Charset;
 
-/** 简洁命名的流式响应句柄；关闭后释放底层网络调用。 */
+/**
+ * 简洁命名的流式响应句柄；关闭后释放底层网络调用。
+ */
 public final class HttpStream implements AutoCloseable {
-    /** 实际持有网络响应和关闭责任的底层句柄。 */
+    /**
+     * 实际持有网络响应和关闭责任的底层句柄。
+     */
     private final HttpStreamingResponse delegate;
 
     HttpStream(HttpStreamingResponse delegate) {
@@ -119,7 +123,9 @@ public final class HttpStream implements AutoCloseable {
         return delegate.getMetadata();
     }
 
-    /** 关闭底层响应并释放网络调用。 */
+    /**
+     * 关闭底层响应并释放网络调用。
+     */
     @Override
     public void close() {
         delegate.close();

@@ -14,7 +14,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
-/** 内部的凭证安全诊断格式化工具。 */
+/**
+ * 内部的凭证安全诊断格式化工具。
+ */
 final class HttpRedactionUtils {
     private static final String REDACTED = "[REDACTED]";
     private static final String ENCODED_REDACTED = "%5BREDACTED%5D";

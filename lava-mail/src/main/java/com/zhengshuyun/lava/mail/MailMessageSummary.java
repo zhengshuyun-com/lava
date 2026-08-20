@@ -4,25 +4,25 @@
  */
 package com.zhengshuyun.lava.mail;
 
+import com.zhengshuyun.lava.core.lang.ValidationUtils;
 import org.jspecify.annotations.Nullable;
 
 import java.time.Instant;
 import java.util.List;
-import com.zhengshuyun.lava.core.lang.ValidationUtils;
 
 /**
  * 邮箱列表返回的消息头、状态和附件元数据，不包含正文或附件字节。
  *
- * @param id 稳定的 IMAP 消息标识
+ * @param id                稳定的 IMAP 消息标识
  * @param internetMessageId Message-ID 消息头，没有时为 {@code null}
- * @param from 发件人列表
- * @param to 主送收件人列表
- * @param cc 抄送收件人列表
- * @param subject 主题，没有主题时为空字符串
- * @param sentAt 发件时间，没有时为 {@code null}
- * @param receivedAt 收件时间，没有时为 {@code null}
- * @param unread 是否未读
- * @param attachments 附件元数据列表
+ * @param from              发件人列表
+ * @param to                主送收件人列表
+ * @param cc                抄送收件人列表
+ * @param subject           主题，没有主题时为空字符串
+ * @param sentAt            发件时间，没有时为 {@code null}
+ * @param receivedAt        收件时间，没有时为 {@code null}
+ * @param unread            是否未读
+ * @param attachments       附件元数据列表
  */
 public record MailMessageSummary(
         MailMessageId id,
@@ -38,16 +38,16 @@ public record MailMessageSummary(
     /**
      * 校验摘要并复制所有列表字段。
      *
-     * @param id 消息标识
+     * @param id                消息标识
      * @param internetMessageId 可选 Message-ID
-     * @param from 发件人列表
-     * @param to 主送收件人列表
-     * @param cc 抄送收件人列表
-     * @param subject 主题
-     * @param sentAt 可选发件时间
-     * @param receivedAt 可选收件时间
-     * @param unread 是否未读
-     * @param attachments 附件元数据列表
+     * @param from              发件人列表
+     * @param to                主送收件人列表
+     * @param cc                抄送收件人列表
+     * @param subject           主题
+     * @param sentAt            可选发件时间
+     * @param receivedAt        可选收件时间
+     * @param unread            是否未读
+     * @param attachments       附件元数据列表
      */
     public MailMessageSummary {
         ValidationUtils.requireNonNull(id, "id");

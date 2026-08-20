@@ -4,10 +4,10 @@
  */
 package com.zhengshuyun.lava.mail;
 
+import com.zhengshuyun.lava.core.lang.ValidationUtils;
 import org.jspecify.annotations.Nullable;
 
 import java.io.Serial;
-import com.zhengshuyun.lava.core.lang.ValidationUtils;
 
 /**
  * 邮件操作失败时抛出的结构化异常。
@@ -19,16 +19,20 @@ public final class MailException extends RuntimeException {
     @Serial
     private static final long serialVersionUID = 1L;
 
-    /** 稳定的失败类别。 */
+    /**
+     * 稳定的失败类别。
+     */
     private final MailFailureKind kind;
 
-    /** 可选底层异常类型名。 */
+    /**
+     * 可选底层异常类型名。
+     */
     private final @Nullable String causeType;
 
     /**
      * 创建不带底层异常信息的邮件异常。
      *
-     * @param kind 失败类别
+     * @param kind    失败类别
      * @param message 凭证安全的错误消息
      */
     public MailException(MailFailureKind kind, String message) {
@@ -40,9 +44,9 @@ public final class MailException extends RuntimeException {
     /**
      * 创建只保留底层异常类型名的邮件异常。
      *
-     * @param kind 失败类别
+     * @param kind    失败类别
      * @param message 凭证安全的错误消息
-     * @param cause 底层异常；其对象、消息和堆栈不会保留
+     * @param cause   底层异常；其对象、消息和堆栈不会保留
      */
     public MailException(MailFailureKind kind, String message, Throwable cause) {
         super(ValidationUtils.requireNonNull(message, "message"));

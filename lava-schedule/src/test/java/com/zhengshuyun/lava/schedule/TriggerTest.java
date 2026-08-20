@@ -16,9 +16,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 
 class TriggerTest {
 

@@ -19,11 +19,14 @@ import org.jspecify.annotations.Nullable;
 import tools.jackson.core.type.TypeReference;
 
 import javax.net.ssl.SSLException;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.InterruptedIOException;
-import java.net.*;
+import java.net.ProtocolException;
+import java.net.SocketException;
+import java.net.URI;
+import java.net.UnknownHostException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -355,7 +358,9 @@ public final class HttpClient implements AutoCloseable {
         return openSse(request, SseOptions.builder().idleTimeout(sseIdleTimeout).build(), listener);
     }
 
-    /** 使用底层 SSE 事件模型打开会话。 */
+    /**
+     * 使用底层 SSE 事件模型打开会话。
+     */
     HttpSseSession openSse(HttpRequest request, HttpSseListener listener) {
         return openSse(request, RequestOptions.defaults(), listener);
     }
@@ -630,37 +635,69 @@ public final class HttpClient implements AutoCloseable {
         public static final int DEFAULT_MAX_IDLE_CONNECTIONS = 10;
         public static final Duration DEFAULT_KEEP_ALIVE_DURATION = Duration.ofMinutes(5);
 
-        /** 建立连接的默认超时时间；零表示不限制。 */
+        /**
+         * 建立连接的默认超时时间；零表示不限制。
+         */
         private Duration connectTimeout = DEFAULT_CONNECT_TIMEOUT;
-        /** 读取响应数据的默认超时时间；零表示不限制。 */
+        /**
+         * 读取响应数据的默认超时时间；零表示不限制。
+         */
         private Duration readTimeout = DEFAULT_READ_TIMEOUT;
-        /** 写出请求数据的默认超时时间；零表示不限制。 */
+        /**
+         * 写出请求数据的默认超时时间；零表示不限制。
+         */
         private Duration writeTimeout = DEFAULT_WRITE_TIMEOUT;
-        /** 单次 HTTP 调用的默认总超时时间；零表示不限制。 */
+        /**
+         * 单次 HTTP 调用的默认总超时时间；零表示不限制。
+         */
         private Duration callTimeout = DEFAULT_CALL_TIMEOUT;
-        /** 连接池允许保留的最大空闲连接数。 */
+        /**
+         * 连接池允许保留的最大空闲连接数。
+         */
         private int maxIdleConnections = DEFAULT_MAX_IDLE_CONNECTIONS;
-        /** 空闲连接在连接池中的最长保留时间。 */
+        /**
+         * 空闲连接在连接池中的最长保留时间。
+         */
         private Duration keepAliveDuration = DEFAULT_KEEP_ALIVE_DURATION;
-        /** 是否启用连接失败后的底层自动重试。 */
+        /**
+         * 是否启用连接失败后的底层自动重试。
+         */
         private boolean retryOnConnectionFailure;
-        /** 是否自动跟随同协议 HTTP 重定向。 */
+        /**
+         * 是否自动跟随同协议 HTTP 重定向。
+         */
         private boolean followRedirects = true;
-        /** 是否允许跟随 HTTP 与 HTTPS 之间的重定向。 */
+        /**
+         * 是否允许跟随 HTTP 与 HTTPS 之间的重定向。
+         */
         private boolean followSslRedirects;
-        /** 客户端级代理配置；未设置时直连。 */
+        /**
+         * 客户端级代理配置；未设置时直连。
+         */
         private @Nullable HttpProxy proxy;
-        /** 缓冲响应正文允许的最大字节数。 */
+        /**
+         * 缓冲响应正文允许的最大字节数。
+         */
         private int maxBufferedResponseBytes = DEFAULT_MAX_BUFFERED_RESPONSE_BYTES;
-        /** 解析相对请求 URL 时使用的客户端基地址。 */
+        /**
+         * 解析相对请求 URL 时使用的客户端基地址。
+         */
         private @Nullable URI baseUrl;
-        /** 每个请求都会继承的默认请求头。 */
+        /**
+         * 每个请求都会继承的默认请求头。
+         */
         private HttpHeaders.Builder defaultHeaders = HttpHeaders.builder();
-        /** 客户端级 JSON 请求体和响应使用的编解码器。 */
+        /**
+         * 客户端级 JSON 请求体和响应使用的编解码器。
+         */
         private JsonCodec jsonCodec = JsonCodec.defaultCodec();
-        /** SSE 事件之间允许的默认空闲时间；零表示不限制。 */
+        /**
+         * SSE 事件之间允许的默认空闲时间；零表示不限制。
+         */
         private Duration sseIdleTimeout = SseOptions.DEFAULT_IDLE_TIMEOUT;
-        /** 在构建底层 OkHttp 客户端前执行的定制器。 */
+        /**
+         * 在构建底层 OkHttp 客户端前执行的定制器。
+         */
         private final List<Consumer<OkHttpClient.Builder>> okHttpCustomizers = new ArrayList<>();
 
         private Builder() {

@@ -10,46 +10,61 @@ package com.zhengshuyun.lava.http;
 
 import com.zhengshuyun.lava.core.lang.ValidationUtils;
 import com.zhengshuyun.lava.json.JsonCodec;
-import okhttp3.FormBody;
-import okhttp3.HttpUrl;
-import okhttp3.MediaType;
-import okhttp3.MultipartBody;
-import okhttp3.Request;
-import okhttp3.RequestBody;
+import okhttp3.*;
 import org.jspecify.annotations.Nullable;
 
 import java.io.File;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 
-/** 不可变的 HTTP 请求；常规公开 API 仅使用 Lava 和 JDK 类型。 */
+/**
+ * 不可变的 HTTP 请求；常规公开 API 仅使用 Lava 和 JDK 类型。
+ */
 public final class HttpRequest {
-    /** 未显式指定时使用的正文文本字符集。 */
+    /**
+     * 未显式指定时使用的正文文本字符集。
+     */
     private static final Charset DEFAULT_CHARSET = StandardCharsets.UTF_8;
 
-    /** 对外展示的 URL；传输时会重新基于原始相对路径解析。 */
+    /**
+     * 对外展示的 URL；传输时会重新基于原始相对路径解析。
+     */
     private final String url;
-    /** 构建时的原始 URL，用于保留相对路径和 query 参数语义。 */
+    /**
+     * 构建时的原始 URL，用于保留相对路径和 query 参数语义。
+     */
     private final String rawUrl;
-    /** 以插入顺序保存的 query 参数变更。 */
+    /**
+     * 以插入顺序保存的 query 参数变更。
+     */
     private final List<QueryParam> queryParams;
-    /** HTTP 请求方法。 */
+    /**
+     * HTTP 请求方法。
+     */
     private final HttpMethod method;
-    /** 由文本和表单构建器使用的字符集。 */
+    /**
+     * 由文本和表单构建器使用的字符集。
+     */
     private final Charset charset;
-    /** 请求级 HTTP 头。 */
+    /**
+     * 请求级 HTTP 头。
+     */
     private final HttpHeaders headers;
-    /** 高级 API 提供的 OkHttp 原生请求体。 */
+    /**
+     * 高级 API 提供的 OkHttp 原生请求体。
+     */
     private final @Nullable RequestBody body;
-    /** 常规 API 使用的传输无关请求体。 */
+    /**
+     * 常规 API 使用的传输无关请求体。
+     */
     private final @Nullable HttpBody portableBody;
 
     private HttpRequest(Builder builder) {
@@ -90,7 +105,9 @@ public final class HttpRequest {
         return headers;
     }
 
-    /** 使用客户端的同步发送入口，便于在业务代码中保持统一调用方向。 */
+    /**
+     * 使用客户端的同步发送入口，便于在业务代码中保持统一调用方向。
+     */
     public HttpResponse send(HttpClient client) {
         requireClient(client);
         return client.send(this);
@@ -138,7 +155,9 @@ public final class HttpRequest {
         return mergeHeaders(defaults, headers);
     }
 
-    /** 返回带有一个覆盖 header 的新请求。 */
+    /**
+     * 返回带有一个覆盖 header 的新请求。
+     */
     public HttpRequest withHeader(String name, String value) {
         Builder builder = builder(rawUrl, method, charset);
         copyQueryParams(builder);
@@ -152,7 +171,9 @@ public final class HttpRequest {
         return builder.build();
     }
 
-    /** 返回带有新请求体的新请求；原请求保持不变。 */
+    /**
+     * 返回带有新请求体的新请求；原请求保持不变。
+     */
     public HttpRequest withBody(HttpBody value) {
         ValidationUtils.requireNonNull(value, "body must not be null");
         Builder builder = builder(rawUrl, method, charset);
@@ -286,7 +307,9 @@ public final class HttpRequest {
         return builder.build().toString();
     }
 
-    /** 在不改变相对路径语义的前提下渲染请求级 query 参数。 */
+    /**
+     * 在不改变相对路径语义的前提下渲染请求级 query 参数。
+     */
     private static String renderRelativeUrl(String rawUrl, List<QueryParam> queryParams) {
         int fragmentStart = rawUrl.indexOf('#');
         String fragment = fragmentStart < 0 ? "" : rawUrl.substring(fragmentStart);
@@ -393,6 +416,7 @@ public final class HttpRequest {
             headers.add(name, value);
             return this;
         }
+
         public Builder headers(HttpHeaders headers) {
             ValidationUtils.requireNonNull(headers, "headers must not be null");
             for (String name : List.copyOf(this.headers.build().names())) {
@@ -473,7 +497,9 @@ public final class HttpRequest {
             return this;
         }
 
-        /** 设置不依赖 OkHttp 的请求体。 */
+        /**
+         * 设置不依赖 OkHttp 的请求体。
+         */
         public Builder body(HttpBody value) {
             ValidationUtils.requireNonNull(value, "body must not be null");
             portableBody = value;
@@ -481,12 +507,16 @@ public final class HttpRequest {
             return this;
         }
 
-        /** 使用默认 JSON 编解码器编码任意对象。 */
+        /**
+         * 使用默认 JSON 编解码器编码任意对象。
+         */
         public Builder jsonBody(Object value) {
             return body(HttpBodyUtils.json(value));
         }
 
-        /** 使用指定编解码器编码任意对象。 */
+        /**
+         * 使用指定编解码器编码任意对象。
+         */
         public Builder jsonBody(Object value, JsonCodec codec) {
             return body(HttpBodyUtils.json(value, codec));
         }

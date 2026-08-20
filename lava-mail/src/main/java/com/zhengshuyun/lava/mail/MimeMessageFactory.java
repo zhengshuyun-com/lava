@@ -3,6 +3,8 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  */
 package com.zhengshuyun.lava.mail;
+
+import com.zhengshuyun.lava.core.lang.ValidationUtils;
 import jakarta.activation.DataHandler;
 import jakarta.mail.Message;
 import jakarta.mail.MessagingException;
@@ -18,9 +20,10 @@ import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.util.Date;
 import java.util.List;
-import com.zhengshuyun.lava.core.lang.ValidationUtils;
 
-/** 将模块发信模型转换为 Jakarta MIME 消息，并在分配 MIME 结构前执行大小限制。 */
+/**
+ * 将模块发信模型转换为 Jakarta MIME 消息，并在分配 MIME 结构前执行大小限制。
+ */
 final class MimeMessageFactory {
     private MimeMessageFactory() {
     }
@@ -81,7 +84,9 @@ final class MimeMessageFactory {
         return addToTotal(total, size, limits);
     }
 
-    /** 计算 UTF-8 字节数，一旦超过 {@code maximum} 就立即返回 {@code -1}。 */
+    /**
+     * 计算 UTF-8 字节数，一旦超过 {@code maximum} 就立即返回 {@code -1}。
+     */
     static long boundedUtf8Length(String value, long maximum) {
         long total = 0;
         for (int index = 0; index < value.length(); index++) {

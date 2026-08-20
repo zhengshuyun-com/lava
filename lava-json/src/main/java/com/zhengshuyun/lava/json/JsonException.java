@@ -16,14 +16,16 @@
 
 package com.zhengshuyun.lava.json;
 
-/** 表示确定性的 JSON 编码、解码或转换失败。 */
+/**
+ * 表示确定性的 JSON 编码、解码或转换失败。
+ */
 public final class JsonException extends RuntimeException {
 
     /**
      * 使用错误消息和根因创建 JSON 异常。
      *
      * @param message 错误消息
-     * @param cause 导致 JSON 操作失败的根因
+     * @param cause   导致 JSON 操作失败的根因
      */
     public JsonException(String message, Throwable cause) {
         super(message, cause);

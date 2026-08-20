@@ -20,7 +20,9 @@ import org.jspecify.annotations.Nullable;
 
 import java.time.Instant;
 
-/** 由一个 {@link LavaScheduler} 拥有的任务生命周期句柄。 */
+/**
+ * 由一个 {@link LavaScheduler} 拥有的任务生命周期句柄。
+ */
 public final class ScheduledTask {
 
     private final LavaScheduler.TaskControl control;
@@ -38,12 +40,16 @@ public final class ScheduledTask {
         return control.id();
     }
 
-    /** 暂停后续触发，不会打断已经开始的执行。 */
+    /**
+     * 暂停后续触发，不会打断已经开始的执行。
+     */
     public void pause() {
         control.pause();
     }
 
-    /** 恢复已暂停任务的后续触发。 */
+    /**
+     * 恢复已暂停任务的后续触发。
+     */
     public void resume() {
         control.resume();
     }
@@ -85,7 +91,9 @@ public final class ScheduledTask {
         return control.exists();
     }
 
-    /** 将一次立即执行交给相同的有界并发策略。 */
+    /**
+     * 将一次立即执行交给相同的有界并发策略。
+     */
     public void triggerNow() {
         control.triggerNow();
     }

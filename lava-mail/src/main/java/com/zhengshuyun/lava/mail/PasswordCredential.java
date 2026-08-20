@@ -6,7 +6,9 @@ package com.zhengshuyun.lava.mail;
 
 import com.zhengshuyun.lava.core.lang.ValidationUtils;
 
-/** 用户名和密码认证凭证；诊断文本始终隐藏密码。 */
+/**
+ * 用户名和密码认证凭证；诊断文本始终隐藏密码。
+ */
 public final class PasswordCredential implements MailCredential {
     private final String username;
     private final String password;

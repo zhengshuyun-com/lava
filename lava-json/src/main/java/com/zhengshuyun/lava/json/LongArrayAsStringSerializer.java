@@ -12,7 +12,9 @@ import tools.jackson.databind.ValueSerializer;
 
 final class LongArrayAsStringSerializer extends ValueSerializer<long[]> {
 
-    /** 负责数组元素输出形态的 long 序列化器。 */
+    /**
+     * 负责数组元素输出形态的 long 序列化器。
+     */
     private final LongAsStringSerializer elementSerializer;
 
     LongArrayAsStringSerializer() {
@@ -26,7 +28,7 @@ final class LongArrayAsStringSerializer extends ValueSerializer<long[]> {
     /**
      * 按属性上下文创建数组元素序列化器。
      *
-     * @param context 当前 Jackson 序列化上下文
+     * @param context  当前 Jackson 序列化上下文
      * @param property 当前属性；根值序列化时可能为 null
      * @return 当前或按属性格式调整后的数组序列化器
      */
@@ -43,9 +45,9 @@ final class LongArrayAsStringSerializer extends ValueSerializer<long[]> {
     /**
      * 将 long 数组写为 JSON 数组，并按元素序列化器输出每个值。
      *
-     * @param value 待序列化的 long 数组
+     * @param value     待序列化的 long 数组
      * @param generator JSON 输出生成器
-     * @param context 当前 Jackson 序列化上下文
+     * @param context   当前 Jackson 序列化上下文
      */
     @Override
     public void serialize(long[] value, JsonGenerator generator, SerializationContext context) {

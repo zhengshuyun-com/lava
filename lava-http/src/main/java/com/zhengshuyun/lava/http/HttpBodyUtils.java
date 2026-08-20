@@ -5,8 +5,8 @@
 
 package com.zhengshuyun.lava.http;
 
-import com.zhengshuyun.lava.json.JsonCodec;
 import com.zhengshuyun.lava.core.lang.ValidationUtils;
+import com.zhengshuyun.lava.json.JsonCodec;
 import okhttp3.MediaType;
 import okhttp3.RequestBody;
 
@@ -17,10 +17,12 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Map;
 import java.util.Locale;
+import java.util.Map;
 
-/** HTTP 请求体工具类；OkHttp 类型不会出现在这些方法的签名中。 */
+/**
+ * HTTP 请求体工具类；OkHttp 类型不会出现在这些方法的签名中。
+ */
 public final class HttpBodyUtils {
     private HttpBodyUtils() {
     }
@@ -28,7 +30,7 @@ public final class HttpBodyUtils {
     /**
      * 创建基于字节数组的可重放请求体。
      *
-     * @param value 请求正文字节，会在构建时复制
+     * @param value       请求正文字节，会在构建时复制
      * @param contentType 请求体媒体类型
      * @return 传输无关请求体
      */
@@ -66,8 +68,8 @@ public final class HttpBodyUtils {
     /**
      * 使用指定字符集和媒体类型创建文本请求体。
      *
-     * @param value 文本正文
-     * @param charset 文本编码
+     * @param value       文本正文
+     * @param charset     文本编码
      * @param contentType 媒体类型
      * @return 文本请求体
      */
@@ -115,7 +117,7 @@ public final class HttpBodyUtils {
     /**
      * 创建从常规文件读取的请求体。
      *
-     * @param path 待读取的常规文件路径
+     * @param path        待读取的常规文件路径
      * @param contentType 文件媒体类型
      * @return 文件请求体
      */
@@ -131,8 +133,8 @@ public final class HttpBodyUtils {
     /**
      * 创建从输入流读取的一次性请求体，调用方负责关闭输入流。
      *
-     * @param input 正文输入流
-     * @param length 正文字节数；未知时为 -1
+     * @param input       正文输入流
+     * @param length      正文字节数；未知时为 -1
      * @param contentType 请求体媒体类型
      * @return 流式请求体
      */
@@ -160,7 +162,9 @@ public final class HttpBodyUtils {
         };
     }
 
-    /** 将高级 multipart 构建器转换为传输无关请求体。 */
+    /**
+     * 将高级 multipart 构建器转换为传输无关请求体。
+     */
     public static HttpBody multipart(HttpRequest.MultipartBuilder multipart) {
         return fromOkHttp(ValidationUtils.requireNonNull(multipart, "multipart must not be null").build());
     }

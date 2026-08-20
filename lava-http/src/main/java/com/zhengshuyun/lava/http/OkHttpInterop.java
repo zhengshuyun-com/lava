@@ -26,7 +26,9 @@ public final class OkHttpInterop {
     private OkHttpInterop() {
     }
 
-    /** 包装外部客户端，但不接管其 dispatcher、连接池或缓存。 */
+    /**
+     * 包装外部客户端，但不接管其 dispatcher、连接池或缓存。
+     */
     public static HttpClient borrowed(OkHttpClient client) {
         return borrowed(client, HttpClient.DEFAULT_MAX_BUFFERED_RESPONSE_BYTES);
     }
@@ -34,7 +36,7 @@ public final class OkHttpInterop {
     /**
      * 包装外部客户端，并设置缓冲响应大小上限。
      *
-     * @param client 外部管理生命周期的 OkHttp 客户端
+     * @param client                   外部管理生命周期的 OkHttp 客户端
      * @param maxBufferedResponseBytes 缓冲响应正文的最大字节数
      * @return 不拥有底层资源的 Lava 客户端
      */
@@ -42,7 +44,9 @@ public final class OkHttpInterop {
         return new HttpClient(client, false, maxBufferedResponseBytes);
     }
 
-    /** 包装外部客户端，并负责关闭其资源。 */
+    /**
+     * 包装外部客户端，并负责关闭其资源。
+     */
     public static HttpClient owned(OkHttpClient client) {
         return owned(client, HttpClient.DEFAULT_MAX_BUFFERED_RESPONSE_BYTES);
     }
@@ -50,7 +54,7 @@ public final class OkHttpInterop {
     /**
      * 包装外部客户端并接管其传输资源，同时设置缓冲响应大小上限。
      *
-     * @param client 由返回客户端关闭的 OkHttp 客户端
+     * @param client                   由返回客户端关闭的 OkHttp 客户端
      * @param maxBufferedResponseBytes 缓冲响应正文的最大字节数
      * @return 拥有底层资源的 Lava 客户端
      */
@@ -61,7 +65,7 @@ public final class OkHttpInterop {
     /**
      * 向客户端构建器添加 OkHttp 拦截器。
      *
-     * @param builder Lava 客户端构建器
+     * @param builder     Lava 客户端构建器
      * @param interceptor OkHttp 拦截器
      * @return 原构建器
      */
@@ -72,7 +76,7 @@ public final class OkHttpInterop {
     /**
      * 为客户端构建器设置 Cookie 存储。
      *
-     * @param builder Lava 客户端构建器
+     * @param builder   Lava 客户端构建器
      * @param cookieJar OkHttp Cookie 存储
      * @return 原构建器
      */
@@ -83,7 +87,7 @@ public final class OkHttpInterop {
     /**
      * 在构建前执行底层 OkHttp 定制。
      *
-     * @param builder Lava 客户端构建器
+     * @param builder    Lava 客户端构建器
      * @param customizer 操作底层构建器的回调
      * @return 原构建器
      */
@@ -97,7 +101,7 @@ public final class OkHttpInterop {
      * 为请求构建器设置 OkHttp 原生请求体。
      *
      * @param builder Lava 请求构建器
-     * @param body OkHttp 请求体
+     * @param body    OkHttp 请求体
      * @return 原构建器
      */
     public static HttpRequest.Builder requestBody(HttpRequest.Builder builder, RequestBody body) {
@@ -105,7 +109,9 @@ public final class OkHttpInterop {
                 .okHttpBody(ValidationUtils.requireNonNull(body, "body must not be null"));
     }
 
-    /** 返回底层客户端以供高级诊断；不会转移所有权。 */
+    /**
+     * 返回底层客户端以供高级诊断；不会转移所有权。
+     */
     public static OkHttpClient unwrap(HttpClient client) {
         return ValidationUtils.requireNonNull(client, "client must not be null").okHttpClient();
     }

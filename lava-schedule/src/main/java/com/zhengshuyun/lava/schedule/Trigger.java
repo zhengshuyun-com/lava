@@ -16,17 +16,13 @@
 
 package com.zhengshuyun.lava.schedule;
 
+import com.zhengshuyun.lava.core.lang.ValidationUtils;
 import org.jspecify.annotations.Nullable;
 import org.quartz.CronExpression;
 
 import java.text.ParseException;
-import java.time.Duration;
-import java.time.DateTimeException;
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.ZoneOffset;
+import java.time.*;
 import java.util.Date;
-import com.zhengshuyun.lava.core.lang.ValidationUtils;
 import java.util.TimeZone;
 
 /**
@@ -91,7 +87,7 @@ public final class Trigger {
      * 创建具有相对初始延迟的固定频率触发器。
      *
      * @param initialDelay 首次执行相对调度时钟的延迟
-     * @param interval 两次计划执行之间的间隔
+     * @param interval     两次计划执行之间的间隔
      * @return 固定频率触发器
      */
     public static Trigger fixedRate(Duration initialDelay, Duration interval) {
@@ -106,7 +102,7 @@ public final class Trigger {
      * 创建锚定于绝对首次执行时刻的固定频率触发器。
      *
      * @param firstExecution 首次执行的绝对时刻
-     * @param interval 两次计划执行之间的间隔
+     * @param interval       两次计划执行之间的间隔
      * @return 固定频率触发器
      */
     public static Trigger fixedRate(Instant firstExecution, Duration interval) {
@@ -131,7 +127,7 @@ public final class Trigger {
      * 在显式时区中创建 Cron 触发器，并立即校验表达式。
      *
      * @param expression Quartz Cron 表达式
-     * @param zoneId 计算本地日期和时间时使用的时区
+     * @param zoneId     计算本地日期和时间时使用的时区
      * @return Cron 触发器
      * @throws IllegalArgumentException 表达式无效或为空白
      */

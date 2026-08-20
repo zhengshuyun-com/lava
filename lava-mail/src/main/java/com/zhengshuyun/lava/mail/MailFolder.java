@@ -4,17 +4,29 @@
  */
 package com.zhengshuyun.lava.mail;
 
-/** 常见邮箱文件夹名称；服务商可能使用不同的本地化名称。 */
+/**
+ * 常见邮箱文件夹名称；服务商可能使用不同的本地化名称。
+ */
 public enum MailFolder {
-    /** 收件箱。 */
+    /**
+     * 收件箱。
+     */
     INBOX("INBOX"),
-    /** 草稿箱。 */
+    /**
+     * 草稿箱。
+     */
     DRAFTS("Drafts"),
-    /** 已发送。 */
+    /**
+     * 已发送。
+     */
     SENT("Sent"),
-    /** 已删除。 */
+    /**
+     * 已删除。
+     */
     TRASH("Trash"),
-    /** 垃圾邮件。 */
+    /**
+     * 垃圾邮件。
+     */
     SPAM("Spam");
 
     private final String folderName;

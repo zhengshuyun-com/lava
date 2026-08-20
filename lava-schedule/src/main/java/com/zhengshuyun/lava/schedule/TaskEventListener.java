@@ -10,7 +10,9 @@
 
 package com.zhengshuyun.lava.schedule;
 
-/** 接收终态执行事件；监听器失败会与调度器隔离。 */
+/**
+ * 接收终态执行事件；监听器失败会与调度器隔离。
+ */
 @FunctionalInterface
 public interface TaskEventListener {
 

@@ -13,7 +13,9 @@ package com.zhengshuyun.lava.core.io;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 
-/** 使用无歧义的 IEC 或 SI 单位格式化非负字节数。 */
+/**
+ * 使用无歧义的 IEC 或 SI 单位格式化非负字节数。
+ */
 public final class DataSizeFormatter {
 
     private static final String[] IEC_UNITS = {"B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB"};

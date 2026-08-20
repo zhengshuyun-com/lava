@@ -11,18 +11,18 @@ import java.util.Arrays;
 /**
  * 发信时使用的内存附件，构造和读取内容时均执行防御性复制。
  *
- * @param fileName 附件文件名
+ * @param fileName    附件文件名
  * @param contentType MIME 内容类型
- * @param content 附件字节内容
+ * @param content     附件字节内容
  */
 @SuppressWarnings("ArrayRecordComponent") // 构造和读取时都执行防御性复制，不会暴露内部数组。
 public record MailAttachment(String fileName, String contentType, byte[] content) {
     /**
      * 校验附件元数据并复制附件字节。
      *
-     * @param fileName 附件文件名
+     * @param fileName    附件文件名
      * @param contentType MIME 内容类型
-     * @param content 附件字节内容
+     * @param content     附件字节内容
      */
     public MailAttachment {
         fileName = PasswordCredential.requireNonBlank(fileName, "fileName");
@@ -66,7 +66,9 @@ public record MailAttachment(String fileName, String contentType, byte[] content
                 && Arrays.equals(content, other.content);
     }
 
-    /** 与 {@link #equals(Object)} 一致地按附件字节内容计算哈希值。 */
+    /**
+     * 与 {@link #equals(Object)} 一致地按附件字节内容计算哈希值。
+     */
     @Override
     public int hashCode() {
         int result = fileName.hashCode();

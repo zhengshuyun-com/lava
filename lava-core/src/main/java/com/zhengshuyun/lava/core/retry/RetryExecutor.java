@@ -31,10 +31,14 @@ import java.util.random.RandomGenerator;
  */
 public final class RetryExecutor {
 
-    /** 仅供带抖动延迟策略使用的随机数源。 */
+    /**
+     * 仅供带抖动延迟策略使用的随机数源。
+     */
     private final RandomGenerator random;
 
-    /** 执行两次尝试之间等待操作的可替换边界。 */
+    /**
+     * 执行两次尝试之间等待操作的可替换边界。
+     */
     private final RetrySleeper sleeper;
 
     /**
@@ -49,7 +53,7 @@ public final class RetryExecutor {
     /**
      * 创建具备确定性和可观测边界的执行器。
      *
-     * @param random 用于抖动延迟的随机数源
+     * @param random  用于抖动延迟的随机数源
      * @param sleeper 执行重试等待的休眠器
      */
     public RetryExecutor(RandomGenerator random, RetrySleeper sleeper) {
@@ -61,9 +65,9 @@ public final class RetryExecutor {
      * 执行可能抛出受检异常的 supplier。最终的受检异常会原样重新抛出。
      * 被中断的操作绝不重试，并始终恢复中断标记。
      *
-     * @param policy 重试策略
+     * @param policy   重试策略
      * @param supplier 待执行的操作
-     * @param <T> 操作结果类型
+     * @param <T>      操作结果类型
      * @return 最后一次成功且不再重试的结果
      * @throws Exception 操作最终失败或线程被中断时抛出
      */
@@ -118,7 +122,7 @@ public final class RetryExecutor {
      * <p>操作正常结束后立即返回，不会调用 {@link RetryPolicy.Builder#retryOnResult}；
      * 因此此方法只会因异常而重试。
      *
-     * @param policy 重试策略
+     * @param policy   重试策略
      * @param runnable 待执行的操作
      * @throws Exception 操作最终失败或线程被中断时抛出
      */

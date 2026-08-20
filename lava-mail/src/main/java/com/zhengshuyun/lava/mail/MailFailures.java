@@ -12,16 +12,14 @@ import jakarta.mail.internet.AddressException;
 import org.jspecify.annotations.Nullable;
 
 import javax.net.ssl.SSLException;
-import java.net.ConnectException;
-import java.net.NoRouteToHostException;
-import java.net.SocketException;
-import java.net.SocketTimeoutException;
-import java.net.UnknownHostException;
+import java.net.*;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.Set;
 
-/** 为包内邮件传输实现提供凭证安全的失败分类。 */
+/**
+ * 为包内邮件传输实现提供凭证安全的失败分类。
+ */
 final class MailFailures {
     private MailFailures() {
     }
@@ -38,8 +36,8 @@ final class MailFailures {
         Set<Throwable> visited = Collections.newSetFromMap(new IdentityHashMap<>());
         MailFailureKind fallback = MailFailureKind.PARSING;
         for (Throwable current = failure;
-                current != null && visited.add(current);
-                current = next(current)) {
+             current != null && visited.add(current);
+             current = next(current)) {
             if (current instanceof AuthenticationFailedException) {
                 return MailFailureKind.AUTHENTICATION;
             }

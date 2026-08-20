@@ -9,15 +9,25 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
-/** 简洁命名的可取消 SSE 会话句柄。 */
+/**
+ * 简洁命名的可取消 SSE 会话句柄。
+ */
 public final class SseSession implements AutoCloseable {
-    /** 调用方注册的通用 SSE 监听器。 */
+    /**
+     * 调用方注册的通用 SSE 监听器。
+     */
     private final SseListener listener;
-    /** 异步创建后绑定的兼容 API 会话。 */
+    /**
+     * 异步创建后绑定的兼容 API 会话。
+     */
     private final AtomicReference<HttpSseSession> delegate = new AtomicReference<>();
-    /** 处理绑定发生前就调用 cancel 的竞态。 */
+    /**
+     * 处理绑定发生前就调用 cancel 的竞态。
+     */
     private final AtomicBoolean cancelRequested = new AtomicBoolean();
-    /** 已确定的唯一终态，供调用方在回调外查询。 */
+    /**
+     * 已确定的唯一终态，供调用方在回调外查询。
+     */
     private final AtomicReference<SseTerminal> terminal = new AtomicReference<>();
 
     SseSession(SseListener listener) {
@@ -44,7 +54,9 @@ public final class SseSession implements AutoCloseable {
         listener.onTerminal(this, terminal);
     }
 
-    /** 主动取消会话；在底层会话尚未绑定时也会记录取消意图。 */
+    /**
+     * 主动取消会话；在底层会话尚未绑定时也会记录取消意图。
+     */
     public void cancel() {
         cancelRequested.set(true);
         HttpSseSession session = delegate.get();
@@ -86,7 +98,9 @@ public final class SseSession implements AutoCloseable {
         return Optional.ofNullable(terminal.get());
     }
 
-    /** 等同于 {@link #cancel()}。 */
+    /**
+     * 等同于 {@link #cancel()}。
+     */
     @Override
     public void close() {
         cancel();

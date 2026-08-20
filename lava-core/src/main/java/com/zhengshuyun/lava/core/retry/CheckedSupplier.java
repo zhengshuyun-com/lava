@@ -10,7 +10,9 @@
 
 package com.zhengshuyun.lava.core.retry;
 
-/** 执行操作时可能抛出受检异常的 supplier。 */
+/**
+ * 执行操作时可能抛出受检异常的 supplier。
+ */
 @FunctionalInterface
 public interface CheckedSupplier<T> {
 

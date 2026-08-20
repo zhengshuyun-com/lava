@@ -17,17 +17,29 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * 显式流式响应。关闭此对象会关闭响应体并释放调用。
  */
 final class HttpStreamingResponse implements AutoCloseable {
-    /** 持有网络连接和只能消费一次响应体的底层响应。 */
+    /**
+     * 持有网络连接和只能消费一次响应体的底层响应。
+     */
     private final Response response;
-    /** 创建时快照的响应头，避免后续依赖底层对象。 */
+    /**
+     * 创建时快照的响应头，避免后续依赖底层对象。
+     */
     private final HttpHeaders headers;
-    /** 已脱敏的调用元数据。 */
+    /**
+     * 已脱敏的调用元数据。
+     */
     private final HttpCallMetadata metadata;
-    /** 响应关闭后用于注销客户端活动调用的回调。 */
+    /**
+     * 响应关闭后用于注销客户端活动调用的回调。
+     */
     private final Runnable onClose;
-    /** 保证底层响应和注销回调只执行一次。 */
+    /**
+     * 保证底层响应和注销回调只执行一次。
+     */
     private final AtomicBoolean closed = new AtomicBoolean();
-    /** 保证同一响应体不会被重复获取为流。 */
+    /**
+     * 保证同一响应体不会被重复获取为流。
+     */
     private final AtomicBoolean bodyClaimed = new AtomicBoolean();
 
     HttpStreamingResponse(Response response, HttpCallMetadata metadata, Runnable onClose) {
@@ -154,7 +166,9 @@ final class HttpStreamingResponse implements AutoCloseable {
         return response.protocol().toString();
     }
 
-    /** 关闭响应体、释放连接并注销活动调用；可重复调用。 */
+    /**
+     * 关闭响应体、释放连接并注销活动调用；可重复调用。
+     */
     @Override
     public void close() {
         if (closed.compareAndSet(false, true)) {

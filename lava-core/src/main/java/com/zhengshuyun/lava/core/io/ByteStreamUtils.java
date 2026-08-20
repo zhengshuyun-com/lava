@@ -10,6 +10,8 @@
 
 package com.zhengshuyun.lava.core.io;
 
+import com.zhengshuyun.lava.core.lang.ValidationUtils;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -19,9 +21,10 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.OpenOption;
 import java.nio.file.Path;
-import com.zhengshuyun.lava.core.lang.ValidationUtils;
 
-/** 仅依赖 JDK 的字节流操作，明确资源所有权和内存分配上限。 */
+/**
+ * 仅依赖 JDK 的字节流操作，明确资源所有权和内存分配上限。
+ */
 public final class ByteStreamUtils {
 
     public static final int DEFAULT_BUFFER_SIZE = 8192;
@@ -35,7 +38,7 @@ public final class ByteStreamUtils {
     /**
      * 从借入的输入流复制到借入的输出流。两个流都不会关闭，输出流也不会刷新。
      *
-     * @param input 待读取的输入流
+     * @param input  待读取的输入流
      * @param output 待写入的输出流
      * @return 已复制的字节数
      * @throws IOException 读取或写入失败时抛出
@@ -65,8 +68,8 @@ public final class ByteStreamUtils {
     /**
      * 打开并关闭由库创建的两个流。
      *
-     * @param source 提供输入流的源
-     * @param target 写入目标路径
+     * @param source  提供输入流的源
+     * @param target  写入目标路径
      * @param options 打开目标文件的选项
      * @return 已复制的字节数
      * @throws IOException 打开、读取或写入失败时抛出
@@ -96,7 +99,7 @@ public final class ByteStreamUtils {
     /**
      * 读取借入的流，最大不超过 {@code maximumBytes}，且不会关闭该流。
      *
-     * @param input 待读取的输入流
+     * @param input        待读取的输入流
      * @param maximumBytes 允许读取的最大字节数
      * @return 完整字节内容
      * @throws IOException 读取失败或内容超过上限时抛出
@@ -129,7 +132,7 @@ public final class ByteStreamUtils {
     /**
      * 有界读取后打开并关闭源流。
      *
-     * @param source 提供输入流的源
+     * @param source       提供输入流的源
      * @param maximumBytes 允许读取的最大字节数
      * @return 完整字节内容
      * @throws IOException 打开、读取失败或内容超过上限时抛出
@@ -156,8 +159,8 @@ public final class ByteStreamUtils {
     /**
      * 以指定字符集读取借入的输入流，且不会关闭该流。
      *
-     * @param input 待读取的输入流
-     * @param charset 解码字符集
+     * @param input        待读取的输入流
+     * @param charset      解码字符集
      * @param maximumBytes 允许读取的最大字节数
      * @return 解码后的文本
      * @throws IOException 读取失败或内容超过上限时抛出
@@ -171,8 +174,8 @@ public final class ByteStreamUtils {
     /**
      * 打开、读取并关闭源流，再以指定字符集解码。
      *
-     * @param source 提供输入流的源
-     * @param charset 解码字符集
+     * @param source       提供输入流的源
+     * @param charset      解码字符集
      * @param maximumBytes 允许读取的最大字节数
      * @return 解码后的文本
      * @throws IOException 打开、读取失败或内容超过上限时抛出
@@ -186,7 +189,7 @@ public final class ByteStreamUtils {
     /**
      * 以 UTF-8 读取借入的输入流，且不会关闭该流。
      *
-     * @param input 待读取的输入流
+     * @param input        待读取的输入流
      * @param maximumBytes 允许读取的最大字节数
      * @return 解码后的 UTF-8 文本
      * @throws IOException 读取失败或内容超过上限时抛出

@@ -5,13 +5,11 @@
 
 package com.zhengshuyun.lava.ai;
 
-import com.zhengshuyun.lava.http.HttpClient;
-import com.zhengshuyun.lava.http.HttpRequest;
-import com.zhengshuyun.lava.http.SseEvent;
-import com.zhengshuyun.lava.http.SseSession;
-import com.zhengshuyun.lava.http.SseTerminal;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
+import com.zhengshuyun.lava.http.HttpRequest;
+import com.zhengshuyun.lava.http.SseSession;
+import com.zhengshuyun.lava.http.SseTerminal;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

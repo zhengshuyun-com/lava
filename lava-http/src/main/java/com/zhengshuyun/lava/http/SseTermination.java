@@ -5,7 +5,9 @@
 
 package com.zhengshuyun.lava.http;
 
-/** SSE 会话终止原因。 */
+/**
+ * SSE 会话终止原因。
+ */
 public enum SseTermination {
     CANCELLED,
     REMOTE_CLOSED,

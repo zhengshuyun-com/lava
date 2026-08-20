@@ -7,8 +7,8 @@ package com.zhengshuyun.lava.http;
 
 import com.zhengshuyun.lava.core.lang.ValidationUtils;
 import com.zhengshuyun.lava.json.JsonCodec;
-import tools.jackson.core.type.TypeReference;
 import org.jspecify.annotations.Nullable;
+import tools.jackson.core.type.TypeReference;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -16,23 +16,41 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** 已完整缓冲的 HTTP 响应；HTTP 错误状态码会正常表示。 */
+/**
+ * 已完整缓冲的 HTTP 响应；HTTP 错误状态码会正常表示。
+ */
 public final class HttpResponse {
-    /** 服务端返回的 HTTP 状态码。 */
+    /**
+     * 服务端返回的 HTTP 状态码。
+     */
     private final int code;
-    /** 服务端返回的 HTTP 状态文本。 */
+    /**
+     * 服务端返回的 HTTP 状态文本。
+     */
     private final String message;
-    /** 响应头快照。 */
+    /**
+     * 响应头快照。
+     */
     private final HttpHeaders headers;
-    /** 已完整缓冲的响应正文。 */
+    /**
+     * 已完整缓冲的响应正文。
+     */
     private final byte[] body;
-    /** 从 Content-Type 推断出的正文字符集。 */
+    /**
+     * 从 Content-Type 推断出的正文字符集。
+     */
     private final Charset charset;
-    /** 已脱敏的调用元数据。 */
+    /**
+     * 已脱敏的调用元数据。
+     */
     private final HttpCallMetadata metadata;
-    /** 协商后的 HTTP 协议名称。 */
+    /**
+     * 协商后的 HTTP 协议名称。
+     */
     private final String protocol;
-    /** 用于解码 JSON 正文的客户端编解码器。 */
+    /**
+     * 用于解码 JSON 正文的客户端编解码器。
+     */
     private final JsonCodec jsonCodec;
 
     HttpResponse(int code, String message, HttpHeaders headers, byte[] body, Charset charset,
@@ -200,7 +218,9 @@ public final class HttpResponse {
         return protocol;
     }
 
-    /** 显式要求 2xx；失败时保留有界响应上下文。 */
+    /**
+     * 显式要求 2xx；失败时保留有界响应上下文。
+     */
     public HttpResponse requireSuccess() {
         if (!isSuccessful()) {
             throw new HttpStatusException(this);
@@ -208,13 +228,17 @@ public final class HttpResponse {
         return this;
     }
 
-    /** 使用客户端配置的 JSON 编解码器读取响应。 */
+    /**
+     * 使用客户端配置的 JSON 编解码器读取响应。
+     */
     public <T> T bodyAs(Class<T> type) {
         return jsonCodec.read(body,
                 ValidationUtils.requireNonNull(type, "type must not be null"));
     }
 
-    /** 使用客户端配置的 JSON 编解码器读取带泛型信息的响应。 */
+    /**
+     * 使用客户端配置的 JSON 编解码器读取带泛型信息的响应。
+     */
     public <T> T bodyAs(TypeReference<T> type) {
         return jsonCodec.read(body,
                 ValidationUtils.requireNonNull(type, "type must not be null"));

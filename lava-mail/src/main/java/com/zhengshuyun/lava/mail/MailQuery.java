@@ -12,13 +12,13 @@ import java.time.Instant;
 /**
  * 单次邮箱分页查询的过滤条件和游标。
  *
- * @param folder 文件夹全名；为 {@code null} 时使用 IMAP 配置的默认文件夹
- * @param pageSize 每页最多返回的消息数，范围为 1 到 1000
- * @param cursor 分页游标；第一页为 {@code null}
- * @param unreadOnly 是否只返回未读邮件
- * @param receivedAfter 只返回收件时间严格晚于该时刻的邮件
- * @param receivedBefore 只返回收件时间严格早于该时刻的邮件
- * @param fromContains 发件地址或显示名包含的文本，按大小写不敏感匹配
+ * @param folder          文件夹全名；为 {@code null} 时使用 IMAP 配置的默认文件夹
+ * @param pageSize        每页最多返回的消息数，范围为 1 到 1000
+ * @param cursor          分页游标；第一页为 {@code null}
+ * @param unreadOnly      是否只返回未读邮件
+ * @param receivedAfter   只返回收件时间严格晚于该时刻的邮件
+ * @param receivedBefore  只返回收件时间严格早于该时刻的邮件
+ * @param fromContains    发件地址或显示名包含的文本，按大小写不敏感匹配
  * @param subjectContains 主题包含的文本，按大小写不敏感匹配
  */
 public record MailQuery(
@@ -34,13 +34,13 @@ public record MailQuery(
     /**
      * 校验并规范化查询条件。
      *
-     * @param folder 可选文件夹全名
-     * @param pageSize 每页最大结果数
-     * @param cursor 可选分页游标
-     * @param unreadOnly 是否只读未读邮件
-     * @param receivedAfter 可选收件时间下界
-     * @param receivedBefore 可选收件时间上界
-     * @param fromContains 可选发件人过滤文本
+     * @param folder          可选文件夹全名
+     * @param pageSize        每页最大结果数
+     * @param cursor          可选分页游标
+     * @param unreadOnly      是否只读未读邮件
+     * @param receivedAfter   可选收件时间下界
+     * @param receivedBefore  可选收件时间上界
+     * @param fromContains    可选发件人过滤文本
      * @param subjectContains 可选主题过滤文本
      */
     public MailQuery {

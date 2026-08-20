@@ -4,8 +4,9 @@
  */
 package com.zhengshuyun.lava.mail;
 
-import java.io.OutputStream;
 import com.zhengshuyun.lava.core.lang.ValidationUtils;
+
+import java.io.OutputStream;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -22,7 +23,7 @@ public final class MailReader implements AutoCloseable {
     /**
      * 使用默认客户端选项创建收件器。
      *
-     * @param config IMAP 配置
+     * @param config     IMAP 配置
      * @param credential 认证凭证
      */
     public MailReader(ImapServerConfig config, MailCredential credential) {
@@ -32,9 +33,9 @@ public final class MailReader implements AutoCloseable {
     /**
      * 使用指定客户端选项创建收件器。
      *
-     * @param config IMAP 配置
+     * @param config     IMAP 配置
      * @param credential 认证凭证
-     * @param options 客户端选项
+     * @param options    客户端选项
      */
     public MailReader(
             ImapServerConfig config, MailCredential credential, MailClientOptions options) {
@@ -71,9 +72,9 @@ public final class MailReader implements AutoCloseable {
      * 将已解码附件字节写入借用的目标流，不会关闭或刷新 {@code destination}。
      * 如果解码或大小限制失败，目标流中可能已经包含一段受限前缀。
      *
-     * @param id 消息标识
+     * @param id              消息标识
      * @param attachmentIndex 摘要中附件元数据的索引
-     * @param destination 调用方持有的目标流
+     * @param destination     调用方持有的目标流
      * @return 写入的解码字节数
      * @throws MailException 消息、附件不存在或下载失败时抛出
      */
@@ -88,7 +89,9 @@ public final class MailReader implements AutoCloseable {
                 ValidationUtils.requireNonNull(destination, "destination"));
     }
 
-    /** 关闭实例持有的 OAuth2 HTTP 资源；可重复调用。 */
+    /**
+     * 关闭实例持有的 OAuth2 HTTP 资源；可重复调用。
+     */
     @Override
     public void close() {
         if (closed.compareAndSet(false, true)) {

@@ -10,13 +10,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 class HttpHeadersTest {
 
@@ -143,8 +137,8 @@ class HttpHeadersTest {
                 HttpRedactionUtils.redactUrl(
                         "https://example.test/#tokenizer=visible;secretary=public"));
         assertFalse(HttpRedactionUtils.redactUrl(
-                "https://example.test/?plain=value;clientSecret=query-secret"
-                        + "#accessToken=fragment-secret&plain=value")
+                        "https://example.test/?plain=value;clientSecret=query-secret"
+                                + "#accessToken=fragment-secret&plain=value")
                 .contains("secret"));
         assertFalse(HttpRedactionUtils.isSensitiveName("tokenizer"));
         assertFalse(HttpRedactionUtils.isSensitiveName("secretary"));

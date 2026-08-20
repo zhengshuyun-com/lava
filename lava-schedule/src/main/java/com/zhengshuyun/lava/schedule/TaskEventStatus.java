@@ -10,14 +10,24 @@
 
 package com.zhengshuyun.lava.schedule;
 
-/** 单次调度执行的终态结果。 */
+/**
+ * 单次调度执行的终态结果。
+ */
 public enum TaskEventStatus {
-    /** 任务运行结束且未抛出异常。 */
+    /**
+     * 任务运行结束且未抛出异常。
+     */
     SUCCESS,
-    /** 任务运行时抛出异常。 */
+    /**
+     * 任务运行时抛出异常。
+     */
     FAILURE,
-    /** occurrence 因并发策略、暂停、取消或 misfire 策略而未运行。 */
+    /**
+     * occurrence 因并发策略、暂停、取消或 misfire 策略而未运行。
+     */
     SKIPPED,
-    /** occurrence 因队列已满、执行器拒绝或补偿上限而未被接受。 */
+    /**
+     * occurrence 因队列已满、执行器拒绝或补偿上限而未被接受。
+     */
     REJECTED
 }

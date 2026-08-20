@@ -3,14 +3,17 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  */
 package com.zhengshuyun.lava.mail;
+
+import com.zhengshuyun.lava.core.lang.ValidationUtils;
 import jakarta.mail.Session;
 import org.jspecify.annotations.Nullable;
 
 import java.time.Duration;
-import com.zhengshuyun.lava.core.lang.ValidationUtils;
 import java.util.Properties;
 
-/** 集中创建不携带凭证值的 Jakarta Mail Session。 */
+/**
+ * 集中创建不携带凭证值的 Jakarta Mail Session。
+ */
 final class MailSessionFactory {
     private MailSessionFactory() {
     }

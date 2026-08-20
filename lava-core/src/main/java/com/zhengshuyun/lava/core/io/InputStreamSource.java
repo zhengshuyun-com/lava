@@ -10,6 +10,8 @@
 
 package com.zhengshuyun.lava.core.io;
 
+import com.zhengshuyun.lava.core.lang.ValidationUtils;
+
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -18,7 +20,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.OpenOption;
 import java.nio.file.Path;
-import com.zhengshuyun.lava.core.lang.ValidationUtils;
 
 /**
  * 可重复打开的输入流来源。
@@ -40,7 +41,7 @@ public interface InputStreamSource {
     /**
      * 创建每次从指定路径打开新流的来源。
      *
-     * @param path 待读取的文件路径
+     * @param path    待读取的文件路径
      * @param options 打开文件的选项
      * @return 可重复打开的输入流来源
      */
@@ -77,7 +78,7 @@ public interface InputStreamSource {
     /**
      * 使用指定字符集的文本创建可重复输入流来源。
      *
-     * @param value 待编码的文本
+     * @param value   待编码的文本
      * @param charset 文本编码字符集
      * @return 可重复打开的输入流来源
      */

@@ -5,6 +5,7 @@
 package com.zhengshuyun.lava.mail;
 
 import com.zhengshuyun.lava.core.lang.ValidationUtils;
+
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -21,7 +22,7 @@ public final class MailSender implements AutoCloseable {
     /**
      * 使用默认客户端选项创建发件器。
      *
-     * @param config SMTP 配置
+     * @param config     SMTP 配置
      * @param credential 认证凭证
      */
     public MailSender(SmtpServerConfig config, MailCredential credential) {
@@ -31,9 +32,9 @@ public final class MailSender implements AutoCloseable {
     /**
      * 使用指定客户端选项创建发件器。
      *
-     * @param config SMTP 配置
+     * @param config     SMTP 配置
      * @param credential 认证凭证
-     * @param options 客户端选项
+     * @param options    客户端选项
      */
     public MailSender(
             SmtpServerConfig config, MailCredential credential, MailClientOptions options) {
@@ -56,7 +57,9 @@ public final class MailSender implements AutoCloseable {
         return engine.send(config, credential, ValidationUtils.requireNonNull(request, "request"));
     }
 
-    /** 关闭实例持有的 OAuth2 HTTP 资源；可重复调用。 */
+    /**
+     * 关闭实例持有的 OAuth2 HTTP 资源；可重复调用。
+     */
     @Override
     public void close() {
         if (closed.compareAndSet(false, true)) {

@@ -4,15 +4,16 @@
  */
 package com.zhengshuyun.lava.mail;
 
+import com.zhengshuyun.lava.core.lang.ValidationUtils;
 import jakarta.mail.Address;
 import jakarta.mail.Session;
 import jakarta.mail.Transport;
 import jakarta.mail.internet.MimeMessage;
 import org.jspecify.annotations.Nullable;
 
-import com.zhengshuyun.lava.core.lang.ValidationUtils;
-
-/** 协调 MIME 构造、SMTP 提交和可选 OAuth2 token 生命周期。 */
+/**
+ * 协调 MIME 构造、SMTP 提交和可选 OAuth2 token 生命周期。
+ */
 final class MailSenderEngine implements AutoCloseable {
     private final MailClientOptions options;
     private final @Nullable OAuth2AccessTokenProvider tokenProvider;
@@ -26,8 +27,8 @@ final class MailSenderEngine implements AutoCloseable {
     static MailSenderEngine create(MailCredential credential, MailClientOptions options) {
         OAuth2AccessTokenProvider provider = credential instanceof OAuth2RefreshTokenCredential oauth
                 ? new OAuth2AccessTokenProvider(
-                        oauth, OAuth2TokenClient.createDefault(),
-                        options.clock(), options.tokenRefreshAhead())
+                oauth, OAuth2TokenClient.createDefault(),
+                options.clock(), options.tokenRefreshAhead())
                 : null;
         return new MailSenderEngine(options, provider);
     }

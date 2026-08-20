@@ -10,14 +10,22 @@ import org.jspecify.annotations.Nullable;
 
 import java.time.Duration;
 
-/** SSE 专用选项；SSE 默认不使用总调用超时。 */
+/**
+ * SSE 专用选项；SSE 默认不使用总调用超时。
+ */
 public final class SseOptions {
-    /** 默认允许两分钟没有事件到达。 */
+    /**
+     * 默认允许两分钟没有事件到达。
+     */
     public static final Duration DEFAULT_IDLE_TIMEOUT = Duration.ofMinutes(2);
 
-    /** 两个事件之间允许的最大空闲时间。 */
+    /**
+     * 两个事件之间允许的最大空闲时间。
+     */
     private final Duration idleTimeout;
-    /** 发送给服务端、用于恢复事件流的位置游标。 */
+    /**
+     * 发送给服务端、用于恢复事件流的位置游标。
+     */
     private final @Nullable String lastEventId;
 
     private SseOptions(Builder builder) {
@@ -62,9 +70,13 @@ public final class SseOptions {
     }
 
     public static final class Builder {
-        /** 待构建的读取空闲超时。 */
+        /**
+         * 待构建的读取空闲超时。
+         */
         private Duration idleTimeout = DEFAULT_IDLE_TIMEOUT;
-        /** 待构建的事件恢复游标。 */
+        /**
+         * 待构建的事件恢复游标。
+         */
         private @Nullable String lastEventId;
 
         /**

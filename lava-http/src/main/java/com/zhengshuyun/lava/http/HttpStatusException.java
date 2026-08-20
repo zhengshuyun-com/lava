@@ -5,7 +5,9 @@
 
 package com.zhengshuyun.lava.http;
 
-/** 调用方显式要求成功但服务端返回非 2xx 时抛出的异常。 */
+/**
+ * 调用方显式要求成功但服务端返回非 2xx 时抛出的异常。
+ */
 public final class HttpStatusException extends RuntimeException {
     private static final int MAX_ERROR_BODY_BYTES = 64 * 1024;
     private final int statusCode;
@@ -29,7 +31,9 @@ public final class HttpStatusException extends RuntimeException {
         return headers;
     }
 
-    /** 返回有界响应正文；异常的 toString 不会包含正文。 */
+    /**
+     * 返回有界响应正文；异常的 toString 不会包含正文。
+     */
     public String responseBody() {
         return responseBody;
     }

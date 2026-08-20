@@ -10,16 +10,17 @@
 
 package com.zhengshuyun.lava.core.retry;
 
-import java.time.Duration;
 import com.zhengshuyun.lava.core.lang.ValidationUtils;
+
+import java.time.Duration;
 import java.util.random.RandomGenerator;
 
-    /**
-     * 计算一次可重试尝试结束后的延迟。
-     *
-     * <p>策略实现必须返回非负 {@link Duration}。仅带抖动的策略会使用 {@code random}；
-     * 固定和无延迟策略会忽略它。
-     */
+/**
+ * 计算一次可重试尝试结束后的延迟。
+ *
+ * <p>策略实现必须返回非负 {@link Duration}。仅带抖动的策略会使用 {@code random}；
+ * 固定和无延迟策略会忽略它。
+ */
 @FunctionalInterface
 public interface RetryDelayStrategy {
 
@@ -27,7 +28,7 @@ public interface RetryDelayStrategy {
      * 返回一次可重试尝试结束后的延迟。
      *
      * @param attempt 已完成的尝试序号，从 1 开始
-     * @param random 执行器拥有的随机数源
+     * @param random  执行器拥有的随机数源
      * @return 下一次重试前的非负延迟
      */
     Duration delayAfter(int attempt, RandomGenerator random);
@@ -56,8 +57,8 @@ public interface RetryDelayStrategy {
      * 返回不带抖动且设有上限的指数退避延迟。
      *
      * @param initialDelay 首次重试前的非负延迟
-     * @param multiplier 每次重试的延迟倍率，至少为 1
-     * @param maxDelay 延迟上限，不能小于初始延迟
+     * @param multiplier   每次重试的延迟倍率，至少为 1
+     * @param maxDelay     延迟上限，不能小于初始延迟
      * @return 指数退避策略
      */
     static RetryDelayStrategy exponential(Duration initialDelay, double multiplier, Duration maxDelay) {
@@ -69,8 +70,8 @@ public interface RetryDelayStrategy {
      * {@code [0, min(maxDelay, initialDelay * multiplier^(attempt-1)))}.
      *
      * @param initialDelay 首次重试前的非负延迟
-     * @param multiplier 每次重试的延迟倍率，至少为 1
-     * @param maxDelay 延迟上限，不能小于初始延迟
+     * @param multiplier   每次重试的延迟倍率，至少为 1
+     * @param maxDelay     延迟上限，不能小于初始延迟
      * @return 带完全抖动的指数退避策略
      */
     static RetryDelayStrategy fullJitter(Duration initialDelay, double multiplier, Duration maxDelay) {

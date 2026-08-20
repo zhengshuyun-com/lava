@@ -4,25 +4,25 @@
  */
 package com.zhengshuyun.lava.mail.provider;
 
+import com.zhengshuyun.lava.core.lang.ValidationUtils;
 import com.zhengshuyun.lava.mail.OAuth2RefreshTokenCredential;
 import org.jspecify.annotations.Nullable;
 
 import java.net.URI;
 import java.util.List;
-import com.zhengshuyun.lava.core.lang.ValidationUtils;
 
 /**
  * 邮件服务商维护的 OAuth2 token endpoint 与 scope 组合。
  *
  * @param tokenEndpoint token endpoint
- * @param scopes 不可变的 scope 列表
+ * @param scopes        不可变的 scope 列表
  */
 public record MailOAuth2Profile(URI tokenEndpoint, List<String> scopes) {
     /**
      * 校验并复制服务商 OAuth2 配置。
      *
      * @param tokenEndpoint token endpoint
-     * @param scopes scope 列表
+     * @param scopes        scope 列表
      */
     public MailOAuth2Profile {
         ValidationUtils.requireNonNull(tokenEndpoint, "tokenEndpoint");
@@ -36,8 +36,8 @@ public record MailOAuth2Profile(URI tokenEndpoint, List<String> scopes) {
     /**
      * 使用此服务商的 endpoint 和 scope 创建 OAuth2 凭证。
      *
-     * @param username 邮箱登录用户名
-     * @param clientId OAuth2 client ID
+     * @param username     邮箱登录用户名
+     * @param clientId     OAuth2 client ID
      * @param refreshToken refresh token
      * @param clientSecret 可选 client secret
      * @return OAuth2 凭证

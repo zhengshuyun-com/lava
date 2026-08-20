@@ -16,6 +16,7 @@
 
 package com.zhengshuyun.lava.crypto;
 
+import com.zhengshuyun.lava.core.lang.ValidationUtils;
 import org.bouncycastle.crypto.generators.Argon2BytesGenerator;
 import org.bouncycastle.crypto.params.Argon2Parameters;
 
@@ -28,9 +29,10 @@ import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Base64;
-import com.zhengshuyun.lava.core.lang.ValidationUtils;
 
-/** 不可变且线程安全的 Argon2id 密码哈希器。 */
+/**
+ * 不可变且线程安全的 Argon2id 密码哈希器。
+ */
 public final class PasswordHasher {
 
     private static final String ALGORITHM = "argon2id";
@@ -41,7 +43,9 @@ public final class PasswordHasher {
     private final PasswordHashPolicy policy;
     private final SecureRandom secureRandom;
 
-    /** 使用默认策略和新的安全随机源创建密码哈希器。 */
+    /**
+     * 使用默认策略和新的安全随机源创建密码哈希器。
+     */
     public PasswordHasher() {
         this(PasswordHashPolicy.DEFAULT);
     }
@@ -58,7 +62,7 @@ public final class PasswordHasher {
     /**
      * 使用指定策略和安全随机源创建密码哈希器，主要用于确定性测试和受控熵源。
      *
-     * @param policy 密码哈希与验证资源策略
+     * @param policy       密码哈希与验证资源策略
      * @param secureRandom 用于生成每个密码盐的安全随机源
      */
     public PasswordHasher(PasswordHashPolicy policy, SecureRandom secureRandom) {
@@ -145,7 +149,7 @@ public final class PasswordHasher {
      * 验证密码是否匹配 Argon2id PHC 哈希。仅在普通密码不匹配时返回 false；畸形 PHC 输入和
      * 资源上限违规会抛出异常。
      *
-     * @param password 待验证的密码字符；调用方可在调用后自行清零
+     * @param password    待验证的密码字符；调用方可在调用后自行清零
      * @param encodedHash Argon2id PHC 格式的密码哈希
      * @return 密码匹配时为 true
      * @throws CryptoException PHC 格式无效或请求资源超过验证上限时抛出
@@ -175,7 +179,7 @@ public final class PasswordHasher {
      * 验证密码字符串是否匹配 Argon2id PHC 哈希；对于可变的秘密数据，应优先使用
      * {@link #verify(char[], String)}。
      *
-     * @param password 待验证的密码字符串
+     * @param password    待验证的密码字符串
      * @param encodedHash Argon2id PHC 格式的密码哈希
      * @return 密码匹配时为 true
      * @throws CryptoException PHC 格式无效或请求资源超过验证上限时抛出
@@ -291,7 +295,7 @@ public final class PasswordHasher {
         int secondComma = firstComma < 0 ? -1 : text.indexOf(',', firstComma + 1);
         if (firstComma < 0 || secondComma < 0 || secondComma >= end
                 || (text.indexOf(',', secondComma + 1) >= 0
-                        && text.indexOf(',', secondComma + 1) < end)) {
+                && text.indexOf(',', secondComma + 1) < end)) {
             throw malformed("Invalid Argon2id parameter list");
         }
         int memory = parseNamedInteger(text, start, firstComma, "m");

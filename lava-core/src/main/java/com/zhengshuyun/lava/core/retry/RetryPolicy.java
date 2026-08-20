@@ -15,22 +15,34 @@ import com.zhengshuyun.lava.core.lang.ValidationUtils;
 import java.time.Duration;
 import java.util.function.Predicate;
 
-/** 不可变且线程安全的重试策略。 */
+/**
+ * 不可变且线程安全的重试策略。
+ */
 public final class RetryPolicy<T> {
 
-    /** 总尝试次数，包含首次执行。 */
+    /**
+     * 总尝试次数，包含首次执行。
+     */
     private final int maxAttempts;
 
-    /** 每次可重试尝试完成后计算等待时间的策略。 */
+    /**
+     * 每次可重试尝试完成后计算等待时间的策略。
+     */
     private final RetryDelayStrategy delayStrategy;
 
-    /** 根据抛出的异常决定是否继续重试的条件。 */
+    /**
+     * 根据抛出的异常决定是否继续重试的条件。
+     */
     private final Predicate<? super Exception> exceptionCondition;
 
-    /** 根据正常返回的结果决定是否继续重试的条件。 */
+    /**
+     * 根据正常返回的结果决定是否继续重试的条件。
+     */
     private final Predicate<? super T> resultCondition;
 
-    /** 每次尝试结束后接收不可变状态的监听器。 */
+    /**
+     * 每次尝试结束后接收不可变状态的监听器。
+     */
     private final RetryListener<T> listener;
 
     private RetryPolicy(Builder<T> builder) {
@@ -73,20 +85,31 @@ public final class RetryPolicy<T> {
 
     public static final class Builder<T> {
 
-        /** 默认执行一次初始调用和最多两次重试。 */
+        /**
+         * 默认执行一次初始调用和最多两次重试。
+         */
         private int maxAttempts = 3;
 
-        /** 默认不在重试前等待。 */
+        /**
+         * 默认不在重试前等待。
+         */
         private RetryDelayStrategy delayStrategy = RetryDelayStrategy.none();
 
-        /** 默认所有 {@link Exception} 均可重试。 */
+        /**
+         * 默认所有 {@link Exception} 均可重试。
+         */
         private Predicate<? super Exception> exceptionCondition = failure -> true;
 
-        /** 默认正常返回后不再重试。 */
+        /**
+         * 默认正常返回后不再重试。
+         */
         private Predicate<? super T> resultCondition = result -> false;
 
-        /** 默认不处理尝试状态。 */
-        private RetryListener<T> listener = attempt -> { };
+        /**
+         * 默认不处理尝试状态。
+         */
+        private RetryListener<T> listener = attempt -> {
+        };
 
         private Builder() {
         }
@@ -130,8 +153,8 @@ public final class RetryPolicy<T> {
          * 设置不带随机抖动的指数退避延迟策略。
          *
          * @param initialDelay 首次重试前的非负延迟
-         * @param multiplier 每次重试的延迟倍率，至少为 1
-         * @param maxDelay 延迟上限，不能小于初始延迟
+         * @param multiplier   每次重试的延迟倍率，至少为 1
+         * @param maxDelay     延迟上限，不能小于初始延迟
          * @return 当前构建器
          */
         public Builder<T> exponentialBackoff(
@@ -145,8 +168,8 @@ public final class RetryPolicy<T> {
          * <p>每次延迟会在当前退避上限内随机取值，适合分散大量并发调用方的重试时间。
          *
          * @param initialDelay 首次重试前的非负延迟
-         * @param multiplier 每次重试的延迟倍率，至少为 1
-         * @param maxDelay 延迟上限，不能小于初始延迟
+         * @param multiplier   每次重试的延迟倍率，至少为 1
+         * @param maxDelay     延迟上限，不能小于初始延迟
          * @return 当前构建器
          */
         public Builder<T> exponentialBackoffWithFullJitter(

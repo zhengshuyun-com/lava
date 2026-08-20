@@ -4,7 +4,9 @@
  */
 package com.zhengshuyun.lava.mail;
 
-/** SMTP 和 IMAP 共用的认证凭证。 */
+/**
+ * SMTP 和 IMAP 共用的认证凭证。
+ */
 public sealed interface MailCredential permits PasswordCredential, OAuth2RefreshTokenCredential {
     /**
      * 返回登录用户名。

@@ -16,7 +16,9 @@
 
 package com.zhengshuyun.lava.crypto;
 
-/** 加密、密码哈希或密钥处理失败时抛出的通用异常。 */
+/**
+ * 加密、密码哈希或密钥处理失败时抛出的通用异常。
+ */
 public final class CryptoException extends RuntimeException {
 
     /**
@@ -32,7 +34,7 @@ public final class CryptoException extends RuntimeException {
      * 创建带错误消息和原因的异常实例。
      *
      * @param message 错误消息
-     * @param cause 根因异常
+     * @param cause   根因异常
      */
     public CryptoException(String message, Throwable cause) {
         super(message, cause);

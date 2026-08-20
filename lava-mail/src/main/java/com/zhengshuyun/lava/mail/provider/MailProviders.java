@@ -10,7 +10,9 @@ import com.zhengshuyun.lava.mail.SmtpServerConfig;
 import java.net.URI;
 import java.util.List;
 
-/** 常用邮件服务商预设。 */
+/**
+ * 常用邮件服务商预设。
+ */
 public final class MailProviders {
     private static final MailOAuth2Profile MICROSOFT_OAUTH = new MailOAuth2Profile(
             URI.create("https://login.microsoftonline.com/common/oauth2/v2.0/token"),

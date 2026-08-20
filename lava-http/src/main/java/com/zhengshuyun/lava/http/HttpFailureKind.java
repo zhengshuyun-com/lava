@@ -5,7 +5,9 @@
 
 package com.zhengshuyun.lava.http;
 
-/** 传输和本地 HTTP 失败的稳定分类。 */
+/**
+ * 传输和本地 HTTP 失败的稳定分类。
+ */
 public enum HttpFailureKind {
     DNS,
     CONNECTION,

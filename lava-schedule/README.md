@@ -1,6 +1,7 @@
 # lava-schedule
 
-`lava-schedule` 是实例级、纯进程内调度器。它不提供数据库持久化、进程重启恢复、分布式锁或集群调度。Quartz 只负责校验 Cron 表达式和计算下一次时间；Lava 不创建 Quartz Scheduler，也不把用户对象放入 `JobDataMap`。
+`lava-schedule` 是实例级、纯进程内调度器。它不提供数据库持久化、进程重启恢复、分布式锁或集群调度。Quartz 只负责校验 Cron
+表达式和计算下一次时间；Lava 不创建 Quartz Scheduler，也不把用户对象放入 `JobDataMap`。
 
 ```xml
 <dependency>
@@ -49,13 +50,14 @@ try (LavaScheduler scheduler = LavaScheduler.builder()
 
 默认 `ScheduleOptions.DEFAULT` 是 `SERIAL_SKIP + SKIP`。
 
-| 策略 | 行为 |
-| --- | --- |
-| `ConcurrencyPolicy.SERIAL_SKIP` | 前一次仍在运行时跳过本次；不重叠、不排队 |
-| `ConcurrencyPolicy.serialQueue(maxPending)` | 单任务串行执行，并使用有界待执行队列 |
-| `ConcurrencyPolicy.parallel(maxConcurrency, maxPending)` | 有界并发和有界待执行队列 |
+| 策略                                                     | 行为                                     |
+|----------------------------------------------------------|------------------------------------------|
+| `ConcurrencyPolicy.SERIAL_SKIP`                          | 前一次仍在运行时跳过本次；不重叠、不排队 |
+| `ConcurrencyPolicy.serialQueue(maxPending)`              | 单任务串行执行，并使用有界待执行队列     |
+| `ConcurrencyPolicy.parallel(maxConcurrency, maxPending)` | 有界并发和有界待执行队列                 |
 
-队列满或底层 executor 拒绝时产生 `REJECTED` 事件，不创建无界虚拟线程。`MisfirePolicy` 可选丢弃错过时间的 `SKIP`、只补一次的 `FIRE_ONCE`，或将错过 occurrence 交给有界并发策略的 `CATCH_UP`。
+队列满或底层 executor 拒绝时产生 `REJECTED` 事件，不创建无界虚拟线程。`MisfirePolicy` 可选丢弃错过时间的 `SKIP`、只补一次的
+`FIRE_ONCE`，或将错过 occurrence 交给有界并发策略的 `CATCH_UP`。
 
 `TaskEventListener` 接收 `SUCCESS`、`FAILURE`、`SKIPPED`、`REJECTED` 终态事件和时间戳。监听器异常会被隔离，不中断调度器。
 

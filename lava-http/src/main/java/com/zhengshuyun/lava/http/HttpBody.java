@@ -10,7 +10,9 @@ import org.jspecify.annotations.Nullable;
 import java.io.IOException;
 import java.io.OutputStream;
 
-/** 不依赖具体传输实现的请求体。 */
+/**
+ * 不依赖具体传输实现的请求体。
+ */
 @FunctionalInterface
 public interface HttpBody {
     /**

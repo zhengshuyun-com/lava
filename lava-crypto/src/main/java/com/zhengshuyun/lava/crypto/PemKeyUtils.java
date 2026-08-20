@@ -16,6 +16,8 @@
 
 package com.zhengshuyun.lava.crypto;
 
+import com.zhengshuyun.lava.core.lang.ValidationUtils;
+
 import java.security.GeneralSecurityException;
 import java.security.Key;
 import java.security.KeyFactory;
@@ -25,9 +27,10 @@ import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Arrays;
 import java.util.Base64;
-import com.zhengshuyun.lava.core.lang.ValidationUtils;
 
-/** 面向 EC 密钥的严格 PKCS#8 私钥和 X.509 公钥 PEM 支持。 */
+/**
+ * 面向 EC 密钥的严格 PKCS#8 私钥和 X.509 公钥 PEM 支持。
+ */
 public final class PemKeyUtils {
 
     public static final int DEFAULT_MAX_PEM_CHARACTERS = 65_536;

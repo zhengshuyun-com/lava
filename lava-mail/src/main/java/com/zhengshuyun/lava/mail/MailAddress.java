@@ -4,23 +4,22 @@
  */
 package com.zhengshuyun.lava.mail;
 
+import com.zhengshuyun.lava.core.lang.ValidationUtils;
 import jakarta.mail.internet.AddressException;
 import jakarta.mail.internet.InternetAddress;
 import org.jspecify.annotations.Nullable;
 
-import com.zhengshuyun.lava.core.lang.ValidationUtils;
-
 /**
  * 经过严格语法校验的互联网邮箱地址及可选显示名。
  *
- * @param address 只包含一个 mailbox 的邮箱地址，不接受形如 {@code Name <user@example.com>} 的组合文本
+ * @param address     只包含一个 mailbox 的邮箱地址，不接受形如 {@code Name <user@example.com>} 的组合文本
  * @param displayName 可选显示名
  */
 public record MailAddress(String address, @Nullable String displayName) {
     /**
      * 校验并规范化邮箱地址。
      *
-     * @param address 邮箱地址
+     * @param address     邮箱地址
      * @param displayName 可选显示名
      */
     public MailAddress {

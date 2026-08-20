@@ -4,13 +4,15 @@
  */
 package com.zhengshuyun.lava.mail;
 
+import com.zhengshuyun.lava.core.lang.ValidationUtils;
 import org.jspecify.annotations.Nullable;
 
 import java.net.URI;
 import java.util.List;
-import com.zhengshuyun.lava.core.lang.ValidationUtils;
 
-/** 使用 refresh token 换取 access token 的 OAuth 2 认证凭证。 */
+/**
+ * 使用 refresh token 换取 access token 的 OAuth 2 认证凭证。
+ */
 public final class OAuth2RefreshTokenCredential implements MailCredential {
     private final String username;
     private final String clientId;
@@ -25,12 +27,12 @@ public final class OAuth2RefreshTokenCredential implements MailCredential {
      * <p>token endpoint 必须是无 user-info 和 fragment 的绝对 HTTPS URI。client ID、refresh
      * token 和 client secret 均按不透明值保留首尾空白。</p>
      *
-     * @param username 邮箱登录用户名
-     * @param clientId OAuth2 client ID
-     * @param refreshToken refresh token
+     * @param username      邮箱登录用户名
+     * @param clientId      OAuth2 client ID
+     * @param refreshToken  refresh token
      * @param tokenEndpoint token endpoint
-     * @param scopes 请求的 scope 列表，每项只能包含一个 scope token
-     * @param clientSecret 可选 client secret
+     * @param scopes        请求的 scope 列表，每项只能包含一个 scope token
+     * @param clientSecret  可选 client secret
      */
     public OAuth2RefreshTokenCredential(
             String username,

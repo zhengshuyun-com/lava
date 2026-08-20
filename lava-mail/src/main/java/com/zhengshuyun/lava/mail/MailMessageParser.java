@@ -3,11 +3,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  */
 package com.zhengshuyun.lava.mail;
-import jakarta.mail.Address;
-import jakarta.mail.Flags;
-import jakarta.mail.Message;
-import jakarta.mail.Multipart;
-import jakarta.mail.Part;
+
+import com.zhengshuyun.lava.core.lang.ValidationUtils;
+import jakarta.mail.*;
 import jakarta.mail.internet.ContentType;
 import jakarta.mail.internet.InternetAddress;
 import org.jspecify.annotations.Nullable;
@@ -23,9 +21,10 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
-import com.zhengshuyun.lava.core.lang.ValidationUtils;
 
-/** 有界解析 MIME 树，并保持附件内容与消息摘要分离。 */
+/**
+ * 有界解析 MIME 树，并保持附件内容与消息摘要分离。
+ */
 final class MailMessageParser {
     private static final int BUFFER_SIZE = 8192;
 

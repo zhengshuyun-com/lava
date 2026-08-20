@@ -16,13 +16,15 @@ import com.zhengshuyun.lava.core.lang.ValidationUtils;
  * 每个任务的调度选项。
  *
  * @param concurrencyPolicy 任务实例的并发与排队策略
- * @param misfirePolicy 任务错过计划时刻时的补偿策略
+ * @param misfirePolicy     任务错过计划时刻时的补偿策略
  */
 public record ScheduleOptions(
         ConcurrencyPolicy concurrencyPolicy,
         MisfirePolicy misfirePolicy) {
 
-    /** 默认不重叠、不排队，并丢弃错过的计划时刻。 */
+    /**
+     * 默认不重叠、不排队，并丢弃错过的计划时刻。
+     */
     public static final ScheduleOptions DEFAULT =
             new ScheduleOptions(ConcurrencyPolicy.SERIAL_SKIP, MisfirePolicy.SKIP);
 
@@ -30,7 +32,7 @@ public record ScheduleOptions(
      * 校验两个策略均已提供。
      *
      * @param concurrencyPolicy 并发与排队策略
-     * @param misfirePolicy misfire 策略
+     * @param misfirePolicy     misfire 策略
      */
     public ScheduleOptions {
         ValidationUtils.requireNonNull(concurrencyPolicy, "concurrencyPolicy must not be null");
@@ -41,7 +43,7 @@ public record ScheduleOptions(
      * 创建任务调度选项。
      *
      * @param concurrencyPolicy 并发与排队策略
-     * @param misfirePolicy misfire 策略
+     * @param misfirePolicy     misfire 策略
      * @return 新的调度选项
      */
     public static ScheduleOptions of(

@@ -1,6 +1,7 @@
 # lava-crypto
 
-`lava-crypto` 提供 Argon2id 密码哈希、JDK EC 密钥生成和严格的 EC PEM 编解码。它使用 Bouncy Castle lightweight Argon2 API，但不会向 JVM 全局注册 Bouncy Castle Provider；EC P-256/P-384/P-521 密钥由 JDK `EC` provider 生成。
+`lava-crypto` 提供 Argon2id 密码哈希、JDK EC 密钥生成和严格的 EC PEM 编解码。它使用 Bouncy Castle lightweight Argon2
+API，但不会向 JVM 全局注册 Bouncy Castle Provider；EC P-256/P-384/P-521 密钥由 JDK `EC` provider 生成。
 
 ```xml
 <dependency>
@@ -23,7 +24,8 @@ try {
 }
 ```
 
-`char[]` 是主入口；Lava 借用且不修改调用方数组，调用方应在完成后清零。`String` overload 只是便利入口，无法清除原始不可变 String。空密码和全空白密码可以哈希；最小长度、复杂度、泄露密码检查等属于业务认证策略。
+`char[]` 是主入口；Lava 借用且不修改调用方数组，调用方应在完成后清零。`String` overload 只是便利入口，无法清除原始不可变
+String。空密码和全空白密码可以哈希；最小长度、复杂度、泄露密码检查等属于业务认证策略。
 
 默认生成参数：
 
@@ -33,7 +35,8 @@ try {
 - 16-byte salt
 - 32-byte hash
 
-`PasswordHashPolicy` 将生成参数与验证资源上限分离。默认验证上限为 256 MiB、10 iterations、16 lanes、64-byte salt/hash 和 1024 个 PHC 字符，并在执行 Argon2 或攻击者可控的大分配前检查。
+`PasswordHashPolicy` 将生成参数与验证资源上限分离。默认验证上限为 256 MiB、10 iterations、16 lanes、64-byte salt/hash 和
+1024 个 PHC 字符，并在执行 Argon2 或攻击者可控的大分配前检查。
 
 验证结果语义：
 
@@ -59,6 +62,8 @@ ECPrivateKey privateKey = PemKeyUtils.readEcPrivateKey(privatePem);
 - EC private key：PKCS#8 `PRIVATE KEY`
 - EC public key：X.509 SubjectPublicKeyInfo `PUBLIC KEY`
 
-解析器限制 PEM 字符数和 DER 字节数，要求唯一且匹配的 header/footer，并校验算法和格式。它不支持传统 `EC PRIVATE KEY`、证书、多个拼接块或加密 PEM。
+解析器限制 PEM 字符数和 DER 字节数，要求唯一且匹配的 header/footer，并校验算法和格式。它不支持传统 `EC PRIVATE KEY`
+、证书、多个拼接块或加密 PEM。
 
-HSM/PKCS#11 等不可导出密钥的 `getFormat()`/`getEncoded()` 可能为空；此时 `toPem` 抛出带明确原因的 `CryptoException`。不要为了导出而降低 HSM 策略。`toPem` 产生的是未加密私钥文本，调用方必须限制其存储、日志和传输范围。
+HSM/PKCS#11 等不可导出密钥的 `getFormat()`/`getEncoded()` 可能为空；此时 `toPem` 抛出带明确原因的 `CryptoException`
+。不要为了导出而降低 HSM 策略。`toPem` 产生的是未加密私钥文本，调用方必须限制其存储、日志和传输范围。

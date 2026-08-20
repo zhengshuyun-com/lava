@@ -16,19 +16,24 @@
 
 package com.zhengshuyun.lava.crypto;
 
+import com.zhengshuyun.lava.core.lang.ValidationUtils;
+
 import java.security.GeneralSecurityException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.SecureRandom;
 import java.security.spec.ECGenParameterSpec;
-import com.zhengshuyun.lava.core.lang.ValidationUtils;
 
-/** 使用 JDK Provider 生成 EC 密钥，且不修改全局 Provider 列表。 */
+/**
+ * 使用 JDK Provider 生成 EC 密钥，且不修改全局 Provider 列表。
+ */
 public final class EcKeyUtils {
 
     static final String SUN_EC_PROVIDER = "SunEC";
 
-    /** JDK SunEC 实现及本 API 支持的曲线。 */
+    /**
+     * JDK SunEC 实现及本 API 支持的曲线。
+     */
     public enum Curve {
         P256("secp256r1"),
         P384("secp384r1"),
@@ -75,7 +80,7 @@ public final class EcKeyUtils {
     /**
      * 使用指定随机源生成指定曲线的密钥对。
      *
-     * @param curve EC 曲线
+     * @param curve        EC 曲线
      * @param secureRandom 用于生成密钥材料的安全随机源
      * @return 指定曲线的 EC 密钥对
      * @throws CryptoException JDK Provider 不支持所需 EC 操作时抛出

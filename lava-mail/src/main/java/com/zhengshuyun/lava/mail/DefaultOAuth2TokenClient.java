@@ -5,11 +5,8 @@
 package com.zhengshuyun.lava.mail;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
-import com.zhengshuyun.lava.http.HttpClient;
-import com.zhengshuyun.lava.http.HttpException;
-import com.zhengshuyun.lava.http.HttpFailureKind;
-import com.zhengshuyun.lava.http.HttpRequest;
-import com.zhengshuyun.lava.http.HttpResponse;
+import com.zhengshuyun.lava.core.lang.ValidationUtils;
+import com.zhengshuyun.lava.http.*;
 import com.zhengshuyun.lava.json.JsonCodec;
 import com.zhengshuyun.lava.json.JsonException;
 import org.jspecify.annotations.Nullable;
@@ -20,9 +17,10 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import com.zhengshuyun.lava.core.lang.ValidationUtils;
 
-/** 使用模块私有 HTTP 客户端执行凭证安全的 refresh token 交换。 */
+/**
+ * 使用模块私有 HTTP 客户端执行凭证安全的 refresh token 交换。
+ */
 final class DefaultOAuth2TokenClient implements OAuth2TokenClient {
     static final int MAX_TOKEN_RESPONSE_BYTES = 64 * 1024;
 
@@ -72,7 +70,7 @@ final class DefaultOAuth2TokenClient implements OAuth2TokenClient {
                         : MailFailureKind.PROTOCOL;
                 throw new MailException(
                         kind, "OAuth2 token endpoint rejected refresh request with HTTP status "
-                                + response.getCode());
+                        + response.getCode());
             }
             OAuth2TokenResponse payload;
             try {

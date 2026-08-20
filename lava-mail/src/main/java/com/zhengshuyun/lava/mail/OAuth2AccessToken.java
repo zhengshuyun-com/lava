@@ -4,14 +4,16 @@
  */
 package com.zhengshuyun.lava.mail;
 
+import com.zhengshuyun.lava.core.lang.ValidationUtils;
 import org.jspecify.annotations.Nullable;
 
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import com.zhengshuyun.lava.core.lang.ValidationUtils;
 
-/** 包内使用的 bearer token 及服务端提供的可选到期时间。 */
+/**
+ * 包内使用的 bearer token 及服务端提供的可选到期时间。
+ */
 final class OAuth2AccessToken {
     private final String value;
     private final @Nullable Instant expiresAt;

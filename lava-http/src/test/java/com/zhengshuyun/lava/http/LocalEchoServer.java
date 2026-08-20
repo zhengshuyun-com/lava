@@ -20,7 +20,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-/** 只监听回环地址的确定性测试服务器。 */
+/**
+ * 只监听回环地址的确定性测试服务器。
+ */
 final class LocalEchoServer implements AutoCloseable {
     private final HttpServer server;
     private final ExecutorService executor;

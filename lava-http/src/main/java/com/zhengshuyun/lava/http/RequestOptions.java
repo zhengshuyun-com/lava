@@ -10,17 +10,29 @@ import org.jspecify.annotations.Nullable;
 
 import java.time.Duration;
 
-/** 单次请求的可选覆盖项；未设置的值继承客户端配置。 */
+/**
+ * 单次请求的可选覆盖项；未设置的值继承客户端配置。
+ */
 public final class RequestOptions {
-    /** 单次请求的连接超时覆盖值。 */
+    /**
+     * 单次请求的连接超时覆盖值。
+     */
     private final @Nullable Duration connectTimeout;
-    /** 单次请求的读取超时覆盖值。 */
+    /**
+     * 单次请求的读取超时覆盖值。
+     */
     private final @Nullable Duration readTimeout;
-    /** 单次请求的写入超时覆盖值。 */
+    /**
+     * 单次请求的写入超时覆盖值。
+     */
     private final @Nullable Duration writeTimeout;
-    /** 单次请求的总调用超时覆盖值。 */
+    /**
+     * 单次请求的总调用超时覆盖值。
+     */
     private final @Nullable Duration callTimeout;
-    /** 单次缓冲响应正文的最大字节数覆盖值。 */
+    /**
+     * 单次缓冲响应正文的最大字节数覆盖值。
+     */
     private final @Nullable Integer maxBufferedResponseBytes;
 
     private RequestOptions(Builder builder) {
@@ -31,7 +43,9 @@ public final class RequestOptions {
         maxBufferedResponseBytes = builder.maxBufferedResponseBytes;
     }
 
-    /** 返回不覆盖客户端配置的默认单次请求选项。 */
+    /**
+     * 返回不覆盖客户端配置的默认单次请求选项。
+     */
     public static RequestOptions defaults() {
         return new Builder().build();
     }
@@ -71,15 +85,25 @@ public final class RequestOptions {
     }
 
     public static final class Builder {
-        /** 待构建的连接超时。 */
+        /**
+         * 待构建的连接超时。
+         */
         private @Nullable Duration connectTimeout;
-        /** 待构建的读取超时。 */
+        /**
+         * 待构建的读取超时。
+         */
         private @Nullable Duration readTimeout;
-        /** 待构建的写入超时。 */
+        /**
+         * 待构建的写入超时。
+         */
         private @Nullable Duration writeTimeout;
-        /** 待构建的总调用超时。 */
+        /**
+         * 待构建的总调用超时。
+         */
         private @Nullable Duration callTimeout;
-        /** 待构建的缓冲响应上限。 */
+        /**
+         * 待构建的缓冲响应上限。
+         */
         private @Nullable Integer maxBufferedResponseBytes;
 
         /**

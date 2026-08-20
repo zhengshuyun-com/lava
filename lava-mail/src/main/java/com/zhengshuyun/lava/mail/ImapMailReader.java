@@ -3,27 +3,19 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  */
 package com.zhengshuyun.lava.mail;
-import jakarta.mail.Address;
-import jakarta.mail.FetchProfile;
-import jakarta.mail.Flags;
-import jakarta.mail.Folder;
-import jakarta.mail.Message;
-import jakarta.mail.Session;
-import jakarta.mail.Store;
-import jakarta.mail.UIDFolder;
+
+import com.zhengshuyun.lava.core.lang.ValidationUtils;
+import jakarta.mail.*;
 import jakarta.mail.internet.InternetAddress;
 import org.jspecify.annotations.Nullable;
 
 import java.io.OutputStream;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Locale;
-import com.zhengshuyun.lava.core.lang.ValidationUtils;
+import java.util.*;
 
-/** 执行短连接 IMAP 操作，并把 Jakarta Mail 对象转换为模块稳定模型。 */
+/**
+ * 执行短连接 IMAP 操作，并把 Jakarta Mail 对象转换为模块稳定模型。
+ */
 final class ImapMailReader {
     private static final int FETCH_BATCH_SIZE = 128;
 

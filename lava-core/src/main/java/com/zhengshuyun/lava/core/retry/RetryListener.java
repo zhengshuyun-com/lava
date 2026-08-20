@@ -10,7 +10,9 @@
 
 package com.zhengshuyun.lava.core.retry;
 
-/** 接收已完成的重试尝试。监听器失败会传播给调用方。 */
+/**
+ * 接收已完成的重试尝试。监听器失败会传播给调用方。
+ */
 @FunctionalInterface
 public interface RetryListener<T> {
 

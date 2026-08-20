@@ -9,17 +9,17 @@ package com.zhengshuyun.lava.mail;
  *
  * <p>游标只能用于创建它的同一文件夹和同一 UIDVALIDITY；邮箱重建后应丢弃旧游标并从第一页开始。</p>
  *
- * @param folder 文件夹全名
+ * @param folder      文件夹全名
  * @param uidValidity 创建游标时邮箱的 UIDVALIDITY
- * @param beforeUid 下一页只读取小于该值的 UID
+ * @param beforeUid   下一页只读取小于该值的 UID
  */
 public record MailCursor(String folder, long uidValidity, long beforeUid) {
     /**
      * 校验并规范化分页游标。
      *
-     * @param folder 文件夹全名
+     * @param folder      文件夹全名
      * @param uidValidity 邮箱 UIDVALIDITY
-     * @param beforeUid UID 排他上界
+     * @param beforeUid   UID 排他上界
      */
     public MailCursor {
         folder = PasswordCredential.requireNonBlankWithoutControls(folder, "folder");

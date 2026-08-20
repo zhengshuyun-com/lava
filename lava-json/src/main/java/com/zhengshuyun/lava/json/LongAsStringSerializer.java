@@ -13,7 +13,9 @@ import tools.jackson.databind.ValueSerializer;
 
 final class LongAsStringSerializer extends ValueSerializer<Long> {
 
-    /** 是否按 JSON number 而非 JSON string 输出 long 值。 */
+    /**
+     * 是否按 JSON number 而非 JSON string 输出 long 值。
+     */
     private final boolean writeNumber;
 
     LongAsStringSerializer() {
@@ -27,7 +29,7 @@ final class LongAsStringSerializer extends ValueSerializer<Long> {
     /**
      * 按当前属性上下文决定输出为 JSON 数字还是字符串。
      *
-     * @param context 当前 Jackson 序列化上下文
+     * @param context  当前 Jackson 序列化上下文
      * @param property 当前属性；根值序列化时可能为 null
      * @return 当前或按属性格式调整后的序列化器
      */
@@ -47,9 +49,9 @@ final class LongAsStringSerializer extends ValueSerializer<Long> {
     /**
      * 序列化一个 long 值。
      *
-     * @param value 待序列化的值
+     * @param value     待序列化的值
      * @param generator JSON 输出生成器
-     * @param context 当前 Jackson 序列化上下文
+     * @param context   当前 Jackson 序列化上下文
      */
     @Override
     public void serialize(Long value, JsonGenerator generator, SerializationContext context) {

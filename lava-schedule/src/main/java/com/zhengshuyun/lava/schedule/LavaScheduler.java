@@ -25,23 +25,8 @@ import org.slf4j.LoggerFactory;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.FutureTask;
-import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.*;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -115,7 +100,7 @@ public final class LavaScheduler implements AutoCloseable {
     /**
      * 使用 RFC 9562 UUIDv7 标识和默认选项注册任务。
      *
-     * @param task 待执行的任务
+     * @param task    待执行的任务
      * @param trigger 决定执行时间的触发器
      * @return 已注册任务的生命周期句柄
      */
@@ -126,8 +111,8 @@ public final class LavaScheduler implements AutoCloseable {
     /**
      * 使用指定标识和默认选项注册任务。
      *
-     * @param id 全局唯一且非空白的任务标识
-     * @param task 待执行的任务
+     * @param id      全局唯一且非空白的任务标识
+     * @param task    待执行的任务
      * @param trigger 决定执行时间的触发器
      * @return 已注册任务的生命周期句柄
      */
@@ -138,8 +123,8 @@ public final class LavaScheduler implements AutoCloseable {
     /**
      * 使用指定标识和执行选项注册任务。
      *
-     * @param id 全局唯一且非空白的任务标识
-     * @param task 待执行的任务
+     * @param id      全局唯一且非空白的任务标识
+     * @param task    待执行的任务
      * @param trigger 决定执行时间的触发器
      * @param options 任务的并发和错过触发策略
      * @return 已注册任务的生命周期句柄
@@ -210,7 +195,9 @@ public final class LavaScheduler implements AutoCloseable {
         return closed.get();
     }
 
-    /** 使用构建器配置的超时时间关闭调度器。 */
+    /**
+     * 使用构建器配置的超时时间关闭调度器。
+     */
     @Override
     public void close() {
         close(shutdownTimeout);
@@ -221,7 +208,7 @@ public final class LavaScheduler implements AutoCloseable {
      *
      * @param timeout 等待正在执行任务结束的最长时间
      * @return 若所有其他活动执行在超时前结束则为 true。若从任务或其终态监听器中调用，
-     *         调用者自身的执行必须等本方法返回后才能结束，因此会从等待计数中排除。
+     * 调用者自身的执行必须等本方法返回后才能结束，因此会从等待计数中排除。
      */
     public boolean close(Duration timeout) {
         requireNonNegative(timeout, "timeout");
@@ -343,7 +330,9 @@ public final class LavaScheduler implements AutoCloseable {
         return pool;
     }
 
-    /** 可变的任务状态；所有复合状态转换都由 {@link #lock} 保护。 */
+    /**
+     * 可变的任务状态；所有复合状态转换都由 {@link #lock} 保护。
+     */
     final class TaskControl {
 
         private final String id;
@@ -771,7 +760,9 @@ public final class LavaScheduler implements AutoCloseable {
             }
         }
 
-        /** 提交到共享执行器、并显式维护开始状态的一次 occurrence。 */
+        /**
+         * 提交到共享执行器、并显式维护开始状态的一次 occurrence。
+         */
         private final class Execution {
 
             private final AtomicInteger state = new AtomicInteger();
@@ -813,8 +804,8 @@ public final class LavaScheduler implements AutoCloseable {
                 Thread currentRunner = runner;
                 if (mayInterruptIfRunning
                         && (excludedRunningThread == null
-                                || currentRunner == null
-                                || currentRunner.threadId() != excludedRunningThread.threadId())) {
+                        || currentRunner == null
+                        || currentRunner.threadId() != excludedRunningThread.threadId())) {
                     future.cancel(true);
                 }
             }
@@ -849,7 +840,9 @@ public final class LavaScheduler implements AutoCloseable {
         }
     }
 
-    /** 构建实例级调度器状态的构建器。 */
+    /**
+     * 构建实例级调度器状态的构建器。
+     */
     public static final class Builder {
 
         private Clock clock = Clock.systemUTC();
@@ -857,7 +850,8 @@ public final class LavaScheduler implements AutoCloseable {
         private int maxConcurrentExecutions = 256;
         private int maxPendingExecutions = 1_024;
         private Duration shutdownTimeout = Duration.ofSeconds(30);
-        private TaskEventListener listener = ignored -> { };
+        private TaskEventListener listener = ignored -> {
+        };
         private String threadNamePrefix = "lava-schedule";
 
         private Builder() {
@@ -889,7 +883,7 @@ public final class LavaScheduler implements AutoCloseable {
          * 配置调度器拥有的有界虚拟线程执行器。
          *
          * @param maxConcurrentExecutions 允许同时执行的最大任务数
-         * @param maxPendingExecutions 等待执行的最大任务数
+         * @param maxPendingExecutions    等待执行的最大任务数
          * @return 当前构建器
          */
         public Builder executionBounds(int maxConcurrentExecutions, int maxPendingExecutions) {

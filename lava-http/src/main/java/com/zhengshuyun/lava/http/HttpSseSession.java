@@ -5,41 +5,67 @@
 
 package com.zhengshuyun.lava.http;
 
+import com.zhengshuyun.lava.core.lang.ValidationUtils;
 import okhttp3.sse.EventSource;
 import org.jspecify.annotations.Nullable;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
-import com.zhengshuyun.lava.core.lang.ValidationUtils;
 
-/** 具有单一原子终态转换的线程安全 SSE 会话。 */
+/**
+ * 具有单一原子终态转换的线程安全 SSE 会话。
+ */
 final class HttpSseSession implements AutoCloseable {
-    /** SSE 会话的可观测生命周期状态。 */
+    /**
+     * SSE 会话的可观测生命周期状态。
+     */
     public enum State {
-        /** 已创建但尚未完成握手。 */
+        /**
+         * 已创建但尚未完成握手。
+         */
         CONNECTING,
-        /** 握手成功，正在接收事件。 */
+        /**
+         * 握手成功，正在接收事件。
+         */
         OPEN,
-        /** 调用方或客户端主动取消。 */
+        /**
+         * 调用方或客户端主动取消。
+         */
         CANCELLED,
-        /** 服务端正常关闭事件流。 */
+        /**
+         * 服务端正常关闭事件流。
+         */
         REMOTE_CLOSED,
-        /** 传输或监听器回调失败。 */
+        /**
+         * 传输或监听器回调失败。
+         */
         FAILED
     }
 
-    /** 接收握手、事件和终态通知的监听器。 */
+    /**
+     * 接收握手、事件和终态通知的监听器。
+     */
     private final HttpSseListener listener;
-    /** 终态送达后从客户端活动会话集合移除自己的回调。 */
+    /**
+     * 终态送达后从客户端活动会话集合移除自己的回调。
+     */
     private final Consumer<HttpSseSession> terminalHook;
-    /** 通过 CAS 协调并发到达的生命周期转换。 */
+    /**
+     * 通过 CAS 协调并发到达的生命周期转换。
+     */
     private final AtomicReference<State> state = new AtomicReference<>(State.CONNECTING);
-    /** 延迟绑定的底层事件源，供取消时终止读取。 */
+    /**
+     * 延迟绑定的底层事件源，供取消时终止读取。
+     */
     private final AtomicReference<@Nullable EventSource> eventSource = new AtomicReference<>();
-    /** 防御性保证终态监听器最多收到一次通知。 */
+    /**
+     * 防御性保证终态监听器最多收到一次通知。
+     */
     private final AtomicBoolean terminalDelivered = new AtomicBoolean();
-    /** 串行化业务回调，避免事件回调与终态回调交错执行。 */
+    /**
+     * 串行化业务回调，避免事件回调与终态回调交错执行。
+     */
     private final Object callbackLock = new Object();
 
     HttpSseSession(HttpSseListener listener, Consumer<HttpSseSession> terminalHook) {
@@ -140,7 +166,9 @@ final class HttpSseSession implements AutoCloseable {
         }
     }
 
-    /** 主动取消会话，并停止底层事件流读取。 */
+    /**
+     * 主动取消会话，并停止底层事件流读取。
+     */
     public void cancel() {
         complete(State.CANCELLED, new HttpSseTerminal(HttpSseTermination.CANCELLED, null));
     }
@@ -172,7 +200,9 @@ final class HttpSseSession implements AutoCloseable {
         return state.get() == State.CANCELLED;
     }
 
-    /** 等同于 {@link #cancel()}。 */
+    /**
+     * 等同于 {@link #cancel()}。
+     */
     @Override
     public void close() {
         cancel();

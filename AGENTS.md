@@ -2,7 +2,8 @@
 
 ## Builder 命名
 
-- 项目自有 Builder 统一使用 fluent 风格，配置属性的方法直接使用属性名，例如 `baseUrl(...)`、`connectTimeout(...)`、`bearerToken(...)`，不得使用 `setXxx(...)`。
+- 项目自有 Builder 统一使用 fluent 风格，配置属性的方法直接使用属性名，例如 `baseUrl(...)`、`connectTimeout(...)`、
+  `bearerToken(...)`，不得使用 `setXxx(...)`。
 - 集合或动作型方法保留明确语义，例如 `addHeader(...)`、`remove(...)`、`customize(...)`；表达替换语义的 `set(...)` 可以保留。
 - 不为旧的 `setXxx(...)` 方法保留兼容别名，测试、文档和示例必须使用统一后的 fluent API。
 - 第三方库和 JDK API 不受该命名规则约束。

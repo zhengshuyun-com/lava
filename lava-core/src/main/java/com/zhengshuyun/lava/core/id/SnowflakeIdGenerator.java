@@ -16,9 +16,10 @@
 
 package com.zhengshuyun.lava.core.id;
 
+import com.zhengshuyun.lava.core.lang.ValidationUtils;
+
 import java.time.Clock;
 import java.time.Instant;
-import com.zhengshuyun.lava.core.lang.ValidationUtils;
 
 /**
  * 使用显式工作节点标识的标准 64 位雪花算法生成器。
@@ -63,7 +64,7 @@ public final class SnowflakeIdGenerator {
      * 使用显式时钟创建生成器，主要用于确定性测试。
      *
      * @param workerId 工作节点标识，范围为 0 至 1023
-     * @param clock 读取当前时间的时钟
+     * @param clock    读取当前时间的时钟
      */
     public SnowflakeIdGenerator(int workerId, Clock clock) {
         if (workerId < MIN_WORKER_ID || workerId > MAX_WORKER_ID) {

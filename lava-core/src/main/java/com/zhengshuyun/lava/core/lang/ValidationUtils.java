@@ -21,7 +21,9 @@ import org.jspecify.annotations.Nullable;
 import java.util.Collection;
 import java.util.Map;
 
-/** 参数校验工具，校验失败时抛出 {@link IllegalArgumentException}。 */
+/**
+ * 参数校验工具，校验失败时抛出 {@link IllegalArgumentException}。
+ */
 public final class ValidationUtils {
 
     private static final String MUST_BE_TRUE = "The validated condition must be true";
@@ -47,7 +49,7 @@ public final class ValidationUtils {
      * 要求条件为 true，否则抛出指定消息的异常。
      *
      * @param condition 待校验的条件
-     * @param message 校验失败时的异常消息
+     * @param message   校验失败时的异常消息
      */
     public static void requireTrue(boolean condition, String message) {
         if (!condition) {
@@ -68,7 +70,7 @@ public final class ValidationUtils {
      * 要求条件为 false，否则抛出指定消息的异常。
      *
      * @param condition 待校验的条件
-     * @param message 校验失败时的异常消息
+     * @param message   校验失败时的异常消息
      */
     public static void requireFalse(boolean condition, String message) {
         if (condition) {
@@ -80,7 +82,7 @@ public final class ValidationUtils {
      * 要求值不为 null，并使用默认消息返回原值。
      *
      * @param value 待校验的值
-     * @param <T> 值类型
+     * @param <T>   值类型
      * @return 非 null 的原值
      */
     public static <T> T requireNonNull(@Nullable T value) {
@@ -90,9 +92,9 @@ public final class ValidationUtils {
     /**
      * 要求值不为 null，并使用指定消息返回原值。
      *
-     * @param value 待校验的值
+     * @param value   待校验的值
      * @param message 校验失败时的异常消息
-     * @param <T> 值类型
+     * @param <T>     值类型
      * @return 非 null 的原值
      */
     public static <T> T requireNonNull(@Nullable T value, String message) {
@@ -115,7 +117,7 @@ public final class ValidationUtils {
     /**
      * 要求字符串不为 null、空字符串或纯空白，并使用指定消息返回原字符串。
      *
-     * @param value 待校验的字符串
+     * @param value   待校验的字符串
      * @param message 校验失败时的异常消息
      * @return 非空白的原字符串
      */
@@ -130,7 +132,7 @@ public final class ValidationUtils {
      * 要求集合不为 null 且不为空，并使用默认消息返回原集合。
      *
      * @param value 待校验的集合
-     * @param <T> 集合类型
+     * @param <T>   集合类型
      * @return 非空的原集合
      */
     public static <T extends Collection<?>> T requireNotEmpty(@Nullable T value) {
@@ -140,9 +142,9 @@ public final class ValidationUtils {
     /**
      * 要求集合不为 null 且不为空，并使用指定消息返回原集合。
      *
-     * @param value 待校验的集合
+     * @param value   待校验的集合
      * @param message 校验失败时的异常消息
-     * @param <T> 集合类型
+     * @param <T>     集合类型
      * @return 非空的原集合
      */
     public static <T extends Collection<?>> T requireNotEmpty(@Nullable T value, String message) {
@@ -156,7 +158,7 @@ public final class ValidationUtils {
      * 要求 Map 不为 null 且不为空，并使用默认消息返回原 Map。
      *
      * @param value 待校验的 Map
-     * @param <T> Map 类型
+     * @param <T>   Map 类型
      * @return 非空的原 Map
      */
     public static <T extends Map<?, ?>> T requireNotEmpty(@Nullable T value) {
@@ -166,9 +168,9 @@ public final class ValidationUtils {
     /**
      * 要求 Map 不为 null 且不为空，并使用指定消息返回原 Map。
      *
-     * @param value 待校验的 Map
+     * @param value   待校验的 Map
      * @param message 校验失败时的异常消息
-     * @param <T> Map 类型
+     * @param <T>     Map 类型
      * @return 非空的原 Map
      */
     public static <T extends Map<?, ?>> T requireNotEmpty(@Nullable T value, String message) {

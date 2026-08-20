@@ -11,10 +11,10 @@ import org.jspecify.annotations.Nullable;
 /**
  * 不暴露原始异常消息的 SSE 失败快照。
  *
- * @param kind 稳定的失败分类
- * @param causeType 原始异常的类型名
- * @param statusCode 服务端已响应时的 HTTP 状态码
- * @param headers 服务端已响应时的已脱敏响应头
+ * @param kind         稳定的失败分类
+ * @param causeType    原始异常的类型名
+ * @param statusCode   服务端已响应时的 HTTP 状态码
+ * @param headers      服务端已响应时的已脱敏响应头
  * @param responseBody 有界失败响应正文
  */
 public record SseFailure(HttpFailureKind kind, @Nullable String causeType,

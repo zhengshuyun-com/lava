@@ -16,7 +16,9 @@
 
 package com.zhengshuyun.lava.schedule;
 
-/** 调度器无法完成调度操作时抛出的通用异常。 */
+/**
+ * 调度器无法完成调度操作时抛出的通用异常。
+ */
 public final class ScheduleException extends RuntimeException {
 
     /**
@@ -32,7 +34,7 @@ public final class ScheduleException extends RuntimeException {
      * 创建带消息和原因的调度异常。
      *
      * @param message 异常消息
-     * @param cause 原始异常
+     * @param cause   原始异常
      */
     public ScheduleException(String message, Throwable cause) {
         super(message, cause);

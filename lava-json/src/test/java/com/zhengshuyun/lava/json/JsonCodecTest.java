@@ -10,19 +10,17 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import tools.jackson.core.type.TypeReference;
-import tools.jackson.databind.JsonNode;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.ZoneOffset;
-import java.util.*;
+import java.time.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 
@@ -93,7 +91,8 @@ class JsonCodecTest {
         assertEquals(drawing, codec.read(codec.write(drawing), Drawing.class));
 
         List<User> users = List.of(new User(1, "a"), new User(2, "b"));
-        List<User> decoded = codec.read(codec.write(users), new TypeReference<List<User>>() { });
+        List<User> decoded = codec.read(codec.write(users), new TypeReference<List<User>>() {
+        });
         assertEquals(users, decoded);
     }
 
@@ -125,7 +124,8 @@ class JsonCodecTest {
 
         Path path = directory.resolve("user.json");
         Files.writeString(path, "[{\"id\":2,\"name\":\"b\"}]");
-        List<User> users = codec.read(path, new TypeReference<List<User>>() { });
+        List<User> users = codec.read(path, new TypeReference<List<User>>() {
+        });
         assertEquals(List.of(new User(2, "b")), users);
     }
 
@@ -149,13 +149,15 @@ class JsonCodecTest {
         assertEquals(user, codec.read(bytes, User.class));
         assertEquals(
                 List.of(user),
-                codec.read(codec.writeBytes(List.of(user)), new TypeReference<List<User>>() { }));
+                codec.read(codec.writeBytes(List.of(user)), new TypeReference<List<User>>() {
+                }));
 
         var listType = codec.typeFactory().constructCollectionType(List.class, User.class);
         assertEquals(List.of(user), codec.read(codec.write(List.of(user)), listType));
 
         TrackingInput typedInput = new TrackingInput(codec.writeBytes(List.of(user)));
-        assertEquals(List.of(user), codec.read(typedInput, new TypeReference<List<User>>() { }));
+        assertEquals(List.of(user), codec.read(typedInput, new TypeReference<List<User>>() {
+        }));
         assertFalse(typedInput.closed);
 
         TrackingInput treeInput = new TrackingInput(bytes);
@@ -175,7 +177,8 @@ class JsonCodecTest {
         JsonCodec codec = new JsonCodec(JsonMapperFactory.builder()
                 .localTimePattern("HH_mm_ss")
                 .zone(ZoneOffset.UTC)
-                .customize(builder -> { })
+                .customize(builder -> {
+                })
                 .build());
         assertEquals("\"03_04_05\"", codec.write(LocalTime.of(3, 4, 5)));
         assertThrows(IllegalArgumentException.class,

@@ -5,35 +5,59 @@
 
 package com.zhengshuyun.lava.http;
 
+import com.zhengshuyun.lava.core.lang.ValidationUtils;
 import org.jspecify.annotations.Nullable;
 
 import java.time.Duration;
 import java.time.Instant;
-import com.zhengshuyun.lava.core.lang.ValidationUtils;
 
-/** 单次 HTTP 交互的凭证安全元数据。 */
+/**
+ * 单次 HTTP 交互的凭证安全元数据。
+ */
 public final class HttpCallMetadata {
-    /** 客户端为本次调用生成的唯一标识。 */
+    /**
+     * 客户端为本次调用生成的唯一标识。
+     */
     private final String requestId;
-    /** 已脱敏的最终请求 URL。 */
+    /**
+     * 已脱敏的最终请求 URL。
+     */
     private final String url;
-    /** HTTP 请求方法名称。 */
+    /**
+     * HTTP 请求方法名称。
+     */
     private final String method;
-    /** 请求开始执行的时间点。 */
+    /**
+     * 请求开始执行的时间点。
+     */
     private final Instant requestTime;
-    /** 收到响应头的时间点。 */
+    /**
+     * 收到响应头的时间点。
+     */
     private final Instant responseTime;
-    /** 已脱敏的有效请求头。 */
+    /**
+     * 已脱敏的有效请求头。
+     */
     private final HttpHeaders requestHeaders;
-    /** 已脱敏的响应头。 */
+    /**
+     * 已脱敏的响应头。
+     */
     private final HttpHeaders responseHeaders;
-    /** 从请求开始到收到响应头的耗时。 */
+    /**
+     * 从请求开始到收到响应头的耗时。
+     */
     private final Duration duration;
-    /** 协商后的 HTTP 协议；不可用时为 null。 */
+    /**
+     * 协商后的 HTTP 协议；不可用时为 null。
+     */
     private final @Nullable String protocol;
-    /** 服务端返回的 HTTP 状态码。 */
+    /**
+     * 服务端返回的 HTTP 状态码。
+     */
     private final int statusCode;
-    /** 服务端返回的 HTTP 状态文本；不可用时为 null。 */
+    /**
+     * 服务端返回的 HTTP 状态文本；不可用时为 null。
+     */
     private final @Nullable String statusMessage;
 
     private HttpCallMetadata(Builder builder) {
@@ -71,7 +95,9 @@ public final class HttpCallMetadata {
         return requestId;
     }
 
-    /** 返回已脱敏的 URL。 */
+    /**
+     * 返回已脱敏的 URL。
+     */
     public String getUrl() {
         return url;
     }
@@ -148,12 +174,16 @@ public final class HttpCallMetadata {
         return statusMessage;
     }
 
-    /** 返回将凭证替换为 {@code [REDACTED]} 的请求头。 */
+    /**
+     * 返回将凭证替换为 {@code [REDACTED]} 的请求头。
+     */
     public HttpHeaders getRequestHeaders() {
         return requestHeaders;
     }
 
-    /** 返回将凭证替换为 {@code [REDACTED]} 的响应头。 */
+    /**
+     * 返回将凭证替换为 {@code [REDACTED]} 的响应头。
+     */
     public HttpHeaders getResponseHeaders() {
         return responseHeaders;
     }
@@ -183,27 +213,49 @@ public final class HttpCallMetadata {
     }
 
     public static final class Builder {
-        /** 待构建的请求 ID。 */
+        /**
+         * 待构建的请求 ID。
+         */
         private @Nullable String requestId;
-        /** 待构建的请求 URL。 */
+        /**
+         * 待构建的请求 URL。
+         */
         private @Nullable String url;
-        /** 待构建的 HTTP 方法名称。 */
+        /**
+         * 待构建的 HTTP 方法名称。
+         */
         private @Nullable String method;
-        /** 待构建的请求开始时间。 */
+        /**
+         * 待构建的请求开始时间。
+         */
         private @Nullable Instant requestTime;
-        /** 待构建的响应时间。 */
+        /**
+         * 待构建的响应时间。
+         */
         private @Nullable Instant responseTime;
-        /** 待构建的请求头。 */
+        /**
+         * 待构建的请求头。
+         */
         private @Nullable HttpHeaders requestHeaders;
-        /** 待构建的响应头。 */
+        /**
+         * 待构建的响应头。
+         */
         private @Nullable HttpHeaders responseHeaders;
-        /** 待构建的调用耗时。 */
+        /**
+         * 待构建的调用耗时。
+         */
         private @Nullable Duration duration;
-        /** 待构建的 HTTP 协议。 */
+        /**
+         * 待构建的 HTTP 协议。
+         */
         private @Nullable String protocol;
-        /** 待构建的 HTTP 状态码。 */
+        /**
+         * 待构建的 HTTP 状态码。
+         */
         private int statusCode;
-        /** 待构建的 HTTP 状态文本。 */
+        /**
+         * 待构建的 HTTP 状态文本。
+         */
         private @Nullable String statusMessage;
 
         private Builder() {

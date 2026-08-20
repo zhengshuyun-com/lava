@@ -17,20 +17,11 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 class LavaSchedulerTest {
 
@@ -43,7 +34,8 @@ class LavaSchedulerTest {
             completed.countDown();
         }).build()) {
             ScheduledTask task = scheduler.schedule(
-                    "once", () -> { }, Trigger.after(Duration.ofMillis(20)));
+                    "once", () -> {
+                    }, Trigger.after(Duration.ofMillis(20)));
 
             assertTrue(completed.await(2, TimeUnit.SECONDS));
             assertEquals("once", task.id());
@@ -68,7 +60,8 @@ class LavaSchedulerTest {
     @Test
     void generatedTaskIdsAreUUIDv7() {
         try (LavaScheduler scheduler = LavaScheduler.create()) {
-            ScheduledTask task = scheduler.schedule(() -> { }, Trigger.after(Duration.ofHours(1)));
+            ScheduledTask task = scheduler.schedule(() -> {
+            }, Trigger.after(Duration.ofHours(1)));
             java.util.UUID id = java.util.UUID.fromString(task.id());
 
             assertEquals(7, id.version());
@@ -96,7 +89,8 @@ class LavaSchedulerTest {
         try (ExecutorService caller = Executors.newSingleThreadExecutor()) {
             var scheduled = caller.submit(() -> scheduler.schedule(
                     "initial-misfire",
-                    () -> { },
+                    () -> {
+                    },
                     Trigger.at(now.minusSeconds(1)),
                     new ScheduleOptions(ConcurrencyPolicy.SERIAL_SKIP, MisfirePolicy.SKIP)));
 
@@ -157,7 +151,8 @@ class LavaSchedulerTest {
 
             assertTrue(task.cancel());
             releaseExecutor.countDown();
-            borrowed.submit(() -> { }).get(2, TimeUnit.SECONDS);
+            borrowed.submit(() -> {
+            }).get(2, TimeUnit.SECONDS);
 
             assertEquals(0, executions.get());
             assertFalse(borrowed.isShutdown());
@@ -375,7 +370,8 @@ class LavaSchedulerTest {
                 .build()) {
             scheduler.schedule(
                     "catch-up-limit",
-                    () -> { },
+                    () -> {
+                    },
                     Trigger.fixedRate(now.minusSeconds(10_001), Duration.ofSeconds(1)),
                     new ScheduleOptions(ConcurrencyPolicy.SERIAL_SKIP, MisfirePolicy.SKIP));
 
@@ -396,8 +392,10 @@ class LavaSchedulerTest {
     @Test
     void pauseResumeAndCancelAreInstanceScoped() {
         try (LavaScheduler first = LavaScheduler.create(); LavaScheduler second = LavaScheduler.create()) {
-            ScheduledTask firstTask = first.schedule("same-id", () -> { }, Trigger.after(Duration.ofHours(1)));
-            ScheduledTask secondTask = second.schedule("same-id", () -> { }, Trigger.after(Duration.ofHours(1)));
+            ScheduledTask firstTask = first.schedule("same-id", () -> {
+            }, Trigger.after(Duration.ofHours(1)));
+            ScheduledTask secondTask = second.schedule("same-id", () -> {
+            }, Trigger.after(Duration.ofHours(1)));
 
             firstTask.pause();
             assertTrue(firstTask.isPaused());
@@ -415,13 +413,15 @@ class LavaSchedulerTest {
     void borrowedExecutorIsNeverClosedAndClosedSchedulerRejectsWork() {
         ExecutorService borrowed = Executors.newSingleThreadExecutor();
         LavaScheduler scheduler = LavaScheduler.builder().executor(borrowed).build();
-        scheduler.schedule("borrowed", () -> { }, Trigger.after(Duration.ofHours(1)));
+        scheduler.schedule("borrowed", () -> {
+        }, Trigger.after(Duration.ofHours(1)));
 
         scheduler.close();
 
         assertFalse(borrowed.isShutdown());
         assertThrows(IllegalStateException.class,
-                () -> scheduler.schedule("late", () -> { }, Trigger.after(Duration.ofSeconds(1))));
+                () -> scheduler.schedule("late", () -> {
+                }, Trigger.after(Duration.ofSeconds(1))));
         borrowed.shutdownNow();
     }
 
@@ -492,7 +492,8 @@ class LavaSchedulerTest {
         schedulerReference.set(scheduler);
         try {
             ScheduledTask task = scheduler.schedule(
-                    "self-close-listener", () -> { }, Trigger.after(Duration.ofHours(1)));
+                    "self-close-listener", () -> {
+                    }, Trigger.after(Duration.ofHours(1)));
 
             task.triggerNow();
 
@@ -507,9 +508,11 @@ class LavaSchedulerTest {
     @Test
     void duplicateIdsAndInvalidOptionsAreRejected() {
         try (LavaScheduler scheduler = LavaScheduler.create()) {
-            scheduler.schedule("duplicate", () -> { }, Trigger.after(Duration.ofHours(1)));
+            scheduler.schedule("duplicate", () -> {
+            }, Trigger.after(Duration.ofHours(1)));
             assertThrows(ScheduleException.class,
-                    () -> scheduler.schedule("duplicate", () -> { }, Trigger.after(Duration.ofHours(1))));
+                    () -> scheduler.schedule("duplicate", () -> {
+                    }, Trigger.after(Duration.ofHours(1))));
         }
         assertThrows(IllegalArgumentException.class, () -> ConcurrencyPolicy.serialQueue(0));
         assertThrows(IllegalArgumentException.class, () -> ConcurrencyPolicy.parallel(0, 0));
@@ -537,7 +540,8 @@ class LavaSchedulerTest {
                     awaitUnchecked(start);
                     try {
                         returned.set(scheduler.schedule(
-                                "race", () -> { }, Trigger.after(Duration.ofHours(1))));
+                                "race", () -> {
+                                }, Trigger.after(Duration.ofHours(1))));
                     } catch (IllegalStateException expected) {
                         // 关闭先取得生命周期锁。
                     }

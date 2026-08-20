@@ -8,7 +8,9 @@ import org.jspecify.annotations.Nullable;
 
 import java.io.OutputStream;
 
-/** 协调 IMAP 操作、客户端限制和可选 OAuth2 token 生命周期。 */
+/**
+ * 协调 IMAP 操作、客户端限制和可选 OAuth2 token 生命周期。
+ */
 final class MailReaderEngine implements AutoCloseable {
     private final MailClientOptions options;
     private final ImapMailReader reader = new ImapMailReader();
@@ -23,8 +25,8 @@ final class MailReaderEngine implements AutoCloseable {
     static MailReaderEngine create(MailCredential credential, MailClientOptions options) {
         OAuth2AccessTokenProvider provider = credential instanceof OAuth2RefreshTokenCredential oauth
                 ? new OAuth2AccessTokenProvider(
-                        oauth, OAuth2TokenClient.createDefault(),
-                        options.clock(), options.tokenRefreshAhead())
+                oauth, OAuth2TokenClient.createDefault(),
+                options.clock(), options.tokenRefreshAhead())
                 : null;
         return new MailReaderEngine(options, provider);
     }

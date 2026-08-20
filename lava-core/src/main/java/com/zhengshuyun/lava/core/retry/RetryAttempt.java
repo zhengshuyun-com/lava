@@ -17,13 +17,13 @@ import java.time.Duration;
 /**
  * 每次尝试结束后发出的不可变观测结果。
  *
- * @param attempt 当前尝试序号，从 1 开始
+ * @param attempt     当前尝试序号，从 1 开始
  * @param maxAttempts 允许的总尝试次数
- * @param result 本次操作结果；异常失败时为 null
- * @param failure 本次失败原因；操作正常返回时为 null
- * @param willRetry 根据策略和剩余次数是否计划继续下一次尝试；等待期间仍可能被中断
- * @param nextDelay 计划在下一次尝试前等待的时间；未计划重试时为零
- * @param <T> 操作结果类型
+ * @param result      本次操作结果；异常失败时为 null
+ * @param failure     本次失败原因；操作正常返回时为 null
+ * @param willRetry   根据策略和剩余次数是否计划继续下一次尝试；等待期间仍可能被中断
+ * @param nextDelay   计划在下一次尝试前等待的时间；未计划重试时为零
+ * @param <T>         操作结果类型
  */
 public record RetryAttempt<T>(
         int attempt,

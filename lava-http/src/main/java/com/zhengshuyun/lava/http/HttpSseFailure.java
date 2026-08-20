@@ -11,10 +11,10 @@ import org.jspecify.annotations.Nullable;
 /**
  * 结构化且凭证安全的 SSE 失败上下文。
  *
- * @param kind 稳定的失败分类
- * @param throwable 原始异常，仅供内部分类使用
- * @param statusCode 服务端已响应时的 HTTP 状态码
- * @param headers 服务端已响应时的响应头
+ * @param kind         稳定的失败分类
+ * @param throwable    原始异常，仅供内部分类使用
+ * @param statusCode   服务端已响应时的 HTTP 状态码
+ * @param headers      服务端已响应时的响应头
  * @param responseBody 有界失败响应正文
  */
 record HttpSseFailure(
