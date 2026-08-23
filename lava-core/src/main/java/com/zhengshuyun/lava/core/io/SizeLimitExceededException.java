@@ -19,7 +19,7 @@ package com.zhengshuyun.lava.core.io;
 import java.io.IOException;
 
 /**
- * 在无界流使返回的字节数组超过配置上限前抛出。
+ * 读取或复制的字节流超过配置上限时抛出。
  */
 public final class SizeLimitExceededException extends IOException {
 

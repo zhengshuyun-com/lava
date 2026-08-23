@@ -56,6 +56,54 @@ public final class ByteStreamUtils {
     }
 
     /**
+     * 在大小上限内把借入输入流的全部内容复制到借入输出流。两个流都不会关闭，输出流也不会刷新。
+     *
+     * <p>只有读取到输入流结尾才能确认内容完整且未超限。已经复制 {@code maximumBytes}
+     * 字节时，方法会同步读取一个额外字节来区分“恰好达到上限”和“已经超过上限”；对于尚未
+     * 结束的长生命周期流，这次探测可能阻塞到新字节到达、输入结束或底层读取超时。
+     *
+     * <p>复制不是事务性操作。内容超限时，输出流已经写入 {@code maximumBytes} 字节，输入流
+     * 还会额外消费第 {@code maximumBytes + 1} 个字节，但该探测字节不会写入输出流。
+     *
+     * @param input 待读取的输入流
+     * @param output 待写入的输出流
+     * @param maximumBytes 允许复制的最大字节数
+     * @return 已复制的字节数
+     * @throws IllegalArgumentException 最大字节数为负数时抛出
+     * @throws SizeLimitExceededException 内容超过上限时抛出；此时输出和输入已发生上述变化
+     * @throws IOException 读取或写入失败时抛出
+     */
+    public static long copyWithLimit(InputStream input, OutputStream output, long maximumBytes)
+            throws IOException {
+        ValidationUtils.requireNonNull(input, "input");
+        ValidationUtils.requireNonNull(output, "output");
+        validateNonNegativeMaximum(maximumBytes);
+
+        byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
+        long total = 0;
+        while (total < maximumBytes) {
+            int length = (int) Math.min(buffer.length, maximumBytes - total);
+            int read = input.read(buffer, 0, length);
+            if (read < 0) {
+                return total;
+            }
+            if (read == 0) {
+                continue;
+            }
+            output.write(buffer, 0, read);
+            total += read;
+        }
+
+        // 已达到上限时只探测一个字节，不把超限内容写入输出流。
+        if (input.read() >= 0) {
+            long observedBytes = maximumBytes == Long.MAX_VALUE
+                    ? Long.MAX_VALUE : maximumBytes + 1;
+            throw new SizeLimitExceededException(maximumBytes, observedBytes);
+        }
+        return total;
+    }
+
+    /**
      * 打开并关闭源流；借入的输出流既不会关闭，也不会刷新。
      *
      * @param source 提供输入流的源
@@ -116,23 +164,8 @@ public final class ByteStreamUtils {
 
         int initialCapacity = (int) Math.min(DEFAULT_BUFFER_SIZE, maximumBytes);
         ByteArrayOutputStream output = new ByteArrayOutputStream(initialCapacity);
-        byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
-        long total = 0;
-        while (true) {
-            int read = input.read(buffer);
-            if (read < 0) {
-                return output.toByteArray();
-            }
-            if (read == 0) {
-                continue;
-            }
-            long nextTotal = total + read;
-            if (nextTotal > maximumBytes) {
-                throw new SizeLimitExceededException(maximumBytes, nextTotal);
-            }
-            output.write(buffer, 0, read);
-            total = nextTotal;
-        }
+        copyWithLimit(input, output, maximumBytes);
+        return output.toByteArray();
     }
 
     /**
@@ -212,6 +245,12 @@ public final class ByteStreamUtils {
         if (maximumBytes < 0 || maximumBytes > MAX_BYTE_ARRAY_SIZE) {
             throw new IllegalArgumentException(
                     "maximumBytes must be between 0 and " + MAX_BYTE_ARRAY_SIZE + ": " + maximumBytes);
+        }
+    }
+
+    private static void validateNonNegativeMaximum(long maximumBytes) {
+        if (maximumBytes < 0) {
+            throw new IllegalArgumentException("maximumBytes must not be negative: " + maximumBytes);
         }
     }
 }
