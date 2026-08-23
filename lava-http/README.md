@@ -31,6 +31,21 @@ try (HttpClient client = HttpClient.builder()
 客户端默认 header、bearer token 和 JSON 编解码器都可以被单个请求覆盖。请求体也可以使用 `HttpBodyUtils.bytes`、`text`、
 `form`、`file`、`stream` 和 `multipart`。
 
+每次请求使用不同基础地址时，可以先追加基础路径和接口路径，再设置已经编码的原始查询串：
+
+```java
+URI url = HttpUrlBuilder.from(channelBaseUrl)
+        .appendPath("/v1/chat/completions")
+        .encodedQuery(rawQuery)
+        .build();
+HttpRequest request = HttpRequest.post(url).build();
+```
+
+`appendPath` 不会因为待追加路径以 `/` 开头就丢弃基础路径前缀，但点段和反斜杠仍会按 HTTP URL 规则
+归一化；不能直接追加未经校验的外部输入。
+`from` 会保留输入中的路径、查询参数和片段。基础地址允许哪些组成部分属于具体业务规则，应由调用方在
+进入构建器前校验；构建器不会静默删除已有内容。
+
 ## 流式响应
 
 ```java
