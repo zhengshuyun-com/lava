@@ -80,7 +80,7 @@
                 <artifactId>lava-schedule</artifactId>
                 <version>${project.version}</version>
             </dependency>
-            <!-- 密码哈希与密钥处理。 -->
+            <!-- 通用密码学基础能力。 -->
             <dependency>
                 <groupId>com.zhengshuyun</groupId>
                 <artifactId>lava-crypto</artifactId>

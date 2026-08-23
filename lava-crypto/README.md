@@ -1,7 +1,8 @@
 # lava-crypto
 
-`lava-crypto` 提供 Argon2id 密码哈希、JDK EC 密钥生成和严格的 EC PEM 编解码。它使用 Bouncy Castle lightweight Argon2
-API，但不会向 JVM 全局注册 Bouncy Castle Provider；EC P-256/P-384/P-521 密钥由 JDK `EC` provider 生成。
+`lava-crypto` 提供 HMAC-SHA-256、Argon2id 密码哈希、JDK EC 密钥生成和严格的 EC PEM 编解码。它使用 Bouncy Castle
+lightweight Argon2 API，但不会向 JVM 全局注册 Bouncy Castle Provider；EC P-256/P-384/P-521 密钥由 JDK `EC` provider
+生成。
 
 ```xml
 <dependency>
@@ -9,6 +10,15 @@ API，但不会向 JVM 全局注册 Bouncy Castle Provider；EC P-256/P-384/P-52
     <artifactId>lava-crypto</artifactId>
 </dependency>
 ```
+
+## HMAC-SHA-256
+
+```java
+String digest = HmacUtils.sha256Hex(pepper, plaintext);
+```
+
+字符串入口固定使用 UTF-8，并返回 64 个小写十六进制字符。字节数组入口可获取原始的 32 字节结果。HMAC-SHA-256 通过 JCA
+标准算法获取，不绑定具体 Provider，也不会修改 JVM 全局 Provider 列表。
 
 ## Argon2id
 

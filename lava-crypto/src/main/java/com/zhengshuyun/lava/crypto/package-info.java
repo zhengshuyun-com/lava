@@ -15,7 +15,7 @@
  */
 
 /**
- * 密码哈希, EC 密钥与编码格式处理
+ * 通用密码学基础能力
  * <p>
  * 本包为 {@link org.jspecify.annotations.NullMarked} 作用域: 所有类型默认非空,
  * 可为 null 的位置显式标注 {@link org.jspecify.annotations.Nullable}.
