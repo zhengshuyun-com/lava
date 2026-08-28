@@ -54,7 +54,6 @@
         <module>lava-core</module>
         <module>lava-json</module>
         <module>lava-http</module>
-        <module>lava-ai</module>
         <module>lava-schedule</module>
         <module>lava-bom</module>
         <module>lava-crypto</module>
@@ -72,9 +71,9 @@
         <maven-javadoc-plugin.version>3.12.0</maven-javadoc-plugin.version>
 
         <junit.version>6.1.3</junit.version>
-        <jspecify.version>1.0.0</jspecify.version>
-        <jackson.version>3.2.1</jackson.version>
-        <okhttp.version>5.4.0</okhttp.version>
+        <jspecify.version>1.0.1</jspecify.version>
+        <jackson.version>3.2.2</jackson.version>
+        <okhttp.version>5.5.0</okhttp.version>
         <quartz.version>2.5.2</quartz.version>
         <slf4j.version>2.0.18</slf4j.version>
         <bcprov-jdk18on.version>1.85.2</bcprov-jdk18on.version>
@@ -187,58 +186,47 @@
                     </execution>
                 </executions>
             </plugin>
+            <!-- 执行 deploy 时将签名后的构件上传至 Maven Central；默认不自动发布。 -->
+            <plugin>
+                <groupId>org.sonatype.central</groupId>
+                <artifactId>central-publishing-maven-plugin</artifactId>
+                <version>${central-publishing-maven-plugin.version}</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <publishingServerId>central</publishingServerId>
+                    <autoPublish>false</autoPublish>
+                </configuration>
+            </plugin>
+            <!-- 为每个 jar 附加 API 文档包。 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>${maven-javadoc-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>attach-javadocs</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- 使用本机 GPG 密钥为发布构件签名。 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-gpg-plugin</artifactId>
+                <version>${maven-gpg-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>sign-artifacts</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>sign</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
-
-    <profiles>
-        <!-- 仅在执行 -Prelease 时启用；执行到 deploy 阶段才会上传发布产物。 -->
-        <profile>
-            <id>release</id>
-            <build>
-                <plugins>
-                    <!-- 将签名后的构件上传至 Maven Central；默认不自动发布。 -->
-                    <plugin>
-                        <groupId>org.sonatype.central</groupId>
-                        <artifactId>central-publishing-maven-plugin</artifactId>
-                        <version>${central-publishing-maven-plugin.version}</version>
-                        <extensions>true</extensions>
-                        <configuration>
-                            <publishingServerId>central</publishingServerId>
-                            <autoPublish>false</autoPublish>
-                        </configuration>
-                    </plugin>
-                    <!-- 为每个 jar 附加 API 文档包。 -->
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-javadoc-plugin</artifactId>
-                        <version>${maven-javadoc-plugin.version}</version>
-                        <executions>
-                            <execution>
-                                <id>attach-javadocs</id>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>jar</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                    </plugin>
-                    <!-- 使用本机 GPG 密钥为发布构件签名。 -->
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-gpg-plugin</artifactId>
-                        <version>${maven-gpg-plugin.version}</version>
-                        <executions>
-                            <execution>
-                                <id>sign-artifacts</id>
-                                <phase>verify</phase>
-                                <goals>
-                                    <goal>sign</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-    </profiles>
 </project>

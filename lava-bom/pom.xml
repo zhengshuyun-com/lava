@@ -48,6 +48,11 @@
         <url>https://github.com/zhengshuyuncom/lava</url>
     </scm>
 
+    <properties>
+        <central-publishing-maven-plugin.version>0.11.0</central-publishing-maven-plugin.version>
+        <maven-gpg-plugin.version>3.2.8</maven-gpg-plugin.version>
+    </properties>
+
     <dependencyManagement>
         <dependencies>
             <!-- 核心工具：ID、重试、流与时间处理。 -->
@@ -66,12 +71,6 @@
             <dependency>
                 <groupId>com.zhengshuyun</groupId>
                 <artifactId>lava-http</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <!-- 协议中立的 AI JSON/SSE 便利层。 -->
-            <dependency>
-                <groupId>com.zhengshuyun</groupId>
-                <artifactId>lava-ai</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <!-- 进程内定时调度。 -->
@@ -94,4 +93,35 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
+
+    <build>
+        <plugins>
+            <!-- 独立 BOM 不继承父 POM，需要单独接入 Central 发布生命周期。 -->
+            <plugin>
+                <groupId>org.sonatype.central</groupId>
+                <artifactId>central-publishing-maven-plugin</artifactId>
+                <version>${central-publishing-maven-plugin.version}</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <publishingServerId>central</publishingServerId>
+                    <autoPublish>false</autoPublish>
+                </configuration>
+            </plugin>
+            <!-- Maven Central 要求为 BOM 的 POM 构件提供签名。 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-gpg-plugin</artifactId>
+                <version>${maven-gpg-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>sign-artifacts</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>sign</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 </project>
