@@ -24,7 +24,7 @@ Lava 要求 JDK 25 或更高版本。推荐导入 `lava-bom` 统一管理版本�
 
 ```xml
 <properties>
-    <lava.version>2.0.0</lava.version>
+    <lava.version>x.y.z</lava.version>
 </properties>
 
 <dependencyManagement>

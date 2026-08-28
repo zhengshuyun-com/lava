@@ -11,7 +11,7 @@
         <dependency>
             <groupId>com.zhengshuyun</groupId>
             <artifactId>lava-bom</artifactId>
-            <version>2.0.0</version>
+            <version>x.y.z</version>
             <type>pom</type>
             <scope>import</scope>
         </dependency>
