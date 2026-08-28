@@ -33,17 +33,6 @@
 
     <dependencies>
         <dependency>
-            <groupId>org.jspecify</groupId>
-            <artifactId>jspecify</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>com.zhengshuyun</groupId>
-            <artifactId>lava-core</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-
-        <dependency>
             <groupId>com.zhengshuyun</groupId>
             <artifactId>lava-http</artifactId>
             <version>${project.version}</version>
@@ -54,21 +43,5 @@
             <artifactId>angus-mail</artifactId>
         </dependency>
 
-        <dependency>
-            <groupId>com.zhengshuyun</groupId>
-            <artifactId>lava-json</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-annotations</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>com.squareup.okhttp3</groupId>
-            <artifactId>okhttp-jvm</artifactId>
-            <scope>test</scope>
-        </dependency>
     </dependencies>
 </project>
