@@ -34,12 +34,12 @@ class PemKeyUtilsTest {
     @Test
     void everySupportedCurveRoundTripsAndSignsWithoutProviderMutation() throws Exception {
         List<String> providersBefore = providerNames();
-        for (EcKeyUtils.Curve curve : EcKeyUtils.Curve.values()) {
-            KeyPair pair = EcKeyUtils.generate(curve);
-            String privatePem = PemKeyUtils.toPem(pair.getPrivate());
-            String publicPem = PemKeyUtils.toPem(pair.getPublic());
-            ECPrivateKey restoredPrivate = PemKeyUtils.readEcPrivateKey(privatePem);
-            var restoredPublic = PemKeyUtils.readEcPublicKey(publicPem);
+        for (CryptoUtils.EcCurve curve : CryptoUtils.EcCurve.values()) {
+            KeyPair pair = CryptoUtils.ecGenerateKeyPair(curve);
+            String privatePem = CryptoUtils.pemEncode(pair.getPrivate());
+            String publicPem = CryptoUtils.pemEncode(pair.getPublic());
+            ECPrivateKey restoredPrivate = CryptoUtils.pemReadEcPrivateKey(privatePem);
+            var restoredPublic = CryptoUtils.pemReadEcPublicKey(publicPem);
 
             Signature signer = Signature.getInstance(signatureAlgorithm(curve));
             signer.initSign(restoredPrivate);
@@ -57,8 +57,8 @@ class PemKeyUtilsTest {
 
     @Test
     void pemOutputIsCanonicalAndContainsNoExtraMaterial() {
-        KeyPair pair = EcKeyUtils.generate();
-        String pem = PemKeyUtils.toPem(pair.getPrivate());
+        KeyPair pair = CryptoUtils.ecGenerateKeyPair();
+        String pem = CryptoUtils.pemEncode(pair.getPrivate());
         String[] lines = pem.split("\\n");
 
         assertEquals("-----BEGIN PRIVATE KEY-----", lines[0]);
@@ -71,33 +71,35 @@ class PemKeyUtilsTest {
 
     @Test
     void strictParserRejectsWrongDuplicateAndEmbeddedBoundaries() {
-        KeyPair pair = EcKeyUtils.generate();
-        String privatePem = PemKeyUtils.toPem(pair.getPrivate());
-        String publicPem = PemKeyUtils.toPem(pair.getPublic());
+        KeyPair pair = CryptoUtils.ecGenerateKeyPair();
+        String privatePem = CryptoUtils.pemEncode(pair.getPrivate());
+        String publicPem = CryptoUtils.pemEncode(pair.getPublic());
 
-        assertThrows(CryptoException.class, () -> PemKeyUtils.readEcPrivateKey(publicPem));
-        assertThrows(CryptoException.class, () -> PemKeyUtils.readEcPublicKey(privatePem));
+        assertThrows(CryptoException.class, () -> CryptoUtils.pemReadEcPrivateKey(publicPem));
+        assertThrows(CryptoException.class, () -> CryptoUtils.pemReadEcPublicKey(privatePem));
         assertThrows(CryptoException.class,
-                () -> PemKeyUtils.readEcPrivateKey(privatePem + privatePem));
+                () -> CryptoUtils.pemReadEcPrivateKey(privatePem + privatePem));
         assertThrows(CryptoException.class,
-                () -> PemKeyUtils.readEcPrivateKey(privatePem.replace(
+                () -> CryptoUtils.pemReadEcPrivateKey(privatePem.replace(
                         "-----END PRIVATE KEY-----",
                         "-----BEGIN PUBLIC KEY-----\n-----END PRIVATE KEY-----")));
         assertThrows(CryptoException.class,
-                () -> PemKeyUtils.readEcPrivateKey("-----BEGIN PRIVATE KEY-----\n!!!!\n-----END PRIVATE KEY-----"));
+                () -> CryptoUtils.pemReadEcPrivateKey(
+                        "-----BEGIN PRIVATE KEY-----\n!!!!\n-----END PRIVATE KEY-----"));
         assertThrows(CryptoException.class,
-                () -> PemKeyUtils.readEcPrivateKey("x".repeat(PemKeyUtils.DEFAULT_MAX_PEM_CHARACTERS + 1)));
+                () -> CryptoUtils.pemReadEcPrivateKey(
+                        "x".repeat(PemKeyUtils.DEFAULT_MAX_PEM_CHARACTERS + 1)));
     }
 
     @Test
     void rsaKeysAndRsaDerAreRejected() throws Exception {
         KeyPair rsa = KeyPairGenerator.getInstance("RSA").generateKeyPair();
 
-        assertThrows(CryptoException.class, () -> PemKeyUtils.toPem(rsa.getPrivate()));
-        assertThrows(CryptoException.class, () -> PemKeyUtils.toPem(rsa.getPublic()));
+        assertThrows(CryptoException.class, () -> CryptoUtils.pemEncode(rsa.getPrivate()));
+        assertThrows(CryptoException.class, () -> CryptoUtils.pemEncode(rsa.getPublic()));
 
         String encodedRsaPrivate = toPrivatePem(rsa.getPrivate().getEncoded());
-        assertThrows(CryptoException.class, () -> PemKeyUtils.readEcPrivateKey(encodedRsaPrivate));
+        assertThrows(CryptoException.class, () -> CryptoUtils.pemReadEcPrivateKey(encodedRsaPrivate));
     }
 
     @Test
@@ -108,26 +110,26 @@ class PemKeyUtilsTest {
         String privatePem = toPrivatePem(pair.getPrivate().getEncoded());
         String publicPem = toPublicPem(pair.getPublic().getEncoded());
 
-        RSAPrivateKey privateKey = PemKeyUtils.readRsaPrivateKey(privatePem);
-        var publicKey = PemKeyUtils.readRsaPublicKey(publicPem);
+        RSAPrivateKey privateKey = CryptoUtils.pemReadRsaPrivateKey(privatePem);
+        var publicKey = CryptoUtils.pemReadRsaPublicKey(publicPem);
         byte[] data = {1, 2, 3};
-        byte[] signature = RsaSignatureUtils.sha256(privateKey, data);
+        byte[] signature = CryptoUtils.rsaSha256Sign(privateKey, data);
 
-        assertTrue(RsaSignatureUtils.verifySha256(publicKey, data, signature));
-        assertThrows(CryptoException.class, () -> PemKeyUtils.readRsaPrivateKey(publicPem));
+        assertTrue(CryptoUtils.rsaSha256Verify(publicKey, data, signature));
+        assertThrows(CryptoException.class, () -> CryptoUtils.pemReadRsaPrivateKey(publicPem));
     }
 
     @Test
     void nonExportableHsmStyleKeyHasExplicitFailure() {
         CryptoException missingEncoding = assertThrows(
                 CryptoException.class,
-                () -> PemKeyUtils.toPem(new NonExportableEcPrivateKey("PKCS#8")));
+                () -> CryptoUtils.pemEncode(new NonExportableEcPrivateKey("PKCS#8")));
         CryptoException missingFormat = assertThrows(
                 CryptoException.class,
-                () -> PemKeyUtils.toPem(new NonExportableEcPrivateKey(null)));
+                () -> CryptoUtils.pemEncode(new NonExportableEcPrivateKey(null)));
         CryptoException inaccessibleFormat = assertThrows(
                 CryptoException.class,
-                () -> PemKeyUtils.toPem(new NonExportableEcPrivateKey(null, true)));
+                () -> CryptoUtils.pemEncode(new NonExportableEcPrivateKey(null, true)));
 
         assertFalse(missingEncoding.getMessage().contains("null"));
         assertFalse(missingFormat.getMessage().contains("null"));
@@ -136,16 +138,19 @@ class PemKeyUtilsTest {
 
     @Test
     void generatedKeysUseOnlyTheRequestedCurves() {
-        assertEquals(256, ((java.security.interfaces.ECPublicKey) EcKeyUtils.generate(EcKeyUtils.Curve.P256)
+        assertEquals(256, ((java.security.interfaces.ECPublicKey) CryptoUtils
+                .ecGenerateKeyPair(CryptoUtils.EcCurve.P256)
                 .getPublic()).getParams().getCurve().getField().getFieldSize());
-        assertEquals(384, ((java.security.interfaces.ECPublicKey) EcKeyUtils.generate(EcKeyUtils.Curve.P384)
+        assertEquals(384, ((java.security.interfaces.ECPublicKey) CryptoUtils
+                .ecGenerateKeyPair(CryptoUtils.EcCurve.P384)
                 .getPublic()).getParams().getCurve().getField().getFieldSize());
-        assertEquals(521, ((java.security.interfaces.ECPublicKey) EcKeyUtils.generate(EcKeyUtils.Curve.P521)
+        assertEquals(521, ((java.security.interfaces.ECPublicKey) CryptoUtils
+                .ecGenerateKeyPair(CryptoUtils.EcCurve.P521)
                 .getPublic()).getParams().getCurve().getField().getFieldSize());
-        assertEquals("secp256r1", EcKeyUtils.Curve.P256.standardName());
+        assertEquals("secp256r1", CryptoUtils.EcCurve.P256.standardName());
     }
 
-    private static String signatureAlgorithm(EcKeyUtils.Curve curve) {
+    private static String signatureAlgorithm(CryptoUtils.EcCurve curve) {
         return switch (curve) {
             case P256 -> "SHA256withECDSA";
             case P384 -> "SHA384withECDSA";

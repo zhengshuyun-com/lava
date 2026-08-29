@@ -25,12 +25,12 @@ import java.security.PublicKey;
 import java.security.Signature;
 
 /**
- * 基于 JCA 的 RSA SHA-256 签名与验签工具。
+ * {@link CryptoUtils} 使用的 JCA RSA SHA-256 签名与验签实现。
  *
  * <p>固定使用 {@code SHA256withRSA}，即 RSASSA-PKCS1-v1_5；私钥可以来自软件 Provider 或 HSM。
  * 所有输入数组均由调用方持有，本工具不会修改。</p>
  */
-public final class RsaSignatureUtils {
+final class RsaSignatureUtils {
 
     private static final String SIGNATURE_ALGORITHM = "SHA256withRSA";
 
@@ -52,7 +52,7 @@ public final class RsaSignatureUtils {
      * @throws IllegalArgumentException 参数为空或私钥算法不是 RSA 时抛出
      * @throws CryptoException          JCA Provider 无法完成签名时抛出
      */
-    public static byte[] sha256(PrivateKey privateKey, byte[] data) {
+    static byte[] sha256(PrivateKey privateKey, byte[] data) {
         // 1. 在调用 Provider 前完成参数校验，使调用方错误与密码学执行失败保持明确边界。
         requireRsa(privateKey, "privateKey");
         ValidationUtils.requireNonNull(data, "data must not be null");
@@ -82,7 +82,7 @@ public final class RsaSignatureUtils {
      * @throws IllegalArgumentException 参数为空或公钥算法不是 RSA 时抛出
      * @throws CryptoException          JCA Provider 无法完成验签时抛出
      */
-    public static boolean verifySha256(PublicKey publicKey, byte[] data, byte[] signature) {
+    static boolean verifySha256(PublicKey publicKey, byte[] data, byte[] signature) {
         // 1. 先校验密钥和输入，签名不匹配仍由 verify 返回 false，不与参数错误混淆。
         requireRsa(publicKey, "publicKey");
         ValidationUtils.requireNonNull(data, "data must not be null");

@@ -36,8 +36,8 @@ class HmacUtilsTest {
                 "b0344c61d8db38535ca8afceaf0bf12b"
                         + "881dc200c9833da726e9376c2e32cff7");
 
-        assertArrayEquals(expected, HmacUtils.sha256(key, data));
-        assertEquals(HexFormat.of().formatHex(expected), HmacUtils.sha256Hex(key, data));
+        assertArrayEquals(expected, CryptoUtils.hmacSha256(key, data));
+        assertEquals(HexFormat.of().formatHex(expected), CryptoUtils.hmacSha256Hex(key, data));
     }
 
     /** 字符串便利入口应固定使用 UTF-8，并保持密钥在前、数据在后的参数语义。 */
@@ -46,23 +46,23 @@ class HmacUtilsTest {
         assertEquals(
                 "5bdcc146bf60754e6a042426089575c7"
                         + "5a003f089d2739839dec58b964ec3843",
-                HmacUtils.sha256Hex("Jefe", "what do ya want for nothing?"));
+                CryptoUtils.hmacSha256Hex("Jefe", "what do ya want for nothing?"));
         assertEquals(
                 "fb085ef4b8dd543fe5ab2573bd46c8e3"
                         + "e664ca70ecea9621c3ce304e8673f885",
-                HmacUtils.sha256Hex("密钥", "数据🔐"));
+                CryptoUtils.hmacSha256Hex("密钥", "数据🔐"));
     }
 
     /** HMAC 密钥必须存在且不能为空，数据则允许为空。 */
     @Test
     void validatesInputs() {
         assertThrows(IllegalArgumentException.class,
-                () -> HmacUtils.sha256(new byte[0], new byte[0]));
+                () -> CryptoUtils.hmacSha256(new byte[0], new byte[0]));
         assertThrows(IllegalArgumentException.class,
-                () -> HmacUtils.sha256(null, new byte[0]));
+                () -> CryptoUtils.hmacSha256(null, new byte[0]));
         assertThrows(IllegalArgumentException.class,
-                () -> HmacUtils.sha256(new byte[]{1}, null));
+                () -> CryptoUtils.hmacSha256(new byte[]{1}, null));
 
-        assertEquals(64, HmacUtils.sha256Hex("key", "").length());
+        assertEquals(64, CryptoUtils.hmacSha256Hex("key", "").length());
     }
 }

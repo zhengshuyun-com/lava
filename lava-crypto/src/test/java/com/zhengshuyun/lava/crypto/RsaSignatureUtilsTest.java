@@ -21,19 +21,19 @@ class RsaSignatureUtilsTest {
         KeyPair pair = generator.generateKeyPair();
         byte[] data = {1, 2, 3, 4};
 
-        byte[] signature = RsaSignatureUtils.sha256(pair.getPrivate(), data);
+        byte[] signature = CryptoUtils.rsaSha256Sign(pair.getPrivate(), data);
 
-        assertTrue(RsaSignatureUtils.verifySha256(pair.getPublic(), data, signature));
-        assertFalse(RsaSignatureUtils.verifySha256(pair.getPublic(),
+        assertTrue(CryptoUtils.rsaSha256Verify(pair.getPublic(), data, signature));
+        assertFalse(CryptoUtils.rsaSha256Verify(pair.getPublic(),
                 new byte[]{1, 2, 3, 5}, signature));
     }
 
     @Test
     void nonRsaKeysAreRejected() {
-        KeyPair pair = EcKeyUtils.generate();
+        KeyPair pair = CryptoUtils.ecGenerateKeyPair();
         assertThrows(IllegalArgumentException.class,
-                () -> RsaSignatureUtils.sha256(pair.getPrivate(), new byte[0]));
+                () -> CryptoUtils.rsaSha256Sign(pair.getPrivate(), new byte[0]));
         assertThrows(IllegalArgumentException.class,
-                () -> RsaSignatureUtils.verifySha256(pair.getPublic(), new byte[0], new byte[0]));
+                () -> CryptoUtils.rsaSha256Verify(pair.getPublic(), new byte[0], new byte[0]));
     }
 }

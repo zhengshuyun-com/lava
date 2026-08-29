@@ -25,40 +25,17 @@ import java.security.SecureRandom;
 import java.security.spec.ECGenParameterSpec;
 
 /**
- * 使用 JDK Provider 生成 EC 密钥，且不修改全局 Provider 列表。
+ * {@link CryptoUtils} 使用的 EC 密钥生成实现，且不修改全局 Provider 列表。
  */
-public final class EcKeyUtils {
+final class EcKeyUtils {
 
     static final String SUN_EC_PROVIDER = "SunEC";
 
     /**
-     * JDK SunEC 实现及本 API 支持的曲线。
+     * 工具类不允许实例化。
      */
-    public enum Curve {
-        /** NIST P-256 曲线。 */
-        P256("secp256r1"),
-        /** NIST P-384 曲线。 */
-        P384("secp384r1"),
-        /** NIST P-521 曲线。 */
-        P521("secp521r1");
-
-        private final String standardName;
-
-        Curve(String standardName) {
-            this.standardName = standardName;
-        }
-
-        /**
-         * 返回 JCA 使用的标准曲线名称。
-         *
-         * @return 标准曲线名称
-         */
-        public String standardName() {
-            return standardName;
-        }
-    }
-
     private EcKeyUtils() {
+        throw new UnsupportedOperationException("Utility class");
     }
 
     /**
@@ -66,8 +43,8 @@ public final class EcKeyUtils {
      *
      * @return P-256 EC 密钥对
      */
-    public static KeyPair generate() {
-        return generate(Curve.P256);
+    static KeyPair generate() {
+        return generate(CryptoUtils.EcCurve.P256);
     }
 
     /**
@@ -76,7 +53,7 @@ public final class EcKeyUtils {
      * @param curve EC 曲线
      * @return 指定曲线的 EC 密钥对
      */
-    public static KeyPair generate(Curve curve) {
+    static KeyPair generate(CryptoUtils.EcCurve curve) {
         return generate(curve, new SecureRandom());
     }
 
@@ -88,15 +65,20 @@ public final class EcKeyUtils {
      * @return 指定曲线的 EC 密钥对
      * @throws CryptoException JDK Provider 不支持所需 EC 操作时抛出
      */
-    public static KeyPair generate(Curve curve, SecureRandom secureRandom) {
+    static KeyPair generate(CryptoUtils.EcCurve curve, SecureRandom secureRandom) {
+        // 1. 先校验曲线和随机源，避免将调用方参数错误包装成密码学执行失败。
         ValidationUtils.requireNonNull(curve, "curve must not be null");
         ValidationUtils.requireNonNull(secureRandom, "secureRandom must not be null");
+
         try {
+            // 2. 显式选择 JDK SunEC 和标准曲线，不修改 JVM 全局 Provider 列表。
             KeyPairGenerator generator = KeyPairGenerator.getInstance("EC", SUN_EC_PROVIDER);
             generator.initialize(new ECGenParameterSpec(curve.standardName()), secureRandom);
+
+            // 3. 由调用方提供或新建的安全随机源生成完整密钥对。
             return generator.generateKeyPair();
-        } catch (GeneralSecurityException e) {
-            throw new CryptoException("Failed to generate an EC key pair for " + curve, e);
+        } catch (GeneralSecurityException exception) {
+            throw new CryptoException("Failed to generate an EC key pair for " + curve, exception);
         }
     }
 }

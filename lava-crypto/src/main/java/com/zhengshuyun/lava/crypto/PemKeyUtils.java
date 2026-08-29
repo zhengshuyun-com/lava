@@ -31,22 +31,22 @@ import java.util.Arrays;
 import java.util.Base64;
 
 /**
- * 严格的 PKCS#8 私钥和 X.509 SubjectPublicKeyInfo 公钥 PEM 支持。
+ * {@link CryptoUtils} 使用的严格 PEM 编解码实现。
  *
  * <p>导出入口当前只支持 EC 密钥；读取入口分别提供 EC 与 RSA 类型安全方法。解析时只接受单个、
  * 首尾完整匹配的 PEM 块，并限制 PEM 文本与 DER 编码的大小。</p>
  */
-public final class PemKeyUtils {
+final class PemKeyUtils {
 
     /**
      * 单个 PEM 输入允许的最大字符数。
      */
-    public static final int DEFAULT_MAX_PEM_CHARACTERS = 65_536;
+    static final int DEFAULT_MAX_PEM_CHARACTERS = 65_536;
 
     /**
      * 单个密钥允许的最大 DER 编码字节数。
      */
-    public static final int DEFAULT_MAX_DER_BYTES = 16_384;
+    static final int DEFAULT_MAX_DER_BYTES = 16_384;
 
     private static final String PRIVATE_HEADER = "-----BEGIN PRIVATE KEY-----";
     private static final String PRIVATE_FOOTER = "-----END PRIVATE KEY-----";
@@ -59,6 +59,7 @@ public final class PemKeyUtils {
      * 工具类不允许实例化。
      */
     private PemKeyUtils() {
+        throw new UnsupportedOperationException("Utility class");
     }
 
     /**
@@ -69,7 +70,7 @@ public final class PemKeyUtils {
      * @throws IllegalArgumentException key 为 null 时抛出
      * @throws CryptoException 密钥类型、格式或编码不受支持时抛出
      */
-    public static String toPem(Key key) {
+    static String toPem(Key key) {
         // 1. 先限定支持的密钥类型和算法，避免仅凭编码格式误判密钥用途。
         ValidationUtils.requireNonNull(key, "key must not be null");
 
@@ -139,7 +140,7 @@ public final class PemKeyUtils {
      * @throws IllegalArgumentException pem 为 null 时抛出
      * @throws CryptoException PEM 格式、大小或密钥内容无效时抛出
      */
-    public static ECPrivateKey readEcPrivateKey(String pem) {
+    static ECPrivateKey readEcPrivateKey(String pem) {
         byte[] encodedKey = decodeStrict(pem, PRIVATE_HEADER, PRIVATE_FOOTER);
         try {
             Key key = KeyFactory.getInstance("EC", EcKeyUtils.SUN_EC_PROVIDER)
@@ -165,7 +166,7 @@ public final class PemKeyUtils {
      * @throws IllegalArgumentException pem 为 null 时抛出
      * @throws CryptoException PEM 格式、大小或密钥内容无效时抛出
      */
-    public static ECPublicKey readEcPublicKey(String pem) {
+    static ECPublicKey readEcPublicKey(String pem) {
         byte[] encodedKey = decodeStrict(pem, PUBLIC_HEADER, PUBLIC_FOOTER);
         try {
             Key key = KeyFactory.getInstance("EC", EcKeyUtils.SUN_EC_PROVIDER)
@@ -191,7 +192,7 @@ public final class PemKeyUtils {
      * @throws IllegalArgumentException pem 为 null 时抛出
      * @throws CryptoException PEM 格式、大小或密钥内容无效时抛出
      */
-    public static RSAPrivateKey readRsaPrivateKey(String pem) {
+    static RSAPrivateKey readRsaPrivateKey(String pem) {
         byte[] encodedKey = decodeStrict(pem, PRIVATE_HEADER, PRIVATE_FOOTER);
         try {
             Key key = KeyFactory.getInstance("RSA")
@@ -217,7 +218,7 @@ public final class PemKeyUtils {
      * @throws IllegalArgumentException pem 为 null 时抛出
      * @throws CryptoException PEM 格式、大小或密钥内容无效时抛出
      */
-    public static RSAPublicKey readRsaPublicKey(String pem) {
+    static RSAPublicKey readRsaPublicKey(String pem) {
         byte[] encodedKey = decodeStrict(pem, PUBLIC_HEADER, PUBLIC_FOOTER);
         try {
             Key key = KeyFactory.getInstance("RSA")

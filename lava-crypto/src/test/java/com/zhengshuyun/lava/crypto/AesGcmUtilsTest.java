@@ -20,19 +20,19 @@ class AesGcmUtilsTest {
         byte[] aad = "resource".getBytes(StandardCharsets.UTF_8);
         byte[] plaintext = "微信支付".getBytes(StandardCharsets.UTF_8);
 
-        byte[] ciphertext = AesGcmUtils.encrypt(key, nonce, aad, plaintext);
+        byte[] ciphertext = CryptoUtils.aesGcmEncrypt(key, nonce, aad, plaintext);
 
-        assertArrayEquals(plaintext, AesGcmUtils.decrypt(key, nonce, aad, ciphertext));
+        assertArrayEquals(plaintext, CryptoUtils.aesGcmDecrypt(key, nonce, aad, ciphertext));
         ciphertext[0] ^= 1;
         assertThrows(CryptoException.class,
-                () -> AesGcmUtils.decrypt(key, nonce, aad, ciphertext));
+                () -> CryptoUtils.aesGcmDecrypt(key, nonce, aad, ciphertext));
     }
 
     @Test
     void invalidKeyAndNonceFailBeforeJcaCall() {
         assertThrows(IllegalArgumentException.class,
-                () -> AesGcmUtils.encrypt(new byte[15], new byte[12], new byte[0], new byte[0]));
+                () -> CryptoUtils.aesGcmEncrypt(new byte[15], new byte[12], new byte[0], new byte[0]));
         assertThrows(IllegalArgumentException.class,
-                () -> AesGcmUtils.encrypt(new byte[16], new byte[0], new byte[0], new byte[0]));
+                () -> CryptoUtils.aesGcmEncrypt(new byte[16], new byte[0], new byte[0], new byte[0]));
     }
 }

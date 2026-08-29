@@ -2,7 +2,7 @@
 
 `lava-crypto` 提供 HMAC-SHA-256、RSA-SHA256、AES-GCM、Argon2id 密码哈希、JDK EC 密钥生成以及严格的 EC/RSA PEM
 读取。它使用 Bouncy Castle lightweight Argon2 API，但不会向 JVM 全局注册 Bouncy Castle Provider；标准 RSA、AES 与
-EC 能力通过 JCA 获取。
+EC 能力通过 JCA 获取。无状态密码学能力统一从 `CryptoUtils` 进入，带策略状态的密码哈希由 `PasswordHasher` 提供。
 
 ```xml
 <dependency>
@@ -14,7 +14,7 @@ EC 能力通过 JCA 获取。
 ## HMAC-SHA-256
 
 ```java
-String digest = HmacUtils.sha256Hex(pepper, plaintext);
+String digest = CryptoUtils.hmacSha256Hex(pepper, plaintext);
 ```
 
 字符串入口固定使用 UTF-8，并返回 64 个小写十六进制字符。字节数组入口可获取原始的 32 字节结果。HMAC-SHA-256 通过 JCA
@@ -59,11 +59,11 @@ String。空密码和全空白密码可以哈希；最小长度、复杂度、�
 ## RSA-SHA256 与 AES-GCM
 
 ```java
-byte[] signature = RsaSignatureUtils.sha256(privateKey, data);
-boolean valid = RsaSignatureUtils.verifySha256(publicKey, data, signature);
+byte[] signature = CryptoUtils.rsaSha256Sign(privateKey, data);
+boolean valid = CryptoUtils.rsaSha256Verify(publicKey, data, signature);
 
-byte[] ciphertext = AesGcmUtils.encrypt(key, nonce, associatedData, plaintext);
-byte[] restored = AesGcmUtils.decrypt(key, nonce, associatedData, ciphertext);
+byte[] ciphertext = CryptoUtils.aesGcmEncrypt(key, nonce, associatedData, plaintext);
+byte[] restored = CryptoUtils.aesGcmDecrypt(key, nonce, associatedData, ciphertext);
 ```
 
 RSA 工具接受普通 JCA 或 HSM Provider 提供的密钥，不要求密钥可导出。AES-GCM 使用 128 位认证标签；调用方必须保证同一
@@ -72,15 +72,15 @@ RSA 工具接受普通 JCA 或 HSM Provider 提供的密钥，不要求密钥可
 ## EC、RSA 与 PEM
 
 ```java
-KeyPair pair = EcKeyUtils.generate(EcKeyUtils.Curve.P256);
-String publicPem = PemKeyUtils.toPem(pair.getPublic());
-String privatePem = PemKeyUtils.toPem(pair.getPrivate());
+KeyPair pair = CryptoUtils.ecGenerateKeyPair(CryptoUtils.EcCurve.P256);
+String publicPem = CryptoUtils.pemEncode(pair.getPublic());
+String privatePem = CryptoUtils.pemEncode(pair.getPrivate());
 
-ECPublicKey publicKey = PemKeyUtils.readEcPublicKey(publicPem);
-ECPrivateKey privateKey = PemKeyUtils.readEcPrivateKey(privatePem);
+ECPublicKey publicKey = CryptoUtils.pemReadEcPublicKey(publicPem);
+ECPrivateKey privateKey = CryptoUtils.pemReadEcPrivateKey(privatePem);
 ```
 
-`PemKeyUtils` 的读取入口只接受：
+`CryptoUtils` 的 PEM 读取入口只接受：
 
 - EC private key：PKCS#8 `PRIVATE KEY`
 - EC public key：X.509 SubjectPublicKeyInfo `PUBLIC KEY`
@@ -90,5 +90,6 @@ ECPrivateKey privateKey = PemKeyUtils.readEcPrivateKey(privatePem);
 解析器限制 PEM 字符数和 DER 字节数，要求唯一且匹配的 header/footer，并校验算法和格式。它不支持传统 `EC PRIVATE KEY`
 、证书、多个拼接块或加密 PEM。
 
-HSM/PKCS#11 等不可导出密钥的 `getFormat()`/`getEncoded()` 可能为空；此时 `toPem` 抛出带明确原因的 `CryptoException`
-。不要为了导出而降低 HSM 策略。`toPem` 产生的是未加密私钥文本，调用方必须限制其存储、日志和传输范围。
+HSM/PKCS#11 等不可导出密钥的 `getFormat()`/`getEncoded()` 可能为空；此时 `pemEncode` 抛出带明确原因的
+`CryptoException`。不要为了导出而降低 HSM 策略。`pemEncode` 产生的是未加密私钥文本，调用方必须限制其存储、日志和
+传输范围。

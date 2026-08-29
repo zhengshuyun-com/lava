@@ -25,11 +25,11 @@ import java.security.GeneralSecurityException;
 import java.util.HexFormat;
 
 /**
- * HMAC 消息认证码工具。
+ * {@link CryptoUtils} 使用的 HMAC 消息认证码实现。
  *
- * <p>标准算法优先通过 JCA 获取，不绑定具体 Provider，也不修改 JVM 全局 Provider 列表。
+ * <p>标准算法通过 JCA 获取，不绑定具体 Provider，也不修改 JVM 全局 Provider 列表。</p>
  */
-public final class HmacUtils {
+final class HmacUtils {
 
     /** JCA 定义的 HMAC-SHA-256 标准算法名。 */
     private static final String HMAC_SHA_256 = "HmacSHA256";
@@ -53,13 +53,18 @@ public final class HmacUtils {
      * @throws IllegalArgumentException 密钥或数据为 {@code null}，或者密钥为空时抛出
      * @throws CryptoException 当前 JCA 环境无法提供 HMAC-SHA-256 时抛出
      */
-    public static byte[] sha256(byte[] key, byte[] data) {
+    static byte[] sha256(byte[] key, byte[] data) {
+        // 1. 在创建 JCA 对象前校验输入，明确区分参数错误与 Provider 执行失败。
         ValidationUtils.requireNonNull(key, "key must not be null");
         ValidationUtils.requireTrue(key.length > 0, "key must not be empty");
         ValidationUtils.requireNonNull(data, "data must not be null");
+
         try {
+            // 2. 使用固定算法和调用方密钥初始化 Mac，不绑定或修改全局 Provider。
             Mac mac = Mac.getInstance(HMAC_SHA_256);
             mac.init(new SecretKeySpec(key, HMAC_SHA_256));
+
+            // 3. 一次性认证完整数据并返回独立结果数组，不修改调用方输入。
             return mac.doFinal(data);
         } catch (GeneralSecurityException exception) {
             throw new CryptoException("Failed to compute HMAC-SHA-256", exception);
@@ -75,7 +80,7 @@ public final class HmacUtils {
      * @throws IllegalArgumentException 密钥或数据为 {@code null}，或者密钥为空时抛出
      * @throws CryptoException 当前 JCA 环境无法提供 HMAC-SHA-256 时抛出
      */
-    public static String sha256Hex(byte[] key, byte[] data) {
+    static String sha256Hex(byte[] key, byte[] data) {
         return LOWERCASE_HEX.formatHex(sha256(key, data));
     }
 
@@ -88,7 +93,7 @@ public final class HmacUtils {
      * @throws IllegalArgumentException 密钥或数据为 {@code null}，或者密钥为空时抛出
      * @throws CryptoException 当前 JCA 环境无法提供 HMAC-SHA-256 时抛出
      */
-    public static String sha256Hex(String key, String data) {
+    static String sha256Hex(String key, String data) {
         ValidationUtils.requireNonNull(key, "key must not be null");
         ValidationUtils.requireNonNull(data, "data must not be null");
         return sha256Hex(
