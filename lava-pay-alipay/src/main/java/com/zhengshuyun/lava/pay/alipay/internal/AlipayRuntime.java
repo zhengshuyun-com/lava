@@ -15,6 +15,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public final class AlipayRuntime implements AutoCloseable {
     private final AlipayTransport transport;
+    private final AlipayPagePayFormFactory pagePayFormFactory;
     private final HttpClient httpClient;
     private final boolean ownsHttpClient;
     private final AtomicBoolean closed = new AtomicBoolean();
@@ -22,13 +23,22 @@ public final class AlipayRuntime implements AutoCloseable {
     /**
      * 创建共享运行时。
      *
-     * @param transport      协议传输层
-     * @param httpClient     HTTP 客户端
-     * @param ownsHttpClient 是否负责关闭 HTTP 客户端
+     * @param transport          V3 协议传输层
+     * @param pagePayFormFactory 页面支付表单生成器
+     * @param httpClient         HTTP 客户端
+     * @param ownsHttpClient     是否负责关闭 HTTP 客户端
      */
-    public AlipayRuntime(AlipayTransport transport, HttpClient httpClient,
-                            boolean ownsHttpClient) {
+    public AlipayRuntime(
+            AlipayTransport transport,
+            AlipayPagePayFormFactory pagePayFormFactory,
+            HttpClient httpClient,
+            boolean ownsHttpClient
+    ) {
         this.transport = ValidationUtils.requireNonNull(transport, "transport");
+        this.pagePayFormFactory = ValidationUtils.requireNonNull(
+                pagePayFormFactory,
+                "pagePayFormFactory"
+        );
         this.httpClient = ValidationUtils.requireNonNull(httpClient, "httpClient");
         this.ownsHttpClient = ownsHttpClient;
     }
@@ -42,6 +52,17 @@ public final class AlipayRuntime implements AutoCloseable {
     public AlipayTransport transport() {
         ensureOpen();
         return transport;
+    }
+
+    /**
+     * 返回仍可用的页面支付表单生成器。
+     *
+     * @return 页面支付表单生成器
+     * @throws IllegalStateException 根客户端已经关闭
+     */
+    public AlipayPagePayFormFactory pagePayForms() {
+        ensureOpen();
+        return pagePayFormFactory;
     }
 
     /**

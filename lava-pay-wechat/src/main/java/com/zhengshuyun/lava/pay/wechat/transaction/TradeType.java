@@ -27,6 +27,7 @@ public final class TradeType {
     /** 刷脸支付。 */
     public static final String FACEPAY = "FACEPAY";
 
+    /** 禁止实例化交易类型常量容器。 */
     private TradeType() {
     }
 }

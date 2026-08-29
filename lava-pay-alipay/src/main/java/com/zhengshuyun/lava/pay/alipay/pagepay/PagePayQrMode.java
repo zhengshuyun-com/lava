@@ -20,6 +20,7 @@ public final class PagePayQrMode {
     /** 可自定义宽度的嵌入式二维码。 */
     public static final String CUSTOM_WIDTH = "4";
 
+    /** 禁止实例化二维码模式常量容器。 */
     private PagePayQrMode() {
         throw new UnsupportedOperationException("Constants class");
     }

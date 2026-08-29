@@ -81,18 +81,32 @@ public final class NotificationParser {
      * @return 支付成功通知
      */
     public TransactionNotification parseTransaction(HttpHeaders headers, byte[] body) {
+        // 1. 使用原始请求头和正文验签，再解析并校验支付通知信封类型。
         WechatPayTransport transport = runtime.transport();
         VerifiedEnvelope envelope = verifiedEnvelope(transport, headers, body);
         requireEnvelope(envelope, TRANSACTION_EVENT, "transaction");
+
+        // 2. 仅对已经验签且类型匹配的资源执行 AES-GCM 解密和业务 JSON 解析。
         byte[] plaintext = decrypt(transport, envelope.resource());
         try {
-            Transaction transaction = read(plaintext, Transaction.class,
-                    "支付通知资源不是预期的 JSON 结构");
+            Transaction transaction = read(
+                    plaintext,
+                    Transaction.class,
+                    "支付通知资源不是预期的 JSON 结构"
+            );
+
+            // 3. 将商户号和成功状态绑定到当前客户端，再返回可信通知模型。
             requireMchid(transport, transaction.mchid());
             requireSuccessfulTransaction(transaction);
-            return new TransactionNotification(envelope.id(), envelope.createTime(),
-                    envelope.eventType(), envelope.summary(), transaction);
+            return new TransactionNotification(
+                    envelope.id(),
+                    envelope.createTime(),
+                    envelope.eventType(),
+                    envelope.summary(),
+                    transaction
+            );
         } finally {
+            // 4. 无论解析是否成功都清除解密明文，缩短敏感业务数据的内存驻留时间。
             Arrays.fill(plaintext, (byte) 0);
         }
     }
@@ -117,12 +131,15 @@ public final class NotificationParser {
      * @return 退款通知
      */
     public RefundNotification parseRefund(HttpHeaders headers, byte[] body) {
+        // 1. 使用原始请求头和正文验签，再校验退款通知事件与资源类型。
         WechatPayTransport transport = runtime.transport();
         VerifiedEnvelope envelope = verifiedEnvelope(transport, headers, body);
         if (!REFUND_EVENTS.contains(envelope.eventType())) {
             throw new WechatPayProtocolException("退款通知 eventType 不受支持");
         }
         requireEnvelope(envelope, envelope.eventType(), "refund");
+
+        // 2. 仅对已经验签且类型匹配的资源执行 AES-GCM 解密和业务 JSON 解析。
         byte[] plaintext = decrypt(transport, envelope.resource());
         try {
             RefundNotification.Resource refund = read(plaintext,
@@ -130,13 +147,21 @@ public final class NotificationParser {
                     "退款通知资源不是预期的 JSON 结构");
             requireMchid(transport, refund.mchid());
             requireRefundStatus(envelope.eventType(), refund);
-            return new RefundNotification(envelope.id(), envelope.createTime(),
-                    envelope.eventType(), envelope.summary(), refund);
+            // 3. 将商户号和退款状态绑定到当前客户端及事件类型，再返回可信通知模型。
+            return new RefundNotification(
+                    envelope.id(),
+                    envelope.createTime(),
+                    envelope.eventType(),
+                    envelope.summary(),
+                    refund
+            );
         } finally {
+            // 4. 无论解析是否成功都清除解密明文，缩短敏感业务数据的内存驻留时间。
             Arrays.fill(plaintext, (byte) 0);
         }
     }
 
+    /** 验证原始消息并解析出字段完整的通知信封。 */
     private VerifiedEnvelope verifiedEnvelope(WechatPayTransport transport,
                                               HttpHeaders headers,
                                               byte[] body) {
@@ -163,9 +188,12 @@ public final class NotificationParser {
                         requireText(resource.ciphertext, "resource.ciphertext"),
                         resource.associatedData,
                         requireText(resource.originalType, "resource.original_type"),
-                        requireText(resource.nonce, "resource.nonce")));
+                        requireText(resource.nonce, "resource.nonce")
+                )
+        );
     }
 
+    /** 校验通知事件、资源类型和业务资源原始类型。 */
     private static void requireEnvelope(VerifiedEnvelope envelope, String eventType,
                                         String originalType) {
         if (!eventType.equals(envelope.eventType())) {
@@ -179,13 +207,19 @@ public final class NotificationParser {
         }
     }
 
+    /** 解密已经完成类型校验的通知资源。 */
     private static byte[] decrypt(WechatPayTransport transport,
                                   VerifiedResource resource) {
         // 3. 仅在信封类型校验通过后解密，并由 AES-GCM 认证标签验证密文完整性。
-        return transport.decrypt(resource.algorithm(), resource.nonce(),
-                resource.associatedData(), resource.ciphertext());
+        return transport.decrypt(
+                resource.algorithm(),
+                resource.nonce(),
+                resource.associatedData(),
+                resource.ciphertext()
+        );
     }
 
+    /** 将解密资源中的商户号绑定到当前根客户端。 */
     private static void requireMchid(WechatPayTransport transport,
                                      String actualMchid) {
         if (!transport.mchid().equals(actualMchid)) {
@@ -193,26 +227,14 @@ public final class NotificationParser {
         }
     }
 
+    /** 校验支付成功通知确实承载 SUCCESS 交易。 */
     private static void requireSuccessfulTransaction(Transaction transaction) {
         if (!TradeState.SUCCESS.equals(transaction.tradeState())) {
             throw new WechatPayProtocolException("支付成功通知的 tradeState 必须为 SUCCESS");
         }
-        requireText(transaction.transactionId(), "resource.transaction_id");
-        requireText(transaction.tradeType(), "resource.trade_type");
-        requireText(transaction.bankType(), "resource.bank_type");
-        requireField(transaction.successTime(), "resource.success_time");
-        Transaction.Payer payer = requireField(transaction.payer(), "resource.payer");
-        requireText(payer.openid(), "resource.payer.openid");
-        Transaction.Amount amount = requireField(transaction.amount(), "resource.amount");
-        Long total = requireField(amount.total(), "resource.amount.total");
-        Long payerTotal = requireField(amount.payerTotal(), "resource.amount.payer_total");
-        if (total <= 0 || payerTotal < 0) {
-            throw new WechatPayProtocolException("支付通知金额字段超出有效范围");
-        }
-        requireText(amount.currency(), "resource.amount.currency");
-        requireText(amount.payerCurrency(), "resource.amount.payer_currency");
     }
 
+    /** 校验退款事件类型与解密资源状态一致。 */
     private static void requireRefundStatus(String eventType,
                                             RefundNotification.Resource refund) {
         String expectedStatus = eventType.substring("REFUND.".length());
@@ -224,6 +246,7 @@ public final class NotificationParser {
         }
     }
 
+    /** 将已验证字节严格解码为指定通知模型。 */
     private <T> T read(byte[] body, Class<T> type, String failureMessage) {
         try {
             T result = jsonCodec.read(body, type);
@@ -236,6 +259,7 @@ public final class NotificationParser {
         }
     }
 
+    /** 读取通知中的必填文本字段。 */
     private static String requireText(@Nullable String value, String field) {
         if (value == null || value.isBlank()) {
             throw new WechatPayProtocolException("微信支付通知缺少必填字段 " + field);
@@ -243,6 +267,7 @@ public final class NotificationParser {
         return value;
     }
 
+    /** 读取通知中的必填对象字段。 */
     private static <T> T requireField(@Nullable T value, String field) {
         if (value == null) {
             throw new WechatPayProtocolException("微信支付通知缺少必填字段 " + field);
@@ -280,13 +305,22 @@ public final class NotificationParser {
         public @Nullable String nonce;
     }
 
-    private record VerifiedEnvelope(String id, OffsetDateTime createTime, String eventType,
-                                    String resourceType, String summary,
-                                    VerifiedResource resource) {
+    private record VerifiedEnvelope(
+            String id,
+            OffsetDateTime createTime,
+            String eventType,
+            String resourceType,
+            String summary,
+            VerifiedResource resource
+    ) {
     }
 
-    private record VerifiedResource(String algorithm, String ciphertext,
-                                    @Nullable String associatedData, String originalType,
-                                    String nonce) {
+    private record VerifiedResource(
+            String algorithm,
+            String ciphertext,
+            @Nullable String associatedData,
+            String originalType,
+            String nonce
+    ) {
     }
 }

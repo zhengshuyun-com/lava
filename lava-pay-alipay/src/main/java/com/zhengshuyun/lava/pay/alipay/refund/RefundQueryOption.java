@@ -18,6 +18,7 @@ public final class RefundQueryOption {
     /** 本次退款退回的优惠券信息。 */
     public static final String REFUND_VOUCHER_DETAIL_LIST = "refund_voucher_detail_list";
 
+    /** 禁止实例化退款查询选项常量容器。 */
     private RefundQueryOption() {
         throw new UnsupportedOperationException("Constants class");
     }

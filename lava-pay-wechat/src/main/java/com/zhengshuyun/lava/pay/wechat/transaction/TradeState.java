@@ -29,6 +29,7 @@ public final class TradeState {
     /** 支付失败。 */
     public static final String PAYERROR = "PAYERROR";
 
+    /** 禁止实例化交易状态常量容器。 */
     private TradeState() {
     }
 }

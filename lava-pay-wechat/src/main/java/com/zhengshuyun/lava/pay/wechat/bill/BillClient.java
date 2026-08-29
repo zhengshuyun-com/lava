@@ -32,6 +32,7 @@ import java.net.URI;
 import java.nio.file.*;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.HexFormat;
 import java.util.zip.GZIPInputStream;
@@ -63,6 +64,7 @@ public final class BillClient {
     public BillDownloadInfo applyTradeBill(TradeBillRequest request) {
         WechatPayTransport transport = runtime.transport();
         ValidationUtils.requireNonNull(request, "request must not be null");
+        requireAvailableBillDate(transport, request.billDate());
         URI uri = transport.query(transport.endpoint(TRADE_BILL_PATH), "bill_date",
                 request.billDate().format(DateTimeFormatter.ISO_LOCAL_DATE));
         if (request.billType() != null) {
@@ -84,6 +86,7 @@ public final class BillClient {
     public BillDownloadInfo applyFundFlowBill(FundFlowBillRequest request) {
         WechatPayTransport transport = runtime.transport();
         ValidationUtils.requireNonNull(request, "request must not be null");
+        requireAvailableBillDate(transport, request.billDate());
         URI uri = transport.query(transport.endpoint(FUND_FLOW_BILL_PATH), "bill_date",
                 request.billDate().format(DateTimeFormatter.ISO_LOCAL_DATE));
         if (request.accountType() != null) {
@@ -157,8 +160,12 @@ public final class BillClient {
                 Files.move(temporary, absoluteTarget);
             }
             temporary = null;
-            return new BillDownloadResult(absoluteTarget, Files.size(absoluteTarget),
-                    "SHA1", actualHash);
+            return new BillDownloadResult(
+                    absoluteTarget,
+                    Files.size(absoluteTarget),
+                    "SHA1",
+                    actualHash
+            );
         } catch (FileAlreadyExistsException exception) {
             throw new WechatPayFileException(WechatPayFileFailure.TARGET_EXISTS,
                     exception.getClass().getName());
@@ -178,21 +185,45 @@ public final class BillClient {
         }
     }
 
+    /**
+     * 校验账单日期满足微信支付“不能为当日且仅支持最近三个月”的接口约束。
+     *
+     * @param transport 共享传输层
+     * @param billDate  账单日期
+     */
+    private static void requireAvailableBillDate(
+            WechatPayTransport transport,
+            LocalDate billDate
+    ) {
+        LocalDate today = transport.currentDate();
+        ValidationUtils.requireTrue(billDate.isBefore(today),
+                "billDate must be before today");
+        ValidationUtils.requireTrue(!billDate.isBefore(today.minusMonths(3)),
+                "billDate must be within the last 3 months");
+    }
+
     @JsonIgnoreProperties(ignoreUnknown = true)
     private record BillInfoPayload(
             @JsonProperty("hash_type") String hashType,
             @JsonProperty("hash_value") String hashValue,
             @JsonProperty("download_url") URI downloadUrl) {
 
+        /** 校验微信支付返回的账单下载元数据。 */
         private BillInfoPayload {
             ValidationUtils.requireNotBlank(hashType, "hashType must not be blank");
             ValidationUtils.requireNotBlank(hashValue, "hashValue must not be blank");
             ValidationUtils.requireNonNull(downloadUrl, "downloadUrl must not be null");
         }
 
+        /** 将内部响应映射为会隐藏下载令牌的公开模型。 */
         private BillDownloadInfo toPublic(@Nullable BillTarType tarType) {
             try {
-                return new BillDownloadInfo(hashType, hashValue, downloadUrl, tarType);
+                return new BillDownloadInfo(
+                        hashType,
+                        hashValue,
+                        downloadUrl,
+                        tarType
+                );
             } catch (IllegalArgumentException exception) {
                 throw new WechatPayProtocolException("微信支付账单下载信息不符合接口约束");
             }

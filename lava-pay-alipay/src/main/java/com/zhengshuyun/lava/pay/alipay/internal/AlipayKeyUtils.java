@@ -31,6 +31,7 @@ public final class AlipayKeyUtils {
     private static final int MAX_KEY_TEXT_BYTES = 64 * 1024;
     private static final int MIN_RSA_BITS = 2048;
 
+    /** 禁止实例化支付宝密钥工具。 */
     private AlipayKeyUtils() {
         throw new UnsupportedOperationException("Utility class");
     }
@@ -117,6 +118,12 @@ public final class AlipayKeyUtils {
         return value;
     }
 
+    /**
+     * 解码原始 Base64 PKCS#8 私钥。
+     *
+     * @param value Base64 文本
+     * @return RSA 私钥
+     */
     private static PrivateKey decodePrivateKey(String value)
             throws GeneralSecurityException {
         byte[] encoded = decodeRawBase64(value, "appPrivateKey");
@@ -128,6 +135,12 @@ public final class AlipayKeyUtils {
         }
     }
 
+    /**
+     * 解码原始 Base64 X.509 公钥。
+     *
+     * @param value Base64 文本
+     * @return RSA 公钥
+     */
     private static PublicKey decodePublicKey(String value)
             throws GeneralSecurityException {
         byte[] encoded = decodeRawBase64(value, "alipayPublicKey");
@@ -139,6 +152,13 @@ public final class AlipayKeyUtils {
         }
     }
 
+    /**
+     * 解码不允许混入空白字符的原始 Base64 密钥字节。
+     *
+     * @param value Base64 文本
+     * @param name  字段名
+     * @return 解码字节
+     */
     private static byte[] decodeRawBase64(String value, String name) {
         String stripped = value.strip();
         ValidationUtils.requireTrue(stripped.codePoints().noneMatch(Character::isWhitespace),
@@ -150,6 +170,13 @@ public final class AlipayKeyUtils {
         }
     }
 
+    /**
+     * 在大小限制内读取 ASCII 密钥文件。
+     *
+     * @param path 文件路径
+     * @param name 字段名
+     * @return 文件文本
+     */
     private static String readText(Path path, String name) {
         ValidationUtils.requireNonNull(path, name + " path must not be null");
         try {
@@ -164,6 +191,12 @@ public final class AlipayKeyUtils {
         }
     }
 
+    /**
+     * 校验密钥算法和最小 RSA 位数。
+     *
+     * @param value 密钥
+     * @param name  字段名
+     */
     private static void requireRsaKey(Key value, String name) {
         ValidationUtils.requireTrue("RSA".equalsIgnoreCase(value.getAlgorithm()),
                 name + " must use RSA");

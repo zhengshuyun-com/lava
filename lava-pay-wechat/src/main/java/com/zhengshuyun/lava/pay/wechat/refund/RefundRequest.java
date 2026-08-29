@@ -40,6 +40,7 @@ public final class RefundRequest {
     private final Amount amount;
     private final @Nullable List<GoodsDetail> goodsDetail;
 
+    /** 使用构建期参数创建并校验退款申请。 */
     private RefundRequest(Builder builder) {
         boolean hasTransactionId = builder.transactionId != null;
         boolean hasOutTradeNo = builder.outTradeNo != null;
@@ -65,9 +66,24 @@ public final class RefundRequest {
 
         List<AmountFrom> from = builder.amountFrom.isEmpty()
                 ? null : List.copyOf(builder.amountFrom);
-        amount = new Amount(refund, from, total, "CNY");
+        amount = new Amount(
+                refund,
+                from,
+                total,
+                "CNY"
+        );
         goodsDetail = builder.goodsDetail.isEmpty()
                 ? null : List.copyOf(builder.goodsDetail);
+        if (goodsDetail != null) {
+            long goodsRefund = 0;
+            for (GoodsDetail item : goodsDetail) {
+                ValidationUtils.requireTrue(
+                        item.refundAmount() <= refund - goodsRefund,
+                        "goodsDetail refund amounts must not exceed refund amount"
+                );
+                goodsRefund += item.refundAmount();
+            }
+        }
     }
 
     /**
@@ -174,6 +190,7 @@ public final class RefundRequest {
         private final List<AmountFrom> amountFrom = new ArrayList<>();
         private final List<GoodsDetail> goodsDetail = new ArrayList<>();
 
+        /** 创建空退款请求构建器。 */
         private Builder() {
         }
 
@@ -319,7 +336,8 @@ public final class RefundRequest {
             @JsonProperty("refund") long refund,
             @JsonProperty("from") @Nullable List<AmountFrom> from,
             @JsonProperty("total") long total,
-            @JsonProperty("currency") String currency) {
+            @JsonProperty("currency") String currency
+    ) {
         /**
          * 校验退款金额、出资账户和币种。
          */
@@ -385,7 +403,8 @@ public final class RefundRequest {
             @JsonProperty("goods_name") @Nullable String goodsName,
             @JsonProperty("unit_price") long unitPrice,
             @JsonProperty("refund_amount") long refundAmount,
-            @JsonProperty("refund_quantity") long refundQuantity) {
+            @JsonProperty("refund_quantity") long refundQuantity
+    ) {
 
         /**
          * 校验指定商品退款信息。
@@ -394,11 +413,20 @@ public final class RefundRequest {
             merchantGoodsId = WechatPayValidationUtils.requireMerchantGoodsId(
                     merchantGoodsId);
             if (wechatpayGoodsId != null) {
-                WechatPayValidationUtils.requireText(wechatpayGoodsId,
-                        "wechatpayGoodsId", 1, 32);
+                WechatPayValidationUtils.requireText(
+                        wechatpayGoodsId,
+                        "wechatpayGoodsId",
+                        1,
+                        32
+                );
             }
             if (goodsName != null) {
-                WechatPayValidationUtils.requireText(goodsName, "goodsName", 1, 256);
+                WechatPayValidationUtils.requireText(
+                        goodsName,
+                        "goodsName",
+                        1,
+                        256
+                );
             }
             WechatPayValidationUtils.requirePositive(unitPrice, "unitPrice");
             WechatPayValidationUtils.requirePositive(refundAmount, "refundAmount");

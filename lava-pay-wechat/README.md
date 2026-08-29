@@ -60,7 +60,8 @@ WechatPayClient client = WechatPayClient.builder()
 
 `WechatPayClient` 线程安全，应作为长生命周期对象复用并在应用停止时关闭。默认 HTTP 客户端由它拥有；通过
 `.httpClient(...)` 传入的客户端视为借用，关闭微信支付客户端不会关闭借入对象。
-借入客户端应关闭自动重试、HTTP 重定向和跨协议重定向，以保持支付调用的显式失败语义。
+借入客户端必须关闭自动重试、HTTP 重定向和跨协议重定向；构建器会检查并拒绝不安全配置，以保持支付调用的显式失败语义。
+调用方配置的拦截器属于可信边界，不得改写或记录签名、正文、APIv3 密钥或敏感响应。
 
 ## Native 下单
 
@@ -113,6 +114,17 @@ NativePrepayRequest request = NativePrepayRequest.builder()
 var transaction = client.transactions().queryByOutTradeNo("ORDER_001");
 var paid = client.transactions().queryByTransactionId("4200000000000000001");
 
+// 入账前使用后端可信订单记录核对 APPID、订单号和金额。
+paid.requireOrder("wx1234567890", "ORDER_001", 100);
+
+// 本地已经保存微信侧标识时，继续完整核对微信支付订单号和付款人 OpenID。
+paid.requirePaidOrder(
+        "wx1234567890",
+        "ORDER_001",
+        "4200000000000000001",
+        "openid-from-trusted-record",
+        100);
+
 // 仅对仍处于 NOTPAY 的订单关单。
 client.transactions().close("ORDER_001");
 
@@ -125,6 +137,13 @@ var refund = client.refunds().apply(RefundRequest.builder()
         .build());
 
 var latest = client.refunds().queryByOutRefundNo("REFUND_001");
+latest.requireRefund(
+        "ORDER_001",
+        "4200000000000000001",
+        "REFUND_001",
+        "5000000000000000001",
+        100,
+        50);
 ```
 
 退款申请成功只表示已受理。最终状态应结合退款通知和退款查询确认。网络超时后不要更换 `out_refund_no`，应使用相同参数显式
@@ -145,15 +164,20 @@ HttpHeaders headers = HttpHeaders.of(
 
 TransactionNotification notification =
         client.notifications().parseTransaction(headers, rawRequestBody);
+notification.requireOrder("wx1234567890", "ORDER_001", 100);
 
 RefundNotification refundNotification =
         client.notifications().parseRefund(headers, rawRequestBody);
+refundNotification.requireRefund("ORDER_001", "REFUND_001", 100, 50);
 ```
 
 解析顺序固定为时间戳校验、RSA 验签、通知类型校验、AES-GCM 解密、商户号校验。成功后应用应在 5 秒内返回 HTTP 200 或
-204，再异步处理业务；验签失败应返回 4xx 或 5xx。通知可能重复发送，业务必须按通知 ID 或业务单号实现幂等。
+204，再异步处理业务；验签失败（包括微信支付的 `WECHATPAY/SIGNTEST/` 探测签名）必须返回 4xx 或 5xx，不能特殊放行。
+通知可能重复发送，业务必须按通知 ID 或业务单号实现幂等。
 验签通过只证明通知来自微信支付；更新本地订单前，仍必须将通知中的 `appid`、商户订单号、微信支付订单号、币种和金额与
-后端可信订单记录逐项比对，不能直接信任前端参数或仅凭通知内容入账。
+后端可信订单记录逐项比对，不能直接信任前端参数或仅凭通知内容入账。首次成功通知通常尚无本地微信支付订单号，可先使用
+`requireOrder(...)` 核对下单前已有字段，并在同一业务事务中保存微信支付订单号与 OpenID；重复通知或主动查单时使用
+`requirePaidOrder(...)` 完成全量核对。退款模型同样提供包含微信支付订单号和退款单号的完整 `requireRefund(...)` 重载。
 
 ## 账单
 
@@ -187,7 +211,8 @@ BillDownloadResult result = client.bills().download(
 .apiBaseUrl(WechatPayClient.BACKUP_API_BASE_URL)
 ```
 
-自定义 API 根地址在生产环境必须使用 HTTPS；HTTP 仅允许用于 `localhost`、`127.0.0.1` 或 `::1` 本地协议测试。
+生产 API 根地址只允许微信支付官方主、备域名，防止不包含主机名的签名请求被第三方中继；自定义地址仅允许
+`localhost`、`127.0.0.1` 或 `::1` 环回主机进行本地协议测试。
 
 签名、APIv3 密钥、下载 token、原始响应体和错误值不会进入默认异常文本。业务日志仍应避免直接输出请求模型、通知密文和
 异常详情中的原始 `value`。
@@ -198,6 +223,6 @@ BillDownloadResult result = client.bills().download(
 - [APIv3 如何签名和验签](https://pay.weixin.qq.com/doc/v3/merchant/4012365342)
 - [从平台证书切换成微信支付公钥](https://pay.weixin.qq.com/doc/v3/merchant/4012154180)
 - [支付成功回调通知](https://pay.weixin.qq.com/doc/v3/merchant/4012791882)
-- [退款申请](https://pay.weixin.qq.com/doc/v3/merchant/4012791883)
-- [退款结果回调通知](https://pay.weixin.qq.com/doc/v3/merchant/4012791886)
-- [下载账单](https://pay.weixin.qq.com/doc/v3/merchant/4012791889)
+- [退款申请](https://pay.weixin.qq.com/doc/v3/merchant/4013071036)
+- [退款结果回调通知](https://pay.weixin.qq.com/doc/v3/merchant/4013071196)
+- [下载账单](https://pay.weixin.qq.com/doc/v3/merchant/4013071238)

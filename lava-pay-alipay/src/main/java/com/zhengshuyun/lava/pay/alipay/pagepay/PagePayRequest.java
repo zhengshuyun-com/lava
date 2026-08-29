@@ -50,6 +50,7 @@ public final class PagePayRequest {
     private final @Nullable String merchantOrderNo;
     private final @Nullable String passbackParams;
 
+    /** 使用构建期参数创建并校验页面支付请求。 */
     private PagePayRequest(Builder builder) {
         outTradeNo = AlipayValidationUtils.requireOutTradeNo(builder.outTradeNo);
         totalAmount = AlipayValidationUtils.requirePositiveAmount(
@@ -261,6 +262,7 @@ public final class PagePayRequest {
         private @Nullable String merchantOrderNo;
         private @Nullable String passbackParams;
 
+        /** 创建空页面支付请求构建器。 */
         private Builder() {
         }
 
@@ -427,6 +429,7 @@ public final class PagePayRequest {
             return new PagePayRequest(this);
         }
 
+        /** 校验支付渠道标识。 */
         private static String requireChannel(String value) {
             value = AlipayValidationUtils.requireText(
                     value,

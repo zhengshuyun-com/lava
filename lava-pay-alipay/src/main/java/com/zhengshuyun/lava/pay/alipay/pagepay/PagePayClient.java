@@ -23,6 +23,9 @@ import java.util.List;
 
 /**
  * 固定绑定异步通知与同步返回地址的电脑网站支付入口。
+ *
+ * <p>支付宝当前未提供该页面支付接口的 REST V3 路径，本入口按官方 {@code pageExecute}
+ * 语义生成 AOP 自动提交表单。</p>
  */
 public final class PagePayClient {
     private static final String METHOD = "alipay.trade.page.pay";
@@ -55,10 +58,12 @@ public final class PagePayClient {
      * @return 应作为 HTML 响应正文输出的表单
      */
     public PagePayForm createForm(PagePayRequest request) {
+        // 1. 确认根客户端仍可用，并按支付宝时区校验订单绝对过期时间。
         AlipayTransport transport = runtime.transport();
         ValidationUtils.requireNonNull(request, "request must not be null");
         validateTimeExpire(transport, request.timeExpire());
 
+        // 2. 将公开业务模型转换为固定产品参数和 AOP biz_content 载荷。
         String timeExpire = request.timeExpire() == null ? null
                 : DATE_TIME.format(request.timeExpire());
         String timeoutExpress = request.timeout() == null ? null
@@ -86,7 +91,8 @@ public final class PagePayClient {
                 request.passbackParams() == null ? null
                         : URLEncoder.encode(request.passbackParams(), StandardCharsets.UTF_8)
         );
-        return new PagePayForm(transport.pageForm(
+        // 3. 由独立 AOP 表单生成器完成公共参数注入、RSA2 签名、HTML 转义和表单组装。
+        return new PagePayForm(runtime.pagePayForms().create(
                 METHOD,
                 payload,
                 notifyUrl,
@@ -112,6 +118,12 @@ public final class PagePayClient {
         return returnUrl;
     }
 
+    /**
+     * 校验绝对过期时间位于支付宝允许的时间窗口内。
+     *
+     * @param transport 共享传输层
+     * @param timeExpire 可选过期时间
+     */
     private static void validateTimeExpire(AlipayTransport transport,
                                            @Nullable LocalDateTime timeExpire) {
         if (timeExpire == null) {
@@ -154,6 +166,7 @@ public final class PagePayClient {
             @JsonProperty("body") @Nullable String body,
             @JsonProperty("show_url") @Nullable String showUrl
     ) {
+        /** 将公开商品模型映射为页面支付协议载荷。 */
         private static GoodsPayload from(PagePayGoodsDetail value) {
             return new GoodsPayload(
                     value.goodsId(),

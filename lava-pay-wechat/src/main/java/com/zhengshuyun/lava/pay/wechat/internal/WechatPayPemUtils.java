@@ -42,6 +42,7 @@ public final class WechatPayPemUtils {
     private static final int MAX_PEM_BYTES = 64 * 1024;
     private static final int MIN_RSA_BITS = 2048;
 
+    /** 禁止实例化微信支付 PEM 工具。 */
     private WechatPayPemUtils() {
         throw new UnsupportedOperationException("Utility class");
     }
@@ -176,6 +177,7 @@ public final class WechatPayPemUtils {
         }
     }
 
+    /** 在大小限制内读取 ASCII PEM 文件。 */
     private static String readPem(Path path) {
         ValidationUtils.requireNonNull(path, "PEM path must not be null");
         try {
@@ -190,6 +192,7 @@ public final class WechatPayPemUtils {
         }
     }
 
+    /** 校验密钥算法和最小 RSA 位数。 */
     private static void requireRsaKey(java.security.Key key, String name) {
         ValidationUtils.requireTrue("RSA".equalsIgnoreCase(key.getAlgorithm()),
                 name + " must use RSA");

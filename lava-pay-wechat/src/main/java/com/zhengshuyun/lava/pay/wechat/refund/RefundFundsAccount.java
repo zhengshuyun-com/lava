@@ -22,6 +22,7 @@ public final class RefundFundsAccount {
     /** 数字人民币基本账户。 */
     public static final String ECNY_BASIC = "ECNY_BASIC";
 
+    /** 禁止实例化退款资金账户常量容器。 */
     private RefundFundsAccount() {
     }
 }

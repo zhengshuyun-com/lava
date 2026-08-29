@@ -5,8 +5,10 @@
 
 package com.zhengshuyun.lava.pay.alipay.notification;
 
+import com.zhengshuyun.lava.core.lang.ValidationUtils;
 import com.zhengshuyun.lava.pay.alipay.exception.AlipaySecurityException;
 import com.zhengshuyun.lava.pay.alipay.exception.AlipaySecurityFailure;
+import com.zhengshuyun.lava.pay.alipay.internal.AlipayValidationUtils;
 import com.zhengshuyun.lava.pay.alipay.transaction.TradeState;
 import org.jspecify.annotations.Nullable;
 
@@ -62,6 +64,13 @@ public record TradeNotification(
      * @throws AlipaySecurityException 任一业务字段不匹配
      */
     public TradeNotification requireOrder(String expectedOutTradeNo, long expectedAmount) {
+        expectedOutTradeNo = AlipayValidationUtils.requireOutTradeNo(
+                expectedOutTradeNo
+        );
+        ValidationUtils.requireTrue(
+                expectedAmount > 0,
+                "expectedAmount must be positive"
+        );
         if (!outTradeNo.equals(expectedOutTradeNo) || totalAmount != expectedAmount) {
             throw new AlipaySecurityException(
                     AlipaySecurityFailure.RESPONSE_MISMATCH);

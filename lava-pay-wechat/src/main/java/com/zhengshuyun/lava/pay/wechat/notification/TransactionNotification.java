@@ -24,7 +24,8 @@ public record TransactionNotification(
         OffsetDateTime createTime,
         String eventType,
         String summary,
-        Transaction transaction) {
+        Transaction transaction
+) {
     /**
      * 校验通知必填字段。
      */
@@ -34,5 +35,55 @@ public record TransactionNotification(
         ValidationUtils.requireNotBlank(eventType, "eventType must not be blank");
         ValidationUtils.requireNonNull(summary, "summary must not be null");
         ValidationUtils.requireNonNull(transaction, "transaction must not be null");
+    }
+
+    /**
+     * 使用后端可信订单记录核对通知中的应用、订单号和金额。
+     *
+     * <p>通知验签只能证明消息来自微信支付，业务入账前仍必须完成此项核对。</p>
+     *
+     * @param expectedAppid      可信应用 ID
+     * @param expectedOutTradeNo 可信商户订单号
+     * @param expectedTotal      可信订单总金额，单位为分
+     * @return 当前通知
+     */
+    public TransactionNotification requireOrder(
+            String expectedAppid,
+            String expectedOutTradeNo,
+            long expectedTotal
+    ) {
+        transaction.requireOrder(
+                expectedAppid,
+                expectedOutTradeNo,
+                expectedTotal
+        );
+        return this;
+    }
+
+    /**
+     * 使用后端已经保存的微信侧标识完整核对支付成功通知。
+     *
+     * @param expectedAppid         可信应用 ID
+     * @param expectedOutTradeNo    可信商户订单号
+     * @param expectedTransactionId 可信微信支付订单号
+     * @param expectedOpenid        可信付款人 OpenID
+     * @param expectedTotal         可信订单总金额，单位为分
+     * @return 当前通知
+     */
+    public TransactionNotification requirePaidOrder(
+            String expectedAppid,
+            String expectedOutTradeNo,
+            String expectedTransactionId,
+            String expectedOpenid,
+            long expectedTotal
+    ) {
+        transaction.requirePaidOrder(
+                expectedAppid,
+                expectedOutTradeNo,
+                expectedTransactionId,
+                expectedOpenid,
+                expectedTotal
+        );
+        return this;
     }
 }

@@ -92,6 +92,7 @@ public final class TransactionClient {
         transport.postNoContent(uri, new ClosePayload(transport.mchid()));
     }
 
+    /** 将查单响应商户号绑定到当前根客户端。 */
     private static void requireMchid(WechatPayTransport transport,
                                      Transaction transaction) {
         if (!transport.mchid().equals(transaction.mchid())) {
@@ -99,6 +100,7 @@ public final class TransactionClient {
         }
     }
 
+    /** 校验查单响应标识与请求目标一致。 */
     private static void requireIdentifier(String expected, @Nullable String actual) {
         if (!expected.equals(actual)) {
             throw new WechatPaySecurityException(WechatPaySecurityFailure.RESPONSE_MISMATCH);

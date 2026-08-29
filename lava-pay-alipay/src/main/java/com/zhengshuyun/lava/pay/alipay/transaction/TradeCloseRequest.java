@@ -10,16 +10,17 @@ import com.zhengshuyun.lava.pay.alipay.internal.AlipayValidationUtils;
 import org.jspecify.annotations.Nullable;
 
 /**
- * 统一收单交易关闭参数。
+ * 统一收单交易关闭参数。商户订单号与支付宝交易号至少提供一个；同时提供时支付宝优先使用交易号。
  */
 public final class TradeCloseRequest {
     private final @Nullable String outTradeNo;
     private final @Nullable String tradeNo;
     private final @Nullable String operatorId;
 
+    /** 使用构建期参数创建并校验关单请求。 */
     private TradeCloseRequest(Builder builder) {
-        ValidationUtils.requireTrue((builder.outTradeNo == null) != (builder.tradeNo == null),
-                "exactly one of outTradeNo and tradeNo is required");
+        ValidationUtils.requireTrue(builder.outTradeNo != null || builder.tradeNo != null,
+                "at least one of outTradeNo and tradeNo is required");
         outTradeNo = builder.outTradeNo == null ? null
                 : AlipayValidationUtils.requireOutTradeNo(builder.outTradeNo);
         tradeNo = builder.tradeNo == null ? null
@@ -70,6 +71,7 @@ public final class TradeCloseRequest {
         private @Nullable String tradeNo;
         private @Nullable String operatorId;
 
+        /** 创建空关单请求构建器。 */
         private Builder() {
         }
 

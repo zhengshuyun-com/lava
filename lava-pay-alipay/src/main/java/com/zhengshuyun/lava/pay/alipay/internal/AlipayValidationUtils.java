@@ -18,10 +18,15 @@ import java.util.regex.Pattern;
  * 支付宝公共配置与业务字段校验工具。
  */
 public final class AlipayValidationUtils {
+    private static final Set<String> OFFICIAL_OPENAPI_HOSTS = Set.of(
+            "openapi.alipay.com",
+            "openapi-sandbox.dl.alipaydev.com"
+    );
     private static final Pattern APP_ID = Pattern.compile("[A-Za-z0-9]{1,32}");
     private static final Pattern SELLER_ID = Pattern.compile("2088[0-9]{12}");
     private static final Pattern OUT_TRADE_NO = Pattern.compile("[A-Za-z0-9_]{1,64}");
 
+    /** 禁止实例化支付宝校验工具。 */
     private AlipayValidationUtils() {
         throw new UnsupportedOperationException("Utility class");
     }
@@ -178,24 +183,34 @@ public final class AlipayValidationUtils {
     }
 
     /**
-     * 校验支付宝网关地址。生产地址必须使用 HTTPS，本地协议测试可使用 HTTP。
+     * 校验支付宝 OpenAPI 基础地址。生产地址仅允许官方正式或沙箱域名，本地协议测试允许环回地址。
      *
-     * @param value 网关地址
+     * @param value OpenAPI 基础地址
      * @return 原地址
      */
-    public static URI requireGatewayUrl(URI value) {
-        ValidationUtils.requireNonNull(value, "gatewayUrl is required");
+    public static URI requireBaseUrl(URI value) {
+        ValidationUtils.requireNonNull(value, "baseUrl is required");
         ValidationUtils.requireTrue(value.isAbsolute() && value.getHost() != null,
-                "gatewayUrl must be absolute");
+                "baseUrl must be absolute");
         ValidationUtils.requireTrue(value.getUserInfo() == null && value.getRawQuery() == null
                         && value.getRawFragment() == null,
-                "gatewayUrl must not contain user information, query, or fragment");
-        boolean https = "https".equalsIgnoreCase(value.getScheme());
+                "baseUrl must not contain user information, query, or fragment");
+        ValidationUtils.requireTrue(value.getRawPath() == null || value.getRawPath().isEmpty()
+                        || "/".equals(value.getRawPath()),
+                "baseUrl must not contain an API path");
         String host = value.getHost().toLowerCase(Locale.ROOT);
         boolean loopback = "localhost".equals(host) || "127.0.0.1".equals(host)
                 || "::1".equals(host);
-        ValidationUtils.requireTrue(https || loopback && "http".equalsIgnoreCase(value.getScheme()),
-                "gatewayUrl must use HTTPS outside local protocol tests");
+        boolean official = "https".equalsIgnoreCase(value.getScheme())
+                && OFFICIAL_OPENAPI_HOSTS.contains(host)
+                && (value.getPort() == -1 || value.getPort() == 443);
+        boolean localTest = loopback
+                && ("http".equalsIgnoreCase(value.getScheme())
+                || "https".equalsIgnoreCase(value.getScheme()));
+        ValidationUtils.requireTrue(
+                official || localTest,
+                "baseUrl must use an official Alipay HTTPS host or a loopback test host"
+        );
         return value;
     }
 

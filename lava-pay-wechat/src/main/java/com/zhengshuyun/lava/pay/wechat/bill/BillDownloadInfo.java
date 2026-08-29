@@ -19,8 +19,12 @@ import java.util.regex.Pattern;
  * @param downloadUrl 五分钟内有效的下载地址
  * @param tarType 申请时使用的压缩类型
  */
-public record BillDownloadInfo(String hashType, String hashValue, URI downloadUrl,
-                               @Nullable BillTarType tarType) {
+public record BillDownloadInfo(
+        String hashType,
+        String hashValue,
+        URI downloadUrl,
+        @Nullable BillTarType tarType
+) {
     private static final Pattern SHA1_VALUE = Pattern.compile("[0-9A-Fa-f]{40}");
 
     /**
@@ -43,5 +47,17 @@ public record BillDownloadInfo(String hashType, String hashValue, URI downloadUr
                         && downloadUrl.toASCIIString().length() <= 2048,
                 "downloadUrl must contain a host, omit user information and fragments, "
                         + "and not exceed 2048 characters");
+    }
+
+    /**
+     * 返回不包含账单下载令牌的安全摘要。
+     *
+     * @return 已脱敏文本
+     */
+    @Override
+    public String toString() {
+        return "BillDownloadInfo[hashType=" + hashType
+                + ", hashValue=[redacted], downloadUrl=[redacted], tarType="
+                + tarType + ']';
     }
 }

@@ -57,11 +57,15 @@ public final class NativePrepayRequest {
     /** 是否将订单标记为后续可能进行分账的订单。 */
     private final @Nullable Boolean profitSharing;
 
+    /** 使用构建期参数创建并校验 Native 下单请求。 */
     private NativePrepayRequest(Builder builder) {
         // 1. 建立下单必填业务参数，保证最终请求可以关联本地订单。
         description = WechatPayValidationUtils.requireText(
                 ValidationUtils.requireNonNull(builder.description, "description is required"),
-                "description", 1, 127);
+                "description",
+                1,
+                127
+        );
         outTradeNo = WechatPayValidationUtils.requireOutTradeNo(
                 ValidationUtils.requireNonNull(builder.outTradeNo, "outTradeNo is required"));
         amount = WechatPayValidationUtils.requirePositive(
@@ -208,6 +212,7 @@ public final class NativePrepayRequest {
         /** 构建期分账订单标记。 */
         private @Nullable Boolean profitSharing;
 
+        /** 创建空 Native 下单请求构建器。 */
         private Builder() {
         }
 
@@ -218,8 +223,12 @@ public final class NativePrepayRequest {
          * @return 当前构建器
          */
         public Builder description(String value) {
-            description = WechatPayValidationUtils.requireText(value,
-                    "description", 1, 127);
+            description = WechatPayValidationUtils.requireText(
+                    value,
+                    "description",
+                    1,
+                    127
+            );
             return this;
         }
 
@@ -253,7 +262,12 @@ public final class NativePrepayRequest {
          * @return 当前构建器
          */
         public Builder attach(String value) {
-            attach = WechatPayValidationUtils.requireText(value, "attach", 0, 128);
+            attach = WechatPayValidationUtils.requireText(
+                    value,
+                    "attach",
+                    0,
+                    128
+            );
             return this;
         }
 
@@ -264,7 +278,12 @@ public final class NativePrepayRequest {
          * @return 当前构建器
          */
         public Builder goodsTag(String value) {
-            goodsTag = WechatPayValidationUtils.requireText(value, "goodsTag", 1, 32);
+            goodsTag = WechatPayValidationUtils.requireText(
+                    value,
+                    "goodsTag",
+                    1,
+                    32
+            );
             return this;
         }
 

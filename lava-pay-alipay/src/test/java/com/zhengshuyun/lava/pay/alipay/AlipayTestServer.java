@@ -8,6 +8,7 @@ package com.zhengshuyun.lava.pay.alipay;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import com.zhengshuyun.lava.crypto.CryptoUtils;
+import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -26,14 +27,20 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 final class AlipayTestServer implements AutoCloseable {
+    private static final String RESPONSE_TIMESTAMP = "1787976000000";
+    private static final String RESPONSE_NONCE = "response-nonce-001";
+
     private final HttpServer server;
     private final ExecutorService executor;
     private final PrivateKey alipayPrivateKey;
     private final BlockingQueue<PlannedResponse> responses = new LinkedBlockingQueue<>();
     private final BlockingQueue<CapturedRequest> requests = new LinkedBlockingQueue<>();
 
-    private AlipayTestServer(HttpServer server, ExecutorService executor,
-                                PrivateKey alipayPrivateKey) {
+    private AlipayTestServer(
+            HttpServer server,
+            ExecutorService executor,
+            PrivateKey alipayPrivateKey
+    ) {
         this.server = server;
         this.executor = executor;
         this.alipayPrivateKey = alipayPrivateKey;
@@ -44,8 +51,11 @@ final class AlipayTestServer implements AutoCloseable {
             HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
             ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
             AlipayTestServer result = new AlipayTestServer(
-                    server, executor, alipayPrivateKey);
-            server.createContext("/gateway.do", result::handle);
+                    server,
+                    executor,
+                    alipayPrivateKey
+            );
+            server.createContext("/", result::handle);
             server.setExecutor(executor);
             server.start();
             return result;
@@ -54,22 +64,64 @@ final class AlipayTestServer implements AutoCloseable {
         }
     }
 
-    URI gatewayUrl() {
-        return URI.create("http://127.0.0.1:" + server.getAddress().getPort()
-                + "/gateway.do");
+    URI baseUrl() {
+        return URI.create("http://127.0.0.1:" + server.getAddress().getPort());
     }
 
-    void enqueueSigned(String method, String responseSource) {
-        String root = method.replace('.', '_') + "_response";
-        enqueueSignedRoot(root, responseSource);
+    void enqueueSigned(String responseBody) {
+        enqueueSigned(200, responseBody);
     }
 
-    void enqueueSignedError(String responseSource) {
-        enqueueSignedRoot("error_response", responseSource);
+    void enqueueSigned(int status, String responseBody) {
+        String body = responseBody.strip();
+        String source = RESPONSE_TIMESTAMP + "\n" + RESPONSE_NONCE + "\n" + body + "\n";
+        String signature = Base64.getEncoder().encodeToString(
+                CryptoUtils.rsaSha256Sign(
+                        alipayPrivateKey,
+                        source.getBytes(StandardCharsets.UTF_8)
+                )
+        );
+        responses.add(new PlannedResponse(
+                status,
+                body.getBytes(StandardCharsets.UTF_8),
+                signature,
+                false
+        ));
     }
 
     void enqueueRaw(int status, String body) {
-        responses.add(new PlannedResponse(status, body.getBytes(StandardCharsets.UTF_8)));
+        responses.add(new PlannedResponse(
+                status,
+                body.getBytes(StandardCharsets.UTF_8),
+                null,
+                false
+        ));
+    }
+
+    void enqueueRawSigned(int status, String body, String signature) {
+        responses.add(new PlannedResponse(
+                status,
+                body.getBytes(StandardCharsets.UTF_8),
+                signature,
+                false
+        ));
+    }
+
+    void enqueueDuplicateSignature(String responseBody) {
+        String body = responseBody.strip();
+        String source = RESPONSE_TIMESTAMP + "\n" + RESPONSE_NONCE + "\n" + body + "\n";
+        String signature = Base64.getEncoder().encodeToString(
+                CryptoUtils.rsaSha256Sign(
+                        alipayPrivateKey,
+                        source.getBytes(StandardCharsets.UTF_8)
+                )
+        );
+        responses.add(new PlannedResponse(
+                200,
+                body.getBytes(StandardCharsets.UTF_8),
+                signature,
+                true
+        ));
     }
 
     CapturedRequest takeRequest() {
@@ -85,16 +137,6 @@ final class AlipayTestServer implements AutoCloseable {
         }
     }
 
-    private void enqueueSignedRoot(String root, String responseSource) {
-        responseSource = responseSource.strip();
-        String signature = Base64.getEncoder().encodeToString(
-                CryptoUtils.rsaSha256Sign(alipayPrivateKey,
-                        responseSource.getBytes(StandardCharsets.UTF_8)));
-        String body = "{\"" + root + "\":" + responseSource
-                + ",\"sign\":\"" + signature + "\"}";
-        enqueueRaw(200, body);
-    }
-
     private void handle(HttpExchange exchange) throws IOException {
         byte[] requestBody = exchange.getRequestBody().readAllBytes();
         requests.add(new CapturedRequest(
@@ -105,11 +147,23 @@ final class AlipayTestServer implements AutoCloseable {
         ));
         PlannedResponse response = responses.poll();
         if (response == null) {
-            response = new PlannedResponse(500,
-                    "missing response".getBytes(StandardCharsets.UTF_8));
+            response = new PlannedResponse(
+                    500,
+                    "missing response".getBytes(StandardCharsets.UTF_8),
+                    null,
+                    false
+            );
         }
         exchange.getResponseHeaders().set("Content-Type", "application/json;charset=UTF-8");
-        exchange.getResponseHeaders().set("trace_id", "trace-id-001");
+        exchange.getResponseHeaders().set("alipay-trace-id", "trace-id-001");
+        if (response.signature != null) {
+            exchange.getResponseHeaders().set("alipay-timestamp", RESPONSE_TIMESTAMP);
+            exchange.getResponseHeaders().set("alipay-nonce", RESPONSE_NONCE);
+            exchange.getResponseHeaders().set("alipay-signature", response.signature);
+            if (response.duplicateSignature) {
+                exchange.getResponseHeaders().add("alipay-signature", "duplicate");
+            }
+        }
         exchange.sendResponseHeaders(response.status, response.body.length);
         exchange.getResponseBody().write(response.body);
         exchange.close();
@@ -132,8 +186,17 @@ final class AlipayTestServer implements AutoCloseable {
             return question < 0 ? Map.of() : parseForm(target.substring(question + 1));
         }
 
-        Map<String, String> formParams() {
-            return parseForm(new String(body, StandardCharsets.UTF_8));
+        String bodyText() {
+            return new String(body, StandardCharsets.UTF_8);
+        }
+
+        @Nullable String header(String name) {
+            for (Map.Entry<String, List<String>> entry : headers.entrySet()) {
+                if (entry.getKey().equalsIgnoreCase(name) && !entry.getValue().isEmpty()) {
+                    return entry.getValue().getFirst();
+                }
+            }
+            return null;
         }
 
         private static Map<String, String> parseForm(String value) {
@@ -152,6 +215,11 @@ final class AlipayTestServer implements AutoCloseable {
         }
     }
 
-    private record PlannedResponse(int status, byte[] body) {
+    private record PlannedResponse(
+            int status,
+            byte[] body,
+            @Nullable String signature,
+            boolean duplicateSignature
+    ) {
     }
 }

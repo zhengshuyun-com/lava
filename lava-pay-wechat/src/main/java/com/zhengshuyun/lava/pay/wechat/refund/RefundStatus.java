@@ -18,6 +18,7 @@ public final class RefundStatus {
     /** 退款异常。 */
     public static final String ABNORMAL = "ABNORMAL";
 
+    /** 禁止实例化退款状态常量容器。 */
     private RefundStatus() {
     }
 }

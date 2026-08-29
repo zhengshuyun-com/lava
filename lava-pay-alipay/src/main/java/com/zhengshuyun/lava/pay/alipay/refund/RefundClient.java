@@ -8,17 +8,19 @@ package com.zhengshuyun.lava.pay.alipay.refund;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.zhengshuyun.lava.core.lang.ValidationUtils;
+import com.zhengshuyun.lava.http.HttpMethod;
 import com.zhengshuyun.lava.pay.alipay.internal.*;
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;
+import java.util.Map;
 
 /**
- * 支付宝统一收单退款申请与退款查询客户端。
+ * 支付宝 OpenAPI V3 统一收单退款申请与退款查询客户端。
  */
 public final class RefundClient {
-    private static final String APPLY_METHOD = "alipay.trade.refund";
-    private static final String QUERY_METHOD = "alipay.trade.fastpay.refund.query";
+    private static final String APPLY_PATH = "/v3/alipay/trade/refund";
+    private static final String QUERY_PATH = "/v3/alipay/trade/fastpay/refund/query";
 
     private final AlipayRuntime runtime;
 
@@ -38,11 +40,14 @@ public final class RefundClient {
      * @return 已验签退款结果；应通过 {@link RefundResult#succeeded()} 判断是否明确成功
      */
     public RefundResult apply(RefundRequest request) {
+        // 1. 将稳定退款请求号、金额和可选商品明细组装为官方 V3 退款载荷。
         AlipayTransport transport = runtime.transport();
         ValidationUtils.requireNonNull(request, "request must not be null");
         List<GoodsPayload> goods = request.goodsDetail().isEmpty() ? null
                 : request.goodsDetail().stream().map(GoodsPayload::from).toList();
-        ApplyPayload response = transport.execute(APPLY_METHOD,
+        ApplyPayload response = transport.execute(
+                APPLY_PATH,
+                HttpMethod.POST,
                 new ApplyRequestPayload(
                         request.outTradeNo(),
                         request.tradeNo(),
@@ -51,8 +56,12 @@ public final class RefundClient {
                         request.outRequestNo(),
                         goods,
                         request.queryOptions()
-                ), ApplyPayload.class);
+                ),
+                Map.of(),
+                ApplyPayload.class
+        );
 
+        // 2. 响应验签完成后，将支付宝交易号和商户订单号绑定到本次退款请求。
         String tradeNo = AlipayValidationUtils.requireResponseText(
                 response.tradeNo, "trade_no");
         String outTradeNo = AlipayValidationUtils.requireResponseText(
@@ -63,6 +72,7 @@ public final class RefundClient {
                 outTradeNo,
                 tradeNo
         );
+        // 3. 严格解析资金变化标志和金额明细；调用方只能通过 succeeded 判断明确成功。
         return new RefundResult(
                 tradeNo,
                 outTradeNo,
@@ -82,16 +92,23 @@ public final class RefundClient {
      * @return 已验签退款查询结果
      */
     public RefundQueryResult query(RefundQueryRequest request) {
+        // 1. 使用原交易标识和稳定退款请求号构造 V3 退款查询载荷。
         AlipayTransport transport = runtime.transport();
         ValidationUtils.requireNonNull(request, "request must not be null");
-        QueryPayload response = transport.execute(QUERY_METHOD,
+        QueryPayload response = transport.execute(
+                QUERY_PATH,
+                HttpMethod.POST,
                 new QueryRequestPayload(
                         request.outTradeNo(),
                         request.tradeNo(),
                         request.outRequestNo(),
                         request.queryOptions()
-                ), QueryPayload.class);
+                ),
+                Map.of(),
+                QueryPayload.class
+        );
 
+        // 2. 将响应中的订单号和退款请求号与本次查询条件逐项绑定。
         if (response.outTradeNo != null && request.outTradeNo() != null) {
             AlipayValidationUtils.requireSame(request.outTradeNo(), response.outTradeNo);
         }
@@ -101,6 +118,7 @@ public final class RefundClient {
         if (response.outRequestNo != null) {
             AlipayValidationUtils.requireSame(request.outRequestNo(), response.outRequestNo);
         }
+        // 3. 严格解析退款状态、金额、时间和冲退信息，再映射为公开不可变结果。
         return new RefundQueryResult(
                 response.tradeNo,
                 response.outTradeNo,
@@ -115,19 +133,22 @@ public final class RefundClient {
         );
     }
 
+    /** 将退款响应中的双订单标识绑定到原请求。 */
     private static void requireRequestedTrade(
             @Nullable String requestedOutTradeNo,
             @Nullable String requestedTradeNo,
             String actualOutTradeNo,
             String actualTradeNo
     ) {
+        if (requestedTradeNo != null) {
+            AlipayValidationUtils.requireSame(requestedTradeNo, actualTradeNo);
+        }
         if (requestedOutTradeNo != null) {
             AlipayValidationUtils.requireSame(requestedOutTradeNo, actualOutTradeNo);
-        } else {
-            AlipayValidationUtils.requireSame(requestedTradeNo, actualTradeNo);
         }
     }
 
+    /** 将可选资金渠道载荷转换为不可变公开模型。 */
     private static List<RefundFundBill> toFundBills(
             @Nullable List<FundBillPayload> values) {
         return values == null ? List.of() : values.stream().map(value ->
@@ -140,6 +161,7 @@ public final class RefundClient {
                 )).toList();
     }
 
+    /** 严格转换可选银行卡冲退信息。 */
     private static @Nullable DepositBackInfo toDepositBackInfo(
             @Nullable DepositBackPayload value) {
         if (value == null) {
@@ -163,6 +185,7 @@ public final class RefundClient {
         );
     }
 
+    /** 解析可选支付宝金额。 */
     private static @Nullable Long optionalMoney(@Nullable String value, String name) {
         return value == null ? null : AlipayMoneyUtils.parse(value, name);
     }
@@ -193,6 +216,7 @@ public final class RefundClient {
             @JsonProperty("out_sku_id") @Nullable String outSkuId,
             @JsonProperty("out_certificate_no_list") @Nullable List<String> certificateNos
     ) {
+        /** 将公开退款商品明细映射为协议载荷。 */
         private static GoodsPayload from(RefundGoodsDetail value) {
             return new GoodsPayload(
                     value.goodsId(),

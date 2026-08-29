@@ -25,6 +25,7 @@ public final class PagePayGoodsDetail {
     private final @Nullable String body;
     private final @Nullable URI showUrl;
 
+    /** 使用构建期参数创建并校验商品明细。 */
     private PagePayGoodsDetail(Builder builder) {
         goodsId = AlipayValidationUtils.requireIdentifier(builder.goodsId,
                 "goodsId", 64);
@@ -162,6 +163,7 @@ public final class PagePayGoodsDetail {
         private @Nullable String body;
         private @Nullable URI showUrl;
 
+        /** 创建空商品明细构建器。 */
         private Builder() {
         }
 

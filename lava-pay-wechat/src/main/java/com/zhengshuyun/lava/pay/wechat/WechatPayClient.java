@@ -18,6 +18,7 @@ package com.zhengshuyun.lava.pay.wechat;
 
 import com.zhengshuyun.lava.core.lang.ValidationUtils;
 import com.zhengshuyun.lava.http.HttpClient;
+import com.zhengshuyun.lava.http.OkHttpInterop;
 import com.zhengshuyun.lava.pay.wechat.bill.BillClient;
 import com.zhengshuyun.lava.pay.wechat.internal.*;
 import com.zhengshuyun.lava.pay.wechat.notification.NotificationParser;
@@ -75,6 +76,7 @@ public final class WechatPayClient implements AutoCloseable {
      */
     private final NotificationParser notificationParser;
 
+    /** 使用共享运行时创建并缓存各业务入口。 */
     private WechatPayClient(WechatPayRuntime runtime) {
         this.runtime = runtime;
         transactionClient = new TransactionClient(runtime);
@@ -170,7 +172,8 @@ public final class WechatPayClient implements AutoCloseable {
      * 微信支付普通商户客户端的一次性 fluent 构建器。
      *
      * <p>构建前必须配置商户号、商户私钥、商户证书或证书序列号、APIv3 密钥、微信支付公钥 ID
-     * 和微信支付公钥。构建成功后，构建器会清除持有的 APIv3 密钥副本，且不能再次使用。</p>
+     * 和微信支付公钥。每次构建尝试后，构建器都会清除商户私钥引用和 APIv3 密钥副本；失败后重试
+     * 必须重新配置这两项。构建成功后，所有配置方法和 {@link #build()} 均不可再次调用。</p>
      */
     public static final class Builder {
         /**
@@ -227,6 +230,7 @@ public final class WechatPayClient implements AutoCloseable {
          */
         private boolean built;
 
+        /** 创建使用官方主域名和系统时钟的空构建器。 */
         private Builder() {
         }
 
@@ -237,6 +241,7 @@ public final class WechatPayClient implements AutoCloseable {
          * @return 当前构建器
          */
         public Builder mchid(String value) {
+            ensureNotBuilt();
             mchid = requireHeaderValue(
                     WechatPayValidationUtils.requireMchid(value), "mchid");
             return this;
@@ -249,6 +254,7 @@ public final class WechatPayClient implements AutoCloseable {
          * @return 当前构建器
          */
         public Builder merchantPrivateKey(Path path) {
+            ensureNotBuilt();
             return merchantPrivateKey(WechatPayPemUtils.readPrivateKey(path));
         }
 
@@ -259,6 +265,7 @@ public final class WechatPayClient implements AutoCloseable {
          * @return 当前构建器
          */
         public Builder merchantPrivateKey(PrivateKey value) {
+            ensureNotBuilt();
             merchantPrivateKey = WechatPayPemUtils.requirePrivateKey(value);
             return this;
         }
@@ -270,6 +277,7 @@ public final class WechatPayClient implements AutoCloseable {
          * @return 当前构建器
          */
         public Builder merchantCertificate(Path path) {
+            ensureNotBuilt();
             return merchantCertificate(WechatPayPemUtils.readCertificate(path));
         }
 
@@ -280,6 +288,7 @@ public final class WechatPayClient implements AutoCloseable {
          * @return 当前构建器
          */
         public Builder merchantCertificate(X509Certificate value) {
+            ensureNotBuilt();
             merchantCertificate = WechatPayPemUtils.requireMerchantCertificate(value);
             return this;
         }
@@ -291,6 +300,7 @@ public final class WechatPayClient implements AutoCloseable {
          * @return 当前构建器
          */
         public Builder merchantSerialNo(String value) {
+            ensureNotBuilt();
             value = requireHeaderValue(value, "merchantSerialNo");
             ValidationUtils.requireTrue(value.codePoints().allMatch(
                             codePoint -> codePoint >= '0' && codePoint <= '9'
@@ -308,8 +318,14 @@ public final class WechatPayClient implements AutoCloseable {
          * @return 当前构建器
          */
         public Builder apiV3Key(String value) {
+            ensureNotBuilt();
             ValidationUtils.requireNonNull(value, "apiV3Key must not be null");
-            return apiV3Key(value.getBytes(StandardCharsets.UTF_8));
+            byte[] encoded = value.getBytes(StandardCharsets.UTF_8);
+            try {
+                return apiV3Key(encoded);
+            } finally {
+                Arrays.fill(encoded, (byte) 0);
+            }
         }
 
         /**
@@ -319,6 +335,7 @@ public final class WechatPayClient implements AutoCloseable {
          * @return 当前构建器
          */
         public Builder apiV3Key(byte[] value) {
+            ensureNotBuilt();
             ValidationUtils.requireNonNull(value, "apiV3Key must not be null");
             ValidationUtils.requireTrue(value.length == 32,
                     "apiV3Key must contain exactly 32 bytes");
@@ -343,6 +360,7 @@ public final class WechatPayClient implements AutoCloseable {
          * @return 当前构建器
          */
         public Builder wechatPayPublicKeyId(String value) {
+            ensureNotBuilt();
             value = requireHeaderValue(value, "wechatPayPublicKeyId");
             ValidationUtils.requireTrue(PUBLIC_KEY_ID.matcher(value).matches(),
                     "wechatPayPublicKeyId format is invalid");
@@ -357,6 +375,7 @@ public final class WechatPayClient implements AutoCloseable {
          * @return 当前构建器
          */
         public Builder wechatPayPublicKey(Path path) {
+            ensureNotBuilt();
             return wechatPayPublicKey(WechatPayPemUtils.readPublicKey(path));
         }
 
@@ -367,6 +386,7 @@ public final class WechatPayClient implements AutoCloseable {
          * @return 当前构建器
          */
         public Builder wechatPayPublicKey(PublicKey value) {
+            ensureNotBuilt();
             wechatPayPublicKey = WechatPayPemUtils.requirePublicKey(value);
             return this;
         }
@@ -379,7 +399,21 @@ public final class WechatPayClient implements AutoCloseable {
          * @return 当前构建器
          */
         public Builder httpClient(HttpClient value) {
-            httpClient = ValidationUtils.requireNonNull(value, "httpClient must not be null");
+            ensureNotBuilt();
+            value = ValidationUtils.requireNonNull(value, "httpClient must not be null");
+            ValidationUtils.requireTrue(
+                    !OkHttpInterop.unwrap(value).retryOnConnectionFailure(),
+                    "httpClient must disable connection failure retries"
+            );
+            ValidationUtils.requireTrue(
+                    !OkHttpInterop.unwrap(value).followRedirects(),
+                    "httpClient must disable redirects"
+            );
+            ValidationUtils.requireTrue(
+                    !OkHttpInterop.unwrap(value).followSslRedirects(),
+                    "httpClient must disable cross-protocol redirects"
+            );
+            httpClient = value;
             return this;
         }
 
@@ -392,7 +426,8 @@ public final class WechatPayClient implements AutoCloseable {
          * @return 当前构建器
          */
         public Builder apiBaseUrl(URI value) {
-            apiBaseUrl = requireApiBaseUrl(value);
+            ensureNotBuilt();
+            apiBaseUrl = WechatPayValidationUtils.requireApiBaseUrl(value);
             return this;
         }
 
@@ -403,6 +438,7 @@ public final class WechatPayClient implements AutoCloseable {
          * @return 当前构建器
          */
         public Builder apiBaseUrl(String value) {
+            ensureNotBuilt();
             ValidationUtils.requireNotBlank(value, "apiBaseUrl must not be blank");
             try {
                 return apiBaseUrl(new URI(value));
@@ -412,82 +448,132 @@ public final class WechatPayClient implements AutoCloseable {
         }
 
         /**
-         * 创建不可变客户端。构建器只能成功构建一次，APIv3 密钥副本随后会从构建器清除。
+         * 创建不可变客户端。构建器只能成功构建一次，每次尝试后都会释放构建期敏感配置。
          *
          * @return 微信支付根客户端
          */
         public WechatPayClient build() {
-            // 1. 一次性读取并校验构建所需配置，避免半初始化客户端进入后续流程。
-            ValidationUtils.requireTrue(!built, "builder has already been used");
-            String configuredMchid = ValidationUtils.requireNonNull(mchid, "mchid is required");
-            PrivateKey configuredPrivateKey = ValidationUtils.requireNonNull(
-                    merchantPrivateKey, "merchantPrivateKey is required");
-            String configuredPublicKeyId = ValidationUtils.requireNonNull(
-                    wechatPayPublicKeyId, "wechatPayPublicKeyId is required");
-            PublicKey configuredPublicKey = ValidationUtils.requireNonNull(
-                    wechatPayPublicKey, "wechatPayPublicKey is required");
-            byte[] configuredApiV3Key = ValidationUtils.requireNonNull(
-                    apiV3Key, "apiV3Key is required");
-
-            // 2. 证书存在时校验其与私钥配对，并统一确定请求签名要使用的商户证书序列号。
-            String certificateSerial = merchantCertificate == null
-                    ? null : WechatPayPemUtils.serialNo(merchantCertificate);
-            if (merchantCertificate != null) {
-                WechatPayPemUtils.requireKeyPair(configuredPrivateKey, merchantCertificate);
-            }
-            if (certificateSerial != null && merchantSerialNo != null
-                    && !certificateSerial.equalsIgnoreCase(merchantSerialNo)) {
-                throw new IllegalArgumentException(
-                        "merchantSerialNo does not match merchantCertificate");
-            }
-            String configuredSerial = merchantSerialNo == null
-                    ? certificateSerial : merchantSerialNo;
-            ValidationUtils.requireNonNull(configuredSerial,
-                    "merchantCertificate or merchantSerialNo is required");
-
-            // 3. 未借用外部客户端时创建专属 HTTP 客户端；支付请求不可自动重试或跟随重定向。
-            boolean ownsClient = httpClient == null;
-            HttpClient configuredHttpClient = ownsClient
-                    ? HttpClient.builder()
-                    .retryOnConnectionFailure(false)
-                    .followRedirects(false)
-                    .followSslRedirects(false)
-                    .build()
-                    : httpClient;
+            ensureNotBuilt();
             try {
-                // 4. 将协议能力与资源所有权封装为共享运行时，再创建只负责暴露功能入口的根客户端。
-                WechatPayTransport transport = new WechatPayTransport(configuredMchid,
-                        configuredSerial, configuredPrivateKey, configuredPublicKeyId,
-                        configuredPublicKey, configuredApiV3Key, configuredHttpClient,
-                        apiBaseUrl, clock, nonceSupplier, WechatPayJsonUtils.codec());
-                WechatPayRuntime runtime = new WechatPayRuntime(
-                        transport, configuredHttpClient, ownsClient);
-                built = true;
-                return new WechatPayClient(runtime);
-            } catch (RuntimeException exception) {
-                // 仅回收本构建器创建的资源，调用方借出的 HTTP 客户端仍由调用方负责关闭。
-                if (ownsClient) {
-                    configuredHttpClient.close();
+                // 1. 一次性读取并校验必需配置，避免半初始化客户端进入支付协议流程。
+                String configuredMchid = ValidationUtils.requireNonNull(
+                        mchid,
+                        "mchid is required"
+                );
+                PrivateKey configuredPrivateKey = ValidationUtils.requireNonNull(
+                        merchantPrivateKey,
+                        "merchantPrivateKey is required"
+                );
+                String configuredPublicKeyId = ValidationUtils.requireNonNull(
+                        wechatPayPublicKeyId,
+                        "wechatPayPublicKeyId is required"
+                );
+                PublicKey configuredPublicKey = ValidationUtils.requireNonNull(
+                        wechatPayPublicKey,
+                        "wechatPayPublicKey is required"
+                );
+                byte[] configuredApiV3Key = ValidationUtils.requireNonNull(
+                        apiV3Key,
+                        "apiV3Key is required"
+                );
+
+                // 2. 证书存在时校验其与私钥配对，并统一确定请求签名使用的商户证书序列号。
+                String certificateSerial = merchantCertificate == null
+                        ? null : WechatPayPemUtils.serialNo(merchantCertificate);
+                if (merchantCertificate != null) {
+                    WechatPayPemUtils.requireKeyPair(
+                            configuredPrivateKey,
+                            merchantCertificate
+                    );
                 }
-                throw exception;
+                if (certificateSerial != null && merchantSerialNo != null
+                        && !certificateSerial.equalsIgnoreCase(merchantSerialNo)) {
+                    throw new IllegalArgumentException(
+                            "merchantSerialNo does not match merchantCertificate");
+                }
+                String configuredSerial = ValidationUtils.requireNonNull(
+                        merchantSerialNo == null ? certificateSerial : merchantSerialNo,
+                        "merchantCertificate or merchantSerialNo is required"
+                );
+
+                // 3. 未借用外部客户端时创建专属 HTTP 客户端；支付请求不可自动重试或跟随重定向。
+                HttpClient configuredHttpClient = httpClient;
+                boolean ownsClient = configuredHttpClient == null;
+                if (configuredHttpClient == null) {
+                    configuredHttpClient = HttpClient.builder()
+                            .retryOnConnectionFailure(false)
+                            .followRedirects(false)
+                            .followSslRedirects(false)
+                            .build();
+                }
+
+                try {
+                    // 4. 封装协议能力与资源所有权，再创建只负责暴露业务入口的根客户端。
+                    WechatPayTransport transport = new WechatPayTransport(
+                            configuredMchid,
+                            configuredSerial,
+                            configuredPrivateKey,
+                            configuredPublicKeyId,
+                            configuredPublicKey,
+                            configuredApiV3Key,
+                            configuredHttpClient,
+                            apiBaseUrl,
+                            clock,
+                            nonceSupplier,
+                            WechatPayJsonUtils.codec()
+                    );
+                    WechatPayRuntime runtime = new WechatPayRuntime(
+                            transport,
+                            configuredHttpClient,
+                            ownsClient
+                    );
+                    WechatPayClient client = new WechatPayClient(runtime);
+                    built = true;
+                    return client;
+                } catch (RuntimeException exception) {
+                    // 仅回收本构建器创建的资源，调用方借出的 HTTP 客户端仍由调用方负责关闭。
+                    if (ownsClient) {
+                        configuredHttpClient.close();
+                    }
+                    throw exception;
+                }
             } finally {
-                // 5. 无论构建是否成功均清除构建器保留的 APIv3 密钥副本，缩短敏感数据存活时间。
-                Arrays.fill(configuredApiV3Key, (byte) 0);
-                apiV3Key = null;
+                // 5. 每次构建尝试后都释放私钥引用并清零 APIv3 密钥，失败重试必须重新配置。
+                merchantPrivateKey = null;
+                if (apiV3Key != null) {
+                    Arrays.fill(apiV3Key, (byte) 0);
+                    apiV3Key = null;
+                }
             }
         }
 
+        /** 配置协议测试使用的固定时钟。 */
         Builder clock(Clock value) {
+            ensureNotBuilt();
             clock = ValidationUtils.requireNonNull(value, "clock must not be null");
             return this;
         }
 
+        /** 配置协议测试使用的随机串供应器。 */
         Builder nonceSupplier(Supplier<String> value) {
+            ensureNotBuilt();
             nonceSupplier = ValidationUtils.requireNonNull(value,
                     "nonceSupplier must not be null");
             return this;
         }
 
+        /**
+         * 确认构建器尚未成功创建客户端。
+         *
+         * @throws IllegalStateException 构建器已经成功使用
+         */
+        private void ensureNotBuilt() {
+            if (built) {
+                throw new IllegalStateException("WechatPayClient.Builder cannot be reused");
+            }
+        }
+
+        /** 校验可安全写入 HTTP 引号参数的文本。 */
         private static String requireHeaderValue(String value, String name) {
             ValidationUtils.requireNotBlank(value, name + " must not be blank");
             ValidationUtils.requireTrue(value.codePoints().noneMatch(
@@ -497,42 +583,5 @@ public final class WechatPayClient implements AutoCloseable {
             return value;
         }
 
-        private static URI requireApiBaseUrl(URI value) {
-            // 1. 根地址必须是指向单个 HTTP 服务端点的绝对 URI，不能混入用户信息或请求级参数。
-            ValidationUtils.requireNonNull(value, "apiBaseUrl must not be null");
-            ValidationUtils.requireTrue(value.isAbsolute(),
-                    "apiBaseUrl must be absolute");
-            ValidationUtils.requireTrue(value.getHost() != null && !value.getHost().isBlank(),
-                    "apiBaseUrl must contain a host");
-
-            // 2. 生产环境只允许 HTTPS；HTTP 仅用于本地环回测试，避免将支付请求明文发送到远端。
-            String scheme = value.getScheme();
-            boolean secure = "https".equalsIgnoreCase(scheme);
-            boolean localTest = "http".equalsIgnoreCase(scheme)
-                    && isLoopbackHost(value.getHost());
-            ValidationUtils.requireTrue(secure || localTest,
-                    "apiBaseUrl must use HTTPS; HTTP is allowed only for a loopback host");
-
-            // 3. 传输层自行拼接 API 路径，根地址不得预置路径、查询参数或片段。
-            ValidationUtils.requireTrue(value.getRawQuery() == null
-                            && value.getRawFragment() == null
-                            && value.getUserInfo() == null,
-                    "apiBaseUrl must not contain user information, query, or fragment");
-            ValidationUtils.requireTrue(value.getRawPath() == null
-                            || value.getRawPath().isEmpty()
-                            || "/".equals(value.getRawPath()),
-                    "apiBaseUrl must not contain a path");
-
-            // 4. 统一保留末尾斜杠，保证后续 URI 拼接不依赖调用方的输入形式。
-            String text = value.toString();
-            return URI.create(text.endsWith("/") ? text : text + '/');
-        }
-
-        private static boolean isLoopbackHost(String host) {
-            return "localhost".equalsIgnoreCase(host)
-                    || "127.0.0.1".equals(host)
-                    || "::1".equals(host)
-                    || "[::1]".equals(host);
-        }
     }
 }

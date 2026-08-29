@@ -7,6 +7,7 @@ package com.zhengshuyun.lava.pay.alipay.internal;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.zhengshuyun.lava.core.lang.ValidationUtils;
 import com.zhengshuyun.lava.json.JsonCodec;
 import com.zhengshuyun.lava.json.JsonException;
 import com.zhengshuyun.lava.pay.alipay.exception.AlipayApiException;
@@ -17,16 +18,20 @@ import org.jspecify.annotations.Nullable;
 
 import java.nio.charset.StandardCharsets;
 import java.security.PublicKey;
-import java.util.LinkedHashMap;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 /**
- * 从支付宝原始 JSON 中提取签名节点、验签并解析业务响应。
+ * 支付宝 OpenAPI V3 原始响应验签与 JSON 解析器。
+ *
+ * <p>V3 响应不再使用 {@code xxx_response + sign} 包装结构。支付宝通过响应头提供时间戳、
+ * 随机数和签名，验签原文必须包含未经重新编码的原始响应正文。</p>
  */
 public final class AlipayResponseParser {
-    private static final String ERROR_RESPONSE = "error_response";
-
+    /** 用于验证支付宝 V3 响应的支付宝公钥。 */
     private final PublicKey alipayPublicKey;
+    /** 验签成功后用于反序列化业务数据的 JSON 编解码器。 */
     private final JsonCodec jsonCodec;
 
     /**
@@ -36,213 +41,258 @@ public final class AlipayResponseParser {
      * @param jsonCodec       JSON 编解码器
      */
     public AlipayResponseParser(PublicKey alipayPublicKey, JsonCodec jsonCodec) {
-        this.alipayPublicKey = alipayPublicKey;
-        this.jsonCodec = jsonCodec;
+        this.alipayPublicKey = AlipayKeyUtils.requirePublicKey(alipayPublicKey);
+        this.jsonCodec = ValidationUtils.requireNonNull(
+                jsonCodec,
+                "jsonCodec must not be null"
+        );
     }
 
     /**
-     * 从原始响应中提取并验证指定接口的业务对象。
+     * 验签并解析成功响应。
      *
-     * @param method       接口名称
-     * @param body         未修改的 UTF-8 响应正文
+     * @param body         原始 UTF-8 响应正文
      * @param responseType 业务响应类型
-     * @param traceId      可选链路标识
+     * @param signature    {@code alipay-signature} 响应头
+     * @param timestamp    {@code alipay-timestamp} 响应头
+     * @param nonce        {@code alipay-nonce} 响应头
      * @param <T>          业务响应类型
      * @return 已验签业务响应
      */
-    public <T> T parse(
-            String method,
+    public <T> T parseSuccess(
             byte[] body,
             Class<T> responseType,
+            @Nullable String signature,
+            @Nullable String timestamp,
+            @Nullable String nonce
+    ) {
+        String json = verify(
+                body,
+                signature,
+                timestamp,
+                nonce
+        );
+        try {
+            T response = jsonCodec.read(json, responseType);
+            if (response == null) {
+                throw new AlipayProtocolException(
+                        "支付宝 V3 成功响应不是预期 JSON 结构"
+                );
+            }
+            return response;
+        } catch (JsonException | IllegalArgumentException exception) {
+            throw new AlipayProtocolException("支付宝 V3 成功响应不是预期 JSON 结构");
+        }
+    }
+
+    /**
+     * 验签并转换支付宝 V3 错误响应。
+     *
+     * @param statusCode HTTP 状态码
+     * @param verified   是否要求并验证响应签名
+     * @param body       原始 UTF-8 响应正文
+     * @param signature  {@code alipay-signature} 响应头
+     * @param timestamp  {@code alipay-timestamp} 响应头
+     * @param nonce      {@code alipay-nonce} 响应头
+     * @param traceId    可选支付宝链路标识
+     * @return 结构化 API 异常
+     */
+    public AlipayApiException parseError(
+            int statusCode,
+            boolean verified,
+            byte[] body,
+            @Nullable String signature,
+            @Nullable String timestamp,
+            @Nullable String nonce,
             @Nullable String traceId
     ) {
-        if (body.length == 0) {
-            throw new AlipayProtocolException("支付宝响应缺少正文");
-        }
-        String json = new String(body, StandardCharsets.UTF_8);
-
-        // 1. 先由 JSON 解析器验证整体语法，再使用轻量扫描保留业务节点的原始字节表示。
+        String json = verified
+                ? verify(
+                        body,
+                        signature,
+                        timestamp,
+                        nonce
+                )
+                : decode(body);
+        ErrorPayload error;
         try {
-            jsonCodec.read(json, Object.class);
-        } catch (JsonException exception) {
-            throw new AlipayProtocolException("支付宝响应不是有效 JSON");
+            error = jsonCodec.read(json, ErrorPayload.class);
+        } catch (JsonException | IllegalArgumentException exception) {
+            throw new AlipayProtocolException("支付宝 V3 错误响应不是有效 JSON");
         }
-        Map<String, String> values = topLevelValues(json);
-        String responseName = method.replace('.', '_') + "_response";
-        String responseSource = values.get(responseName);
-        String errorSource = values.get(ERROR_RESPONSE);
-        if ((responseSource == null) == (errorSource == null)) {
-            throw new AlipayProtocolException("支付宝响应缺少唯一业务节点");
+        if (error == null) {
+            throw new AlipayProtocolException("支付宝 V3 错误响应不是有效 JSON");
         }
-        String source = responseSource == null ? errorSource : responseSource;
+        List<AlipayApiException.Detail> details = new ArrayList<>();
+        if (error.details != null) {
+            for (ErrorDetail detail : error.details) {
+                if (detail == null) {
+                    throw new AlipayProtocolException(
+                            "支付宝 V3 错误响应 details 结构无效"
+                    );
+                }
+                details.add(toDetail(detail));
+            }
+        }
+        return new AlipayApiException(
+                statusCode,
+                verified,
+                AlipayValidationUtils.requireResponseText(error.code, "code"),
+                AlipayValidationUtils.requireResponseText(error.message, "message"),
+                details,
+                toLinks(error.links),
+                traceId
+        );
+    }
 
-        // 2. 签名必须验证原始业务节点，禁止反序列化后重新编码构造验签内容。
-        String signatureSource = values.get("sign");
-        if (signatureSource == null) {
+    /**
+     * 判断响应头是否携带任一 V3 签名元数据。
+     *
+     * @param signature 签名
+     * @param timestamp 时间戳
+     * @param nonce     随机数
+     * @return 任一签名元数据存在时返回 {@code true}
+     */
+    public boolean hasSignatureMetadata(
+            @Nullable String signature,
+            @Nullable String timestamp,
+            @Nullable String nonce
+    ) {
+        return hasText(signature) || hasText(timestamp) || hasText(nonce);
+    }
+
+    /**
+     * 使用 V3 响应头和原始正文执行 RSA2 验签。
+     *
+     * @param body      原始响应正文
+     * @param signature 响应签名
+     * @param timestamp 响应时间戳
+     * @param nonce     响应随机数
+     * @return 已验签 UTF-8 正文
+     */
+    private String verify(
+            byte[] body,
+            @Nullable String signature,
+            @Nullable String timestamp,
+            @Nullable String nonce
+    ) {
+        // 1. 三个 V3 签名响应头必须同时存在，部分缺失按安全失败处理。
+        if (!hasText(signature) || !hasText(timestamp) || !hasText(nonce)) {
             throw new AlipaySecurityException(AlipaySecurityFailure.MISSING_SIGNATURE);
         }
-        String signature;
-        try {
-            signature = jsonCodec.read(signatureSource, String.class);
-        } catch (JsonException exception) {
-            throw new AlipaySecurityException(AlipaySecurityFailure.MISSING_SIGNATURE);
-        }
-        boolean valid = AlipayCryptoUtils.verify(source, signature, alipayPublicKey);
-        if (!valid && source.contains("\\/")) {
-            // 与支付宝官方 Java SDK 保持兼容：部分网关会对斜杠转义形式做等价签名。
-            valid = AlipayCryptoUtils.verify(
-                    source.replace("\\/", "/"), signature, alipayPublicKey);
-        }
-        if (!valid) {
+
+        // 2. 使用未经 JSON 重编码的 UTF-8 原始正文构造固定三行验签原文。
+        String json = decode(body);
+        String source = timestamp + "\n" + nonce + "\n" + json + "\n";
+
+        // 3. 只有 RSA2 验签成功后才把正文交给业务反序列化流程。
+        if (!AlipayCryptoUtils.verify(source, signature, alipayPublicKey)) {
             throw new AlipaySecurityException(AlipaySecurityFailure.INVALID_SIGNATURE);
         }
-
-        // 3. 验签通过后才解析错误码和业务数据，未验证的内容不能进入业务判断。
-        GatewayStatus status;
-        try {
-            status = jsonCodec.read(source, GatewayStatus.class);
-        } catch (JsonException exception) {
-            throw new AlipayProtocolException("支付宝业务响应结构无效");
-        }
-        String code = AlipayValidationUtils.requireResponseText(status.code, "code");
-        String message = AlipayValidationUtils.requireResponseText(status.message, "msg");
-        if (!"10000".equals(code)) {
-            throw new AlipayApiException(
-                    code,
-                    message,
-                    status.subCode,
-                    status.subMessage,
-                    traceId
-            );
-        }
-        if (responseSource == null) {
-            throw new AlipayProtocolException("支付宝成功码位于错误响应节点");
-        }
-        try {
-            return jsonCodec.read(source, responseType);
-        } catch (JsonException exception) {
-            throw new AlipayProtocolException("支付宝业务响应不是预期结构");
-        }
+        return json;
     }
 
-    private Map<String, String> topLevelValues(String json) {
-        Map<String, String> result = new LinkedHashMap<>();
-        int index = skipWhitespace(json, 0);
-        if (index >= json.length() || json.charAt(index) != '{') {
-            throw new AlipayProtocolException("支付宝响应根节点必须是 JSON 对象");
+    /**
+     * 将非空响应正文按 V3 固定 UTF-8 编码转换为文本。
+     *
+     * @param body 原始响应正文
+     * @return UTF-8 文本
+     */
+    private static String decode(byte[] body) {
+        if (body.length == 0) {
+            throw new AlipayProtocolException("支付宝 V3 响应缺少正文");
         }
-        index = skipWhitespace(json, index + 1);
-        if (index < json.length() && json.charAt(index) == '}') {
-            return result;
-        }
-
-        while (index < json.length()) {
-            if (json.charAt(index) != '"') {
-                throw new AlipayProtocolException("支付宝响应属性名无效");
-            }
-            int nameEnd = stringEnd(json, index);
-            String name;
-            try {
-                name = jsonCodec.read(json.substring(index, nameEnd), String.class);
-            } catch (JsonException exception) {
-                throw new AlipayProtocolException("支付宝响应属性名无效");
-            }
-            index = skipWhitespace(json, nameEnd);
-            if (index >= json.length() || json.charAt(index) != ':') {
-                throw new AlipayProtocolException("支付宝响应属性缺少分隔符");
-            }
-            int valueStart = skipWhitespace(json, index + 1);
-            int valueEnd = valueEnd(json, valueStart);
-            if (result.putIfAbsent(name, json.substring(valueStart, valueEnd)) != null) {
-                throw new AlipayProtocolException("支付宝响应包含重复顶层属性");
-            }
-
-            index = skipWhitespace(json, valueEnd);
-            if (index >= json.length()) {
-                throw new AlipayProtocolException("支付宝响应 JSON 未闭合");
-            }
-            char separator = json.charAt(index++);
-            if (separator == '}') {
-                if (skipWhitespace(json, index) != json.length()) {
-                    throw new AlipayProtocolException("支付宝响应 JSON 包含尾随内容");
-                }
-                return result;
-            }
-            if (separator != ',') {
-                throw new AlipayProtocolException("支付宝响应属性分隔符无效");
-            }
-            index = skipWhitespace(json, index);
-        }
-        throw new AlipayProtocolException("支付宝响应 JSON 未闭合");
+        return new String(body, StandardCharsets.UTF_8);
     }
 
-    private static int valueEnd(String json, int start) {
-        if (start >= json.length()) {
-            throw new AlipayProtocolException("支付宝响应属性缺少值");
-        }
-        char first = json.charAt(start);
-        if (first == '"') {
-            return stringEnd(json, start);
-        }
-        if (first != '{' && first != '[') {
-            int index = start;
-            while (index < json.length() && json.charAt(index) != ','
-                    && json.charAt(index) != '}') {
-                index++;
-            }
-            return index;
-        }
-
-        char[] stack = new char[json.length() - start];
-        int depth = 0;
-        boolean inString = false;
-        int escapes = 0;
-        for (int index = start; index < json.length(); index++) {
-            char current = json.charAt(index);
-            if (current == '"' && escapes % 2 == 0) {
-                inString = !inString;
-            } else if (!inString && (current == '{' || current == '[')) {
-                stack[depth++] = current;
-            } else if (!inString && (current == '}' || current == ']')) {
-                if (depth == 0 || current == '}' && stack[depth - 1] != '{'
-                        || current == ']' && stack[depth - 1] != '[') {
-                    throw new AlipayProtocolException("支付宝响应 JSON 嵌套结构无效");
-                }
-                if (--depth == 0) {
-                    return index + 1;
-                }
-            }
-            escapes = current == '\\' ? escapes + 1 : 0;
-        }
-        throw new AlipayProtocolException("支付宝响应 JSON 嵌套结构未闭合");
+    /**
+     * 将内部 JSON 明细转换为公开异常模型。
+     *
+     * @param value 内部错误明细
+     * @return 公开错误明细
+     */
+    private static AlipayApiException.Detail toDetail(ErrorDetail value) {
+        return new AlipayApiException.Detail(
+                value.field,
+                value.value,
+                value.location,
+                value.issue,
+                value.description
+        );
     }
 
-    private static int stringEnd(String json, int start) {
-        int escapes = 0;
-        for (int index = start + 1; index < json.length(); index++) {
-            char current = json.charAt(index);
-            if (current == '"' && escapes % 2 == 0) {
-                return index + 1;
-            }
-            escapes = current == '\\' ? escapes + 1 : 0;
+    /**
+     * 兼容接口业务错误中的单个链接字符串和公共错误中的链接对象数组。
+     *
+     * @param value 原始 links 值
+     * @return 规范化不可变链接列表
+     */
+    private static List<AlipayApiException.Link> toLinks(@Nullable Object value) {
+        if (value == null) {
+            return List.of();
         }
-        throw new AlipayProtocolException("支付宝响应 JSON 字符串未闭合");
+        if (value instanceof String link) {
+            return link.isBlank() ? List.of()
+                    : List.of(new AlipayApiException.Link(link, null));
+        }
+        if (!(value instanceof List<?> values)) {
+            throw new AlipayProtocolException("支付宝 V3 错误响应 links 结构无效");
+        }
+        List<AlipayApiException.Link> links = new ArrayList<>(values.size());
+        for (Object item : values) {
+            if (!(item instanceof Map<?, ?> fields)) {
+                throw new AlipayProtocolException("支付宝 V3 错误响应 links 结构无效");
+            }
+            links.add(new AlipayApiException.Link(
+                    optionalString(fields.get("link")),
+                    optionalString(fields.get("rel"))
+            ));
+        }
+        return List.copyOf(links);
     }
 
-    private static int skipWhitespace(String text, int start) {
-        int index = start;
-        while (index < text.length() && Character.isWhitespace(text.charAt(index))) {
-            index++;
+    /**
+     * 将可选动态 JSON 值严格转换为字符串。
+     *
+     * @param value 动态 JSON 值
+     * @return 字符串或 {@code null}
+     */
+    private static @Nullable String optionalString(@Nullable Object value) {
+        if (value == null) {
+            return null;
         }
-        return index;
+        if (value instanceof String text) {
+            return text;
+        }
+        throw new AlipayProtocolException("支付宝 V3 错误响应字段类型无效");
+    }
+
+    /**
+     * 判断协议头是否包含非空文本。
+     *
+     * @param value 可选协议头
+     * @return 包含非空文本时返回 {@code true}
+     */
+    private static boolean hasText(@Nullable String value) {
+        return value != null && !value.isBlank();
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    private record GatewayStatus(
+    private record ErrorPayload(
             @JsonProperty("code") @Nullable String code,
-            @JsonProperty("msg") @Nullable String message,
-            @JsonProperty("sub_code") @Nullable String subCode,
-            @JsonProperty("sub_msg") @Nullable String subMessage
+            @JsonProperty("message") @Nullable String message,
+            @JsonProperty("details") @Nullable List<ErrorDetail> details,
+            @JsonProperty("links") @Nullable Object links
+    ) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private record ErrorDetail(
+            @JsonProperty("field") @Nullable String field,
+            @JsonProperty("value") @Nullable String value,
+            @JsonProperty("location") @Nullable String location,
+            @JsonProperty("issue") @Nullable String issue,
+            @JsonProperty("description") @Nullable String description
     ) {
     }
 }

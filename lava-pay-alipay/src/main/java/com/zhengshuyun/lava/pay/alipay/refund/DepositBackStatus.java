@@ -16,6 +16,7 @@ public final class DepositBackStatus {
     /** 银行卡冲退处理中。 */
     public static final String PROCESSING = "P";
 
+    /** 禁止实例化银行卡冲退状态常量容器。 */
     private DepositBackStatus() {
         throw new UnsupportedOperationException("Constants class");
     }

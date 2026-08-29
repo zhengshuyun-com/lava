@@ -25,6 +25,10 @@ public enum WechatPaySecurityFailure {
      */
     MISSING_SIGNATURE_HEADER,
     /**
+     * 消息携带重复的签名请求头，无法确定唯一验签原文。
+     */
+    DUPLICATE_SIGNATURE_HEADER,
+    /**
      * 消息声明的微信支付公钥 ID 与配置不一致。
      */
     UNEXPECTED_PUBLIC_KEY_ID,

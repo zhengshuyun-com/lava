@@ -30,6 +30,7 @@ public final class AlipayDateTimeUtils {
             .optionalEnd()
             .toFormatter();
 
+    /** 禁止实例化支付宝日期时间工具。 */
     private AlipayDateTimeUtils() {
         throw new UnsupportedOperationException("Utility class");
     }

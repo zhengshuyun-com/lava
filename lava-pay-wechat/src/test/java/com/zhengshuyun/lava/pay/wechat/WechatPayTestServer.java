@@ -37,8 +37,12 @@ final class WechatPayTestServer implements AutoCloseable {
     private final BlockingQueue<PlannedResponse> responses = new LinkedBlockingQueue<>();
     private final BlockingQueue<CapturedRequest> requests = new LinkedBlockingQueue<>();
 
-    private WechatPayTestServer(HttpServer server, ExecutorService executor,
-                                PrivateKey responsePrivateKey, Clock clock) {
+    private WechatPayTestServer(
+            HttpServer server,
+            ExecutorService executor,
+            PrivateKey responsePrivateKey,
+            Clock clock
+    ) {
         this.server = server;
         this.executor = executor;
         this.responsePrivateKey = responsePrivateKey;
@@ -50,7 +54,11 @@ final class WechatPayTestServer implements AutoCloseable {
             HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
             ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
             WechatPayTestServer result = new WechatPayTestServer(
-                    server, executor, responsePrivateKey, clock);
+                    server,
+                    executor,
+                    responsePrivateKey,
+                    clock
+            );
             server.createContext("/", result::handle);
             server.setExecutor(executor);
             server.start();
@@ -65,19 +73,43 @@ final class WechatPayTestServer implements AutoCloseable {
     }
 
     void enqueueSigned(int status, String body) {
-        enqueueSigned(status, body.getBytes(StandardCharsets.UTF_8),
-                PUBLIC_KEY_ID, responsePrivateKey, clock.instant().getEpochSecond());
+        enqueueSigned(
+                status,
+                body.getBytes(StandardCharsets.UTF_8),
+                PUBLIC_KEY_ID,
+                responsePrivateKey,
+                clock.instant().getEpochSecond()
+        );
     }
 
-    void enqueueSigned(int status, byte[] body, String serial, PrivateKey privateKey,
-                       long timestamp) {
-        responses.add(new PlannedResponse(status, body.clone(), "application/json",
-                true, serial, privateKey, timestamp));
+    void enqueueSigned(
+            int status,
+            byte[] body,
+            String serial,
+            PrivateKey privateKey,
+            long timestamp
+    ) {
+        responses.add(new PlannedResponse(
+                status,
+                body.clone(),
+                "application/json",
+                true,
+                serial,
+                privateKey,
+                timestamp
+        ));
     }
 
     void enqueueUnsigned(int status, byte[] body, String contentType) {
-        responses.add(new PlannedResponse(status, body.clone(), contentType,
-                false, "", responsePrivateKey, 0));
+        responses.add(new PlannedResponse(
+                status,
+                body.clone(),
+                contentType,
+                false,
+                "",
+                responsePrivateKey,
+                0
+        ));
     }
 
     CapturedRequest takeRequest() {
@@ -93,17 +125,27 @@ final class WechatPayTestServer implements AutoCloseable {
         }
     }
 
-    static HttpHeaders signedHeaders(byte[] body, PrivateKey key, String serial,
-                                     long timestamp) {
+    static HttpHeaders signedHeaders(
+            byte[] body,
+            PrivateKey key,
+            String serial,
+            long timestamp
+    ) {
         String signature = Base64.getEncoder().encodeToString(
                 CryptoUtils.rsaSha256Sign(key,
                         responseMessage(timestamp, RESPONSE_NONCE, body)));
         return HttpHeaders.of(
-                "Wechatpay-Serial", serial,
-                "Wechatpay-Signature", signature,
-                "Wechatpay-Timestamp", Long.toString(timestamp),
-                "Wechatpay-Nonce", RESPONSE_NONCE,
-                "Wechatpay-Signature-Type", "WECHATPAY2-SHA256-RSA2048");
+                "Wechatpay-Serial",
+                serial,
+                "Wechatpay-Signature",
+                signature,
+                "Wechatpay-Timestamp",
+                Long.toString(timestamp),
+                "Wechatpay-Nonce",
+                RESPONSE_NONCE,
+                "Wechatpay-Signature-Type",
+                "WECHATPAY2-SHA256-RSA2048"
+        );
     }
 
     @Override
@@ -114,21 +156,34 @@ final class WechatPayTestServer implements AutoCloseable {
 
     private void handle(HttpExchange exchange) throws IOException {
         byte[] requestBody = exchange.getRequestBody().readAllBytes();
-        requests.add(new CapturedRequest(exchange.getRequestMethod(),
-                exchange.getRequestURI().toString(), Map.copyOf(exchange.getRequestHeaders()),
-                requestBody));
+        requests.add(new CapturedRequest(
+                exchange.getRequestMethod(),
+                exchange.getRequestURI().toString(),
+                Map.copyOf(exchange.getRequestHeaders()),
+                requestBody
+        ));
 
         PlannedResponse response = responses.poll();
         if (response == null) {
-            response = new PlannedResponse(500, "missing test response"
-                    .getBytes(StandardCharsets.UTF_8), "text/plain", false,
-                    "", responsePrivateKey, 0);
+            response = new PlannedResponse(
+                    500,
+                    "missing test response".getBytes(StandardCharsets.UTF_8),
+                    "text/plain",
+                    false,
+                    "",
+                    responsePrivateKey,
+                    0
+            );
         }
         exchange.getResponseHeaders().set("Content-Type", response.contentType);
         exchange.getResponseHeaders().set("Request-ID", "request-id-001");
         if (response.signed) {
-            HttpHeaders signatureHeaders = signedHeaders(response.body, response.privateKey,
-                    response.serial, response.timestamp);
+            HttpHeaders signatureHeaders = signedHeaders(
+                    response.body,
+                    response.privateKey,
+                    response.serial,
+                    response.timestamp
+            );
             for (String name : signatureHeaders.names()) {
                 exchange.getResponseHeaders().set(name, signatureHeaders.get(name));
             }
@@ -153,8 +208,12 @@ final class WechatPayTestServer implements AutoCloseable {
         return output.toByteArray();
     }
 
-    record CapturedRequest(String method, String target,
-                           Map<String, List<String>> headers, byte[] body) {
+    record CapturedRequest(
+            String method,
+            String target,
+            Map<String, List<String>> headers,
+            byte[] body
+    ) {
         String header(String name) {
             return headers.entrySet().stream()
                     .filter(entry -> entry.getKey().equalsIgnoreCase(name))
@@ -164,8 +223,14 @@ final class WechatPayTestServer implements AutoCloseable {
         }
     }
 
-    private record PlannedResponse(int status, byte[] body, String contentType,
-                                   boolean signed, String serial, PrivateKey privateKey,
-                                   long timestamp) {
+    private record PlannedResponse(
+            int status,
+            byte[] body,
+            String contentType,
+            boolean signed,
+            String serial,
+            PrivateKey privateKey,
+            long timestamp
+    ) {
     }
 }

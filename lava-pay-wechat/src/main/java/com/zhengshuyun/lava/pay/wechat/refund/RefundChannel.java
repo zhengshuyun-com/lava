@@ -18,6 +18,7 @@ public final class RefundChannel {
     /** 原银行卡异常时退回其他银行卡。 */
     public static final String OTHER_BANKCARD = "OTHER_BANKCARD";
 
+    /** 禁止实例化退款渠道常量容器。 */
     private RefundChannel() {
     }
 }

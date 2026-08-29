@@ -18,6 +18,7 @@ public final class AlipayJsonUtils {
                     inclusion -> inclusion.withValueInclusion(JsonInclude.Include.NON_NULL)))
             .build());
 
+    /** 禁止实例化支付宝 JSON 工具。 */
     private AlipayJsonUtils() {
         throw new UnsupportedOperationException("Utility class");
     }

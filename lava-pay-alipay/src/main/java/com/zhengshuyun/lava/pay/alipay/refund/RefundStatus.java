@@ -12,6 +12,7 @@ public final class RefundStatus {
     /** 退款处理成功。 */
     public static final String REFUND_SUCCESS = "REFUND_SUCCESS";
 
+    /** 禁止实例化退款状态常量容器。 */
     private RefundStatus() {
         throw new UnsupportedOperationException("Constants class");
     }

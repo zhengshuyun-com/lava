@@ -22,6 +22,7 @@ public final class TradeQueryOption {
     /** 医保信息。 */
     public static final String MEDICAL_INSURANCE_INFO = "medical_insurance_info";
 
+    /** 禁止实例化交易查询选项常量容器。 */
     private TradeQueryOption() {
         throw new UnsupportedOperationException("Constants class");
     }

@@ -5,10 +5,20 @@
 
 package com.zhengshuyun.lava.pay.alipay.internal;
 
-import com.zhengshuyun.lava.http.*;
+import com.zhengshuyun.lava.core.lang.ValidationUtils;
+import com.zhengshuyun.lava.http.HttpClient;
+import com.zhengshuyun.lava.http.HttpException;
+import com.zhengshuyun.lava.http.HttpHeaders;
+import com.zhengshuyun.lava.http.HttpMethod;
+import com.zhengshuyun.lava.http.HttpRequest;
+import com.zhengshuyun.lava.http.HttpResponse;
+import com.zhengshuyun.lava.http.HttpUrlBuilder;
+import com.zhengshuyun.lava.http.OkHttpInterop;
 import com.zhengshuyun.lava.json.JsonCodec;
 import com.zhengshuyun.lava.json.JsonException;
 import com.zhengshuyun.lava.pay.alipay.exception.AlipayProtocolException;
+import com.zhengshuyun.lava.pay.alipay.exception.AlipaySecurityException;
+import com.zhengshuyun.lava.pay.alipay.exception.AlipaySecurityFailure;
 import com.zhengshuyun.lava.pay.alipay.exception.AlipayTransportException;
 import org.jspecify.annotations.Nullable;
 
@@ -18,70 +28,72 @@ import java.security.PublicKey;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
-import java.util.LinkedHashMap;
-import java.util.Locale;
+import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
+import java.util.UUID;
 
 /**
- * 支付宝 OpenAPI 公钥模式的统一参数签名、表单生成、发送和响应验签层。
+ * 支付宝公钥模式 OpenAPI V3 REST 传输层。
  */
 public final class AlipayTransport {
-    private static final String VERSION = "1.0";
-    private static final String FORMAT = "json";
-    private static final String CHARSET = "UTF-8";
-    private static final DateTimeFormatter TIMESTAMP = DateTimeFormatter.ofPattern(
-            "yyyy-MM-dd HH:mm:ss", Locale.ROOT);
-
+    private static final String V3_AUTH_SCHEME = "ALIPAY-SHA256withRSA";
+    private static final String HEADER_AUTHORIZATION = "Authorization";
+    private static final String HEADER_REQUEST_ID = "alipay-request-id";
+    private static final String HEADER_SIGNATURE = "alipay-signature";
+    private static final String HEADER_TIMESTAMP = "alipay-timestamp";
+    private static final String HEADER_NONCE = "alipay-nonce";
+    private static final String HEADER_TRACE_ID = "alipay-trace-id";
+    private static final String HEADER_TRACE_ID_COMPATIBLE = "alipay-traceid";
+    /** 当前传输层绑定的应用 ID。 */
     private final String appId;
+    /** 用于请求签名的应用私钥。 */
     private final PrivateKey appPrivateKey;
+    /** 共享且已禁用隐式重试和重定向的 HTTP 客户端。 */
     private final HttpClient httpClient;
-    private final URI gatewayUrl;
+    /** 不包含接口路径、查询参数和片段的 OpenAPI 基础地址。 */
+    private final URI baseUrl;
+    /** 生成协议时间戳所使用的时钟。 */
     private final Clock clock;
+    /** 请求与响应共用的 JSON 编解码器。 */
     private final JsonCodec jsonCodec;
+    /** 执行 V3 响应头验签并解析业务 JSON 的解析器。 */
     private final AlipayResponseParser responseParser;
 
     /**
      * 创建内部传输层。调用方负责在构造前完成配置校验。
      *
-     * @param appId          应用 ID
-     * @param appPrivateKey  应用私钥
+     * @param appId           应用 ID
+     * @param appPrivateKey   应用私钥
      * @param alipayPublicKey 支付宝公钥
-     * @param httpClient     HTTP 客户端
-     * @param gatewayUrl     网关地址
-     * @param clock          协议时钟
-     * @param jsonCodec      JSON 编解码器
+     * @param httpClient      HTTP 客户端
+     * @param baseUrl         OpenAPI 基础地址
+     * @param clock           协议时钟
+     * @param jsonCodec       JSON 编解码器
      */
     public AlipayTransport(
             String appId,
             PrivateKey appPrivateKey,
             PublicKey alipayPublicKey,
             HttpClient httpClient,
-            URI gatewayUrl,
+            URI baseUrl,
             Clock clock,
             JsonCodec jsonCodec
     ) {
-        this.appId = appId;
-        this.appPrivateKey = appPrivateKey;
-        this.httpClient = httpClient;
-        this.gatewayUrl = gatewayUrl;
-        this.clock = clock;
-        this.jsonCodec = jsonCodec;
-        responseParser = new AlipayResponseParser(alipayPublicKey, jsonCodec);
+        this.appId = AlipayValidationUtils.requireAppId(appId);
+        this.appPrivateKey = AlipayKeyUtils.requirePrivateKey(appPrivateKey);
+        PublicKey checkedPublicKey = AlipayKeyUtils.requirePublicKey(alipayPublicKey);
+        this.httpClient = requireSafeHttpClient(httpClient);
+        this.baseUrl = AlipayValidationUtils.requireBaseUrl(baseUrl);
+        this.clock = ValidationUtils.requireNonNull(clock, "clock must not be null");
+        this.jsonCodec = ValidationUtils.requireNonNull(
+                jsonCodec,
+                "jsonCodec must not be null"
+        );
+        responseParser = new AlipayResponseParser(checkedPublicKey, this.jsonCodec);
     }
 
     /**
-     * 获取当前传输层绑定的应用 ID。
-     *
-     * @return 当前客户端应用 ID
-     */
-    public String appId() {
-        return appId;
-    }
-
-    /**
-     * 返回支付宝协议时区下的当前本地时间。
+     * 返回支付宝业务时区下的当前本地时间。
      *
      * @return GMT+8 当前时间
      */
@@ -90,69 +102,53 @@ public final class AlipayTransport {
     }
 
     /**
-     * 生成页面跳转类 API 的签名 POST 表单，不向支付宝发送 HTTP 请求。
+     * 调用支付宝 OpenAPI V3，并在反序列化前验证原始响应签名。
      *
-     * @param method     接口名称
-     * @param bizRequest 业务参数
-     * @param notifyUrl  异步通知地址
-     * @param returnUrl  同步返回地址
-     * @return 可直接作为 HTML 响应输出的自动提交表单
+     * @param path         以 {@code /v3/} 开头的 REST 路径
+     * @param method       HTTP 方法
+     * @param requestBody  可选 JSON 请求对象
+     * @param queryParams  查询参数，迭代顺序就是发送与签名顺序
+     * @param responseType 业务响应类型
+     * @param <T>          业务响应类型
+     * @return 已验签并解析的业务响应
      */
-    public String pageForm(
-            String method,
-            Object bizRequest,
-            URI notifyUrl,
-            URI returnUrl
+    public <T> T execute(
+            String path,
+            HttpMethod method,
+            @Nullable Object requestBody,
+            Map<String, String> queryParams,
+            Class<T> responseType
     ) {
-        String bizContent = encode(bizRequest);
-        Map<String, String> signed = signedParameters(
-                method,
-                bizContent,
-                notifyUrl,
-                returnUrl
-        );
-        Map<String, String> query = new LinkedHashMap<>(signed);
-        query.remove("biz_content");
+        // 1. 先构造最终发送 URL 和原始 JSON，签名必须覆盖完全相同的编码结果和字节内容。
+        URI endpoint = endpoint(path, queryParams);
+        String body = requestBody == null ? "" : encode(requestBody);
+        String requestUri = endpoint.getRawPath()
+                + (endpoint.getRawQuery() == null ? "" : "?" + endpoint.getRawQuery());
 
-        HttpUrlBuilder url = HttpUrlBuilder.from(gatewayUrl);
-        query.forEach(url::queryParam);
-        String action = htmlEscape(url.build().toASCIIString());
-        String hiddenValue = htmlEscape(bizContent);
-        return "<form name=\"punchout_form\" method=\"post\" action=\"" + action + "\">\n"
-                + "<input type=\"hidden\" name=\"biz_content\" value=\"" + hiddenValue
-                + "\">\n<input type=\"submit\" value=\"立即支付\" style=\"display:none\">\n"
-                + "</form>\n<script>document.forms[0].submit();</script>";
-    }
+        // 2. 每次请求生成独立时间戳、nonce 和请求 ID，再按 V3 固定换行格式计算 Authorization。
+        String nonce = requestId();
+        String authString = "app_id=" + appId
+                + ",nonce=" + nonce
+                + ",timestamp=" + clock.millis();
+        String signatureSource = authString + "\n"
+                + method.getName() + "\n"
+                + requestUri + "\n"
+                + body + "\n";
+        String authorization = V3_AUTH_SCHEME + " " + authString
+                + ",sign=" + AlipayCryptoUtils.sign(signatureSource, appPrivateKey);
 
-    /**
-     * 调用服务端 OpenAPI，并在解析前验证响应业务节点签名。
-     *
-     * @param method       接口名称
-     * @param bizRequest   业务参数
-     * @param responseType 响应模型
-     * @param <T>          响应模型类型
-     * @return 已验签业务响应
-     */
-    public <T> T execute(String method, Object bizRequest, Class<T> responseType) {
-        String bizContent = encode(bizRequest);
-        Map<String, String> signed = signedParameters(
-                method,
-                bizContent,
-                null,
-                null
-        );
-        Map<String, String> query = new LinkedHashMap<>(signed);
-        query.remove("biz_content");
+        HttpRequest.Builder builder = HttpRequest.builder(endpoint, method)
+                .header("Accept", "application/json")
+                .header(HEADER_AUTHORIZATION, authorization)
+                .header(HEADER_REQUEST_ID, requestId());
+        if (requestBody != null) {
+            builder.jsonBody(body);
+        }
 
-        HttpRequest request = HttpRequest.builder(gatewayUrl.toASCIIString(), HttpMethod.POST)
-                .addQueryParams(query)
-                .header(HttpHeaderNames.ACCEPT, HttpMediaTypes.APPLICATION_JSON)
-                .userAgent("lava-pay-alipay")
-                .formBody(Map.of("biz_content", bizContent))
-                .build();
+        // 3. 发送失败只暴露脱敏传输元数据；响应正文必须先验签，之后才允许进入错误或业务解析。
         HttpResponse response;
         try {
-            response = httpClient.send(request);
+            response = httpClient.send(builder.build());
         } catch (HttpException exception) {
             throw new AlipayTransportException(
                     exception.getKind(),
@@ -161,43 +157,67 @@ public final class AlipayTransport {
                     exception.getTransportCauseType()
             );
         }
-        if (!response.isSuccessful()) {
-            throw new AlipayTransportException(response.statusCode());
+        HttpHeaders responseHeaders = response.getHeaders();
+        String responseSignature = signatureHeader(responseHeaders, HEADER_SIGNATURE);
+        String responseTimestamp = signatureHeader(responseHeaders, HEADER_TIMESTAMP);
+        String responseNonce = signatureHeader(responseHeaders, HEADER_NONCE);
+        if (response.statusCode() != 200) {
+            boolean hasSignatureMetadata = responseParser.hasSignatureMetadata(
+                    responseSignature,
+                    responseTimestamp,
+                    responseNonce
+            );
+            String traceId = response.getHeader(HEADER_TRACE_ID);
+            if (traceId == null) {
+                // 部分接口元数据省略了 trace 与 id 之间的连字符，兼容读取但始终优先公共协议名称。
+                traceId = response.getHeader(HEADER_TRACE_ID_COMPATIBLE);
+            }
+            try {
+                throw responseParser.parseError(
+                        response.statusCode(),
+                        hasSignatureMetadata,
+                        response.getBodyAsBytes(),
+                        responseSignature,
+                        responseTimestamp,
+                        responseNonce,
+                        traceId
+                );
+            } catch (AlipayProtocolException exception) {
+                // 官方 V3 SDK允许错误响应不带签名；无法安全结构化时仅保留 HTTP 状态。
+                throw new AlipayTransportException(response.statusCode());
+            }
         }
-        return responseParser.parse(
-                method,
+        return responseParser.parseSuccess(
                 response.getBodyAsBytes(),
                 responseType,
-                response.getHeaders().get("trace_id")
+                responseSignature,
+                responseTimestamp,
+                responseNonce
         );
     }
 
-    private Map<String, String> signedParameters(
-            String method,
-            String bizContent,
-            @Nullable URI notifyUrl,
-            @Nullable URI returnUrl
-    ) {
-        TreeMap<String, String> params = new TreeMap<>();
-        params.put("app_id", appId);
-        params.put("biz_content", bizContent);
-        params.put("charset", CHARSET);
-        params.put("format", FORMAT);
-        params.put("method", method);
-        if (notifyUrl != null) {
-            params.put("notify_url", notifyUrl.toASCIIString());
+    /**
+     * 使用最终 query 编码结果构造 V3 端点。
+     *
+     * @param path        V3 路径
+     * @param queryParams 查询参数
+     * @return 最终发送端点
+     */
+    private URI endpoint(String path, Map<String, String> queryParams) {
+        if (!path.startsWith("/v3/")) {
+            throw new IllegalArgumentException("V3 path must start with /v3/");
         }
-        if (returnUrl != null) {
-            params.put("return_url", returnUrl.toASCIIString());
-        }
-        params.put("sign_type", AlipayCryptoUtils.SIGN_TYPE);
-        params.put("timestamp", TIMESTAMP.format(
-                clock.instant().atZone(ZoneOffset.ofHours(8))));
-        params.put("version", VERSION);
-        params.put("sign", AlipayCryptoUtils.sign(params, appPrivateKey));
-        return params;
+        HttpUrlBuilder builder = HttpUrlBuilder.from(baseUrl).encodedPath(path);
+        queryParams.forEach(builder::queryParam);
+        return builder.build();
     }
 
+    /**
+     * 将请求模型编码为会直接参与签名和发送的 JSON 原文。
+     *
+     * @param value 请求模型
+     * @return JSON 原文
+     */
     private String encode(Object value) {
         try {
             return jsonCodec.write(value);
@@ -206,11 +226,49 @@ public final class AlipayTransport {
         }
     }
 
-    private static String htmlEscape(String value) {
-        return value.replace("&", "&amp;")
-                .replace("<", "&lt;")
-                .replace(">", "&gt;")
-                .replace("\"", "&quot;")
-                .replace("'", "&#39;");
+    /**
+     * 生成符合支付宝当前 32 字符限制的唯一请求标识或 nonce。
+     *
+     * @return 去除连字符的 UUID
+     */
+    private static String requestId() {
+        return UUID.randomUUID().toString().replace("-", "");
     }
+
+    /**
+     * 读取最多出现一次的 V3 签名元数据头。
+     *
+     * @param headers 原始响应头
+     * @param name    响应头名称
+     * @return 唯一响应头值；没有时为 {@code null}
+     * @throws AlipaySecurityException 同名响应头出现多次
+     */
+    private static @Nullable String signatureHeader(HttpHeaders headers, String name) {
+        List<String> values = headers.values(name);
+        if (values.size() > 1) {
+            throw new AlipaySecurityException(
+                    AlipaySecurityFailure.DUPLICATE_SIGNATURE_HEADER
+            );
+        }
+        return values.isEmpty() ? null : values.getFirst();
+    }
+
+    /** 校验借入 HTTP 客户端不会隐式重试或跟随重定向。 */
+    private static HttpClient requireSafeHttpClient(HttpClient value) {
+        ValidationUtils.requireNonNull(value, "httpClient must not be null");
+        ValidationUtils.requireTrue(
+                !OkHttpInterop.unwrap(value).retryOnConnectionFailure(),
+                "httpClient must disable connection failure retries"
+        );
+        ValidationUtils.requireTrue(
+                !OkHttpInterop.unwrap(value).followRedirects(),
+                "httpClient must disable redirects"
+        );
+        ValidationUtils.requireTrue(
+                !OkHttpInterop.unwrap(value).followSslRedirects(),
+                "httpClient must disable cross-protocol redirects"
+        );
+        return value;
+    }
+
 }

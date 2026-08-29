@@ -58,7 +58,7 @@ class AlipayClientTest {
                 .sellerId(SELLER_ID)
                 .appPrivateKey(appKeys.getPrivate())
                 .alipayPublicKey(alipayKeys.getPublic())
-                .gatewayUrl(server.gatewayUrl())
+                .baseUrl(server.baseUrl())
                 .clock(CLOCK)
                 .build();
     }
@@ -104,7 +104,9 @@ class AlipayClientTest {
         assertTrue(form.html().contains("&lt;script&gt;alert(1)&lt;/script&gt;"));
         String action = htmlUnescape(between(form.html(), "action=\"", "\">"));
         String bizContent = htmlUnescape(between(form.html(), "name=\"biz_content\" value=\"", "\">"));
-        Map<String, String> params = queryParams(URI.create(action));
+        URI actionUri = URI.create(action);
+        assertEquals("/gateway.do", actionUri.getPath());
+        Map<String, String> params = queryParams(actionUri);
         String signature = params.remove("sign");
         params.put("biz_content", bizContent);
 
@@ -122,11 +124,10 @@ class AlipayClientTest {
     }
 
     @Test
-    void queryAndCloseUseSignedFormRequestsAndValidateIdentifiers() {
+    void queryAndCloseUseV3SignedJsonRequestsAndValidateIdentifiers() {
         server.enqueueSigned(
-                "alipay.trade.query",
                 """
-                               {"code":"10000","msg":"Success","trade_no":"2026000000000000001",
+                               {"trade_no":"2026000000000000001",
                                "out_trade_no":"ORDER_001","trade_status":"TRADE_SUCCESS",
                                "total_amount":"1.23","buyer_pay_amount":"1.00",
                                "send_pay_date":"2026-08-29 12:01:02",
@@ -142,6 +143,7 @@ class AlipayClientTest {
                         .build());
 
         assertTrue(trade.paid());
+        assertSame(trade, trade.requireOrder("ORDER_001", 123));
         assertEquals(123, trade.totalAmount());
         assertEquals(100L, trade.buyerPayAmount());
         assertEquals(
@@ -156,26 +158,32 @@ class AlipayClientTest {
                 trade.sendPayDate()
         );
         assertEquals(123, trade.fundBills().getFirst().amount());
-        assertSignedRequest(server.takeRequest(), "alipay.trade.query", "ORDER_001");
+        assertSignedRequest(
+                server.takeRequest(),
+                "POST",
+                "/v3/alipay/trade/query"
+        );
 
         server.enqueueSigned(
-                "alipay.trade.close",
                 """
-                               {"code":"10000","msg":"Success","trade_no":"2026000000000000001",
+                               {"trade_no":"2026000000000000001",
                                "out_trade_no":"ORDER_001"}
                                """
         );
         TradeCloseResult closed = client.transactions().closeByOutTradeNo("ORDER_001");
         assertEquals("ORDER_001", closed.outTradeNo());
-        assertSignedRequest(server.takeRequest(), "alipay.trade.close", "ORDER_001");
+        assertSignedRequest(
+                server.takeRequest(),
+                "POST",
+                "/v3/alipay/trade/close"
+        );
     }
 
     @Test
     void refundRequiresStableRequestNumberAndUnknownResultNeedsQuery() {
         server.enqueueSigned(
-                "alipay.trade.refund",
                 """
-                               {"code":"10000","msg":"Success","trade_no":"2026000000000000001",
+                               {"trade_no":"2026000000000000001",
                                "out_trade_no":"ORDER_001","buyer_logon_id":"159****0000",
                                "fund_change":"N","refund_fee":"0.50"}
                                """
@@ -190,16 +198,19 @@ class AlipayClientTest {
         assertFalse(applied.succeeded());
         assertEquals(50, applied.refundedAmount());
         AlipayTestServer.CapturedRequest applyRequest = server.takeRequest();
-        assertSignedRequest(applyRequest, "alipay.trade.refund", "ORDER_001");
-        JsonNode applyBody = requestBizContent(applyRequest);
+        assertSignedRequest(
+                applyRequest,
+                "POST",
+                "/v3/alipay/trade/refund"
+        );
+        JsonNode applyBody = requestBody(applyRequest);
         assertEquals("REFUND_001", applyBody.get("out_request_no").stringValue());
         assertEquals("0.50", applyBody.get("refund_amount").stringValue());
         assertEquals(RefundQueryOption.DEPOSIT_BACK_INFO, applyBody.get("query_options").get(0).stringValue());
 
         server.enqueueSigned(
-                "alipay.trade.fastpay.refund.query",
                 """
-                               {"code":"10000","msg":"Success","trade_no":"2026000000000000001",
+                               {"trade_no":"2026000000000000001",
                                "out_trade_no":"ORDER_001","out_request_no":"REFUND_001",
                                "total_amount":"1.23","refund_amount":"0.50",
                                "refund_status":"REFUND_SUCCESS","gmt_refund_pay":"2026-08-29 12:05:00",
@@ -213,84 +224,147 @@ class AlipayClientTest {
                 .build());
 
         assertTrue(queried.succeeded());
+        assertSame(queried, queried.requireRefund(
+                "ORDER_001",
+                "REFUND_001",
+                123,
+                50
+        ));
         assertEquals(50L, queried.refundAmount());
         assertEquals(50L, queried.depositBackInfo().amount());
-        assertSignedRequest(server.takeRequest(), "alipay.trade.fastpay.refund.query", "ORDER_001");
+        assertSignedRequest(
+                server.takeRequest(),
+                "POST",
+                "/v3/alipay/trade/fastpay/refund/query"
+        );
     }
 
     @Test
     void billQueryReturnsOnlyVerifiedDownloadUrl() {
         server.enqueueSigned(
-                "alipay.data.dataservice.bill.downloadurl.query",
                 """
-                               {"code":"10000","msg":"Success",
-                               "bill_download_url":"https://bill.example.com/download?id=token"}
+                               {"bill_download_url":"https://bill.example.com/download?id=token"}
                                """
         );
         var result = client.bills().queryDaily(BillType.TRADE, LocalDate.of(2026, 8, 28));
 
         assertEquals("bill.example.com", result.downloadUrl().getHost());
+        assertFalse(result.toString().contains("token"));
         AlipayTestServer.CapturedRequest captured = server.takeRequest();
-        assertSignedRequest(captured, "alipay.data.dataservice.bill.downloadurl.query", null);
-        assertEquals("2026-08-28", requestBizContent(captured).get("bill_date").stringValue());
+        assertSignedRequest(
+                captured,
+                "GET",
+                "/v3/alipay/data/dataservice/bill/downloadurl/query"
+        );
+        assertEquals("2026-08-28", captured.queryParams().get("bill_date"));
     }
 
     @Test
     void signedApiErrorsAreStructuredAndRawResponseIsNotExposed() {
         server.enqueueSigned(
-                "alipay.trade.query",
+                400,
                 """
-                               {"code":"40004","msg":"Business Failed",
-                               "sub_code":"ACQ.TRADE_NOT_EXIST","sub_msg":"secret-response-value"}
+                               {"code":"ACQ.TRADE_NOT_EXIST","message":"secret-response-value",
+                               "links":[{"link":"https://example.com/help","rel":"解决方案"}]}
                                """
         );
 
         AlipayApiException failure = assertThrows(AlipayApiException.class, () -> client.transactions().queryByOutTradeNo("ORDER_001"));
-        assertEquals("40004", failure.code());
-        assertEquals("ACQ.TRADE_NOT_EXIST", failure.subCode());
+        assertEquals(400, failure.statusCode());
+        assertTrue(failure.verified());
+        assertEquals("ACQ.TRADE_NOT_EXIST", failure.code());
+        assertEquals("https://example.com/help", failure.links().getFirst().link());
         assertEquals("trace-id-001", failure.traceId());
         assertFalse(failure.toString().contains("secret-response-value"));
     }
 
     @Test
-    void unsignedTamperedAndDuplicateResponsesFailClosed() {
+    void unsignedStructuredApiErrorKeepsStatusAndVerificationState() {
+        server.enqueueRaw(
+                429,
+                """
+                        {"code":"RATE_LIMIT","message":"调用频率超限"}
+                        """
+        );
+
+        AlipayApiException failure = assertThrows(
+                AlipayApiException.class,
+                () -> client.transactions().queryByOutTradeNo("ORDER_001")
+        );
+
+        assertEquals(429, failure.statusCode());
+        assertFalse(failure.verified());
+        assertEquals("RATE_LIMIT", failure.code());
+    }
+
+    @Test
+    void acceptedResponseIsNotTreatedAsFinalSuccess() {
+        server.enqueueSigned(
+                202,
+                """
+                        {"out_trade_no":"ORDER_001","trade_status":"TRADE_SUCCESS",
+                         "total_amount":"1.00"}
+                        """
+        );
+
+        AlipayTransportException failure = assertThrows(
+                AlipayTransportException.class,
+                () -> client.transactions().queryByOutTradeNo("ORDER_001")
+        );
+
+        assertEquals(202, failure.statusCode());
+    }
+
+    @Test
+    void unsignedAndTamperedResponsesFailClosed() {
         server.enqueueRaw(
                 200,
                 """
-                               {"alipay_trade_query_response":{"code":"10000","msg":"Success"}}
+                               {"out_trade_no":"ORDER_001","trade_status":"TRADE_SUCCESS",
+                               "total_amount":"1.00"}
                                """
         );
         AlipaySecurityException missing = assertThrows(AlipaySecurityException.class, () -> client.transactions().queryByOutTradeNo("ORDER_001"));
         assertEquals(AlipaySecurityFailure.MISSING_SIGNATURE, missing.failure());
 
-        String source = "{\"code\":\"10000\",\"msg\":\"Success\","
-                + "\"out_trade_no\":\"ORDER_001\",\"trade_status\":\"TRADE_SUCCESS\","
+        String source = "{\"out_trade_no\":\"ORDER_001\",\"trade_status\":\"TRADE_SUCCESS\","
                 + "\"total_amount\":\"1.00\"}";
         String wrongSignature = Base64.getEncoder().encodeToString(
                 CryptoUtils.rsaSha256Sign(appKeys.getPrivate(), source.getBytes(StandardCharsets.UTF_8)));
-        server.enqueueRaw(
+        server.enqueueRawSigned(
                 200,
-                "{\"alipay_trade_query_response\":" + source
-                               + ",\"sign\":\"" + wrongSignature + "\"}"
+                source,
+                wrongSignature
         );
         AlipaySecurityException invalid = assertThrows(AlipaySecurityException.class, () -> client.transactions().queryByOutTradeNo("ORDER_001"));
         assertEquals(AlipaySecurityFailure.INVALID_SIGNATURE, invalid.failure());
+    }
 
-        server.enqueueRaw(
-                200,
-                "{\"alipay_trade_query_response\":" + source
-                               + ",\"alipay_trade_query_response\":" + source
-                               + ",\"sign\":\"" + wrongSignature + "\"}"
+    @Test
+    void duplicateV3SignatureHeadersFailClosed() {
+        server.enqueueDuplicateSignature(
+                """
+                        {"out_trade_no":"ORDER_001","trade_status":"TRADE_SUCCESS",
+                         "total_amount":"1.00"}
+                        """
         );
-        assertThrows(AlipayProtocolException.class, () -> client.transactions().queryByOutTradeNo("ORDER_001"));
+
+        AlipaySecurityException failure = assertThrows(
+                AlipaySecurityException.class,
+                () -> client.transactions().queryByOutTradeNo("ORDER_001")
+        );
+
+        assertEquals(
+                AlipaySecurityFailure.DUPLICATE_SIGNATURE_HEADER,
+                failure.failure()
+        );
     }
 
     @Test
     void responseIdentifiersAmountsAndHttpStatusFailClosed() {
         server.enqueueSigned(
-                "alipay.trade.query",
                 """
-                               {"code":"10000","msg":"Success","out_trade_no":"ORDER_OTHER",
+                               {"out_trade_no":"ORDER_OTHER",
                                "trade_status":"TRADE_SUCCESS","total_amount":"1.00"}
                                """
         );
@@ -298,9 +372,8 @@ class AlipayClientTest {
         assertEquals(AlipaySecurityFailure.RESPONSE_MISMATCH, mismatch.failure());
 
         server.enqueueSigned(
-                "alipay.trade.query",
                 """
-                               {"code":"10000","msg":"Success","out_trade_no":"ORDER_001",
+                               {"out_trade_no":"ORDER_001",
                                "trade_status":"TRADE_SUCCESS","total_amount":"1.001"}
                                """
         );
@@ -314,20 +387,27 @@ class AlipayClientTest {
 
     @Test
     void closingAlipayClientDoesNotCloseBorrowedHttpClient() {
-        HttpClient borrowed = HttpClient.builder().build();
+        HttpClient borrowed = HttpClient.builder()
+                .retryOnConnectionFailure(false)
+                .followRedirects(false)
+                .followSslRedirects(false)
+                .build();
         try {
             AlipayClient borrowedClient = AlipayClient.builder()
                     .appId(APP_ID)
                     .sellerId(SELLER_ID)
                     .appPrivateKey(appKeys.getPrivate())
                     .alipayPublicKey(alipayKeys.getPublic())
-                    .gatewayUrl(server.gatewayUrl())
+                    .baseUrl(server.baseUrl())
                     .httpClient(borrowed)
                     .build();
             borrowedClient.close();
 
             server.enqueueRaw(200, "{}");
-            var response = borrowed.send(HttpRequest.builder(server.gatewayUrl().toASCIIString(), HttpMethod.GET).build());
+            var response = borrowed.send(HttpRequest.builder(
+                    server.baseUrl().toASCIIString(),
+                    HttpMethod.GET
+            ).build());
             assertEquals(200, response.statusCode());
         } finally {
             borrowed.close();
@@ -335,7 +415,7 @@ class AlipayClientTest {
     }
 
     @Test
-    void buildersRejectAmbiguousOrUnsafeInputsAndAcceptRawBase64Keys() {
+    void buildersFollowV3IdentifierRulesRejectUnsafeInputsAndAcceptRawBase64Keys() {
         IllegalArgumentException invalidNotifyUrl = assertThrows(IllegalArgumentException.class, () -> client.pagePay("invalid uri", "https://pay.example.com/return"));
         assertTrue(invalidNotifyUrl.getMessage().contains("notifyUrl"));
 
@@ -357,8 +437,7 @@ class AlipayClientTest {
                                .addDisablePayChannel("creditCard")
                                .build()
         );
-        assertThrows(
-                IllegalArgumentException.class,
+        assertDoesNotThrow(
                 () -> TradeQueryRequest.builder()
                                .outTradeNo("ORDER_001")
                                .tradeNo("2026000000000000001")
@@ -372,6 +451,16 @@ class AlipayClientTest {
                                .build()
         );
         assertThrows(IllegalArgumentException.class, () -> client.bills().queryDaily(BillType.TRADE, LocalDate.of(2026, 8, 29)));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> AlipayClient.builder().baseUrl("https://example.com")
+        );
+        try (HttpClient unsafeHttpClient = HttpClient.builder().build()) {
+            assertThrows(
+                    IllegalArgumentException.class,
+                    () -> AlipayClient.builder().httpClient(unsafeHttpClient)
+            );
+        }
 
         try (AlipayClient rawKeyClient = AlipayClient.builder()
                 .appId(APP_ID)
@@ -415,27 +504,37 @@ class AlipayClientTest {
         assertThrows(IllegalStateException.class, client::notifications);
     }
 
-    private static void assertSignedRequest(AlipayTestServer.CapturedRequest request, String method, String expectedOutTradeNo) {
-        assertEquals("POST", request.method());
-        Map<String, String> params = new LinkedHashMap<>(request.queryParams());
-        String signature = params.remove("sign");
-        String bizContent = request.formParams().get("biz_content");
-        params.put("biz_content", bizContent);
-        assertEquals(method, params.get("method"));
-        assertEquals("2026-08-29 12:00:00", params.get("timestamp"));
-        assertTrue(AlipayCryptoUtils.verify(AlipayCryptoUtils.signatureContent(params), signature, appKeys.getPublic()));
-        if (expectedOutTradeNo != null) {
-            assertEquals(
-                    expectedOutTradeNo,
-                    JsonCodec.defaultCodec().readTree(bizContent)
-                            .get("out_trade_no").stringValue()
-            );
-        }
+    private static void assertSignedRequest(
+            AlipayTestServer.CapturedRequest request,
+            String expectedMethod,
+            String expectedPath
+    ) {
+        assertEquals(expectedMethod, request.method());
+        assertTrue(request.target().startsWith(expectedPath));
+        String authorization = request.header("Authorization");
+        assertNotNull(authorization);
+        String prefix = "ALIPAY-SHA256withRSA ";
+        assertTrue(authorization.startsWith(prefix));
+        String parameters = authorization.substring(prefix.length());
+        int signatureStart = parameters.lastIndexOf(",sign=");
+        assertTrue(signatureStart > 0);
+        String authString = parameters.substring(0, signatureStart);
+        String signature = parameters.substring(signatureStart + ",sign=".length());
+        assertTrue(authString.startsWith("app_id=" + APP_ID + ",nonce="));
+        assertTrue(authString.endsWith(",timestamp=1787976000000"));
+        String requestId = request.header("alipay-request-id");
+        assertNotNull(requestId);
+        assertEquals(32, requestId.length());
+
+        String source = authString + "\n"
+                + expectedMethod + "\n"
+                + request.target() + "\n"
+                + request.bodyText() + "\n";
+        assertTrue(AlipayCryptoUtils.verify(source, signature, appKeys.getPublic()));
     }
 
-    private static JsonNode requestBizContent(AlipayTestServer.CapturedRequest request) {
-        return JsonCodec.defaultCodec().readTree(
-                request.formParams().get("biz_content"));
+    private static JsonNode requestBody(AlipayTestServer.CapturedRequest request) {
+        return JsonCodec.defaultCodec().readTree(request.bodyText());
     }
 
     private static Map<String, String> queryParams(URI uri) {

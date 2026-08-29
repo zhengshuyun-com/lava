@@ -23,6 +23,7 @@ import java.net.InetAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
+import java.util.Locale;
 import java.util.regex.Pattern;
 
 /**
@@ -33,6 +34,7 @@ public final class WechatPayValidationUtils {
     private static final Pattern OUT_REFUND_NO = Pattern.compile("[0-9A-Za-z_\\-|*@]{1,64}");
     private static final Pattern MERCHANT_GOODS_ID = Pattern.compile("[0-9A-Za-z_-]{1,32}");
 
+    /** 禁止实例化微信支付校验工具。 */
     private WechatPayValidationUtils() {
         throw new UnsupportedOperationException("Utility class");
     }
@@ -44,7 +46,12 @@ public final class WechatPayValidationUtils {
      * @return 原值
      */
     public static String requireMchid(String value) {
-        return requireText(value, "mchid", 1, 32);
+        return requireText(
+                value,
+                "mchid",
+                1,
+                32
+        );
     }
 
     /**
@@ -54,7 +61,12 @@ public final class WechatPayValidationUtils {
      * @return 原值
      */
     public static String requireAppid(String value) {
-        return requireText(value, "appid", 1, 32);
+        return requireText(
+                value,
+                "appid",
+                1,
+                32
+        );
     }
 
     /**
@@ -125,7 +137,12 @@ public final class WechatPayValidationUtils {
      * @return 原值
      */
     public static String requireId(String value, String name, int maximum) {
-        return requireText(value, name, 1, maximum);
+        return requireText(
+                value,
+                name,
+                1,
+                maximum
+        );
     }
 
     /**
@@ -137,7 +154,12 @@ public final class WechatPayValidationUtils {
      * @param maximum 最大字符数
      * @return 原值
      */
-    public static String requireText(String value, String name, int minimum, int maximum) {
+    public static String requireText(
+            String value,
+            String name,
+            int minimum,
+            int maximum
+    ) {
         if (minimum > 0) {
             ValidationUtils.requireNotBlank(value, name + " must not be blank");
         } else {
@@ -253,6 +275,59 @@ public final class WechatPayValidationUtils {
     }
 
     /**
+     * 校验并规范化微信支付 API 根地址。
+     *
+     * <p>生产环境只接受微信支付官方主、备域名。签名原文不包含主机名，因此不能把已签名请求
+     * 发送到任意第三方 HTTPS 服务；HTTP 或自定义端口仅允许环回测试地址。</p>
+     *
+     * @param value API 根地址
+     * @return 以斜杠结尾的可信根地址
+     */
+    public static URI requireApiBaseUrl(URI value) {
+        // 1. 根地址必须唯一标识 HTTP 服务，不能混入用户信息或请求级参数。
+        ValidationUtils.requireNonNull(value, "apiBaseUrl must not be null");
+        ValidationUtils.requireTrue(value.isAbsolute(), "apiBaseUrl must be absolute");
+        ValidationUtils.requireTrue(
+                value.getHost() != null && !value.getHost().isBlank(),
+                "apiBaseUrl must contain a host"
+        );
+
+        // 2. 生产请求只发送到官方主备域名；自定义地址仅用于环回协议测试。
+        String scheme = value.getScheme();
+        String host = value.getHost().toLowerCase(Locale.ROOT);
+        boolean official = "https".equalsIgnoreCase(scheme)
+                && ("api.mch.weixin.qq.com".equals(host)
+                || "api2.mch.weixin.qq.com".equals(host))
+                && (value.getPort() == -1 || value.getPort() == 443);
+        boolean localTest = isLoopbackHost(host)
+                && ("http".equalsIgnoreCase(scheme)
+                || "https".equalsIgnoreCase(scheme));
+        ValidationUtils.requireTrue(
+                official || localTest,
+                "apiBaseUrl must use an official WeChat Pay HTTPS host "
+                        + "or a loopback test host"
+        );
+
+        // 3. 传输层自行拼接 API 路径，根地址不得预置路径、查询参数或片段。
+        ValidationUtils.requireTrue(
+                value.getRawQuery() == null
+                        && value.getRawFragment() == null
+                        && value.getUserInfo() == null,
+                "apiBaseUrl must not contain user information, query, or fragment"
+        );
+        ValidationUtils.requireTrue(
+                value.getRawPath() == null
+                        || value.getRawPath().isEmpty()
+                        || "/".equals(value.getRawPath()),
+                "apiBaseUrl must not contain a path"
+        );
+
+        // 4. 统一保留末尾斜杠，保证后续 URI 拼接不依赖调用方输入形式。
+        String text = value.toString();
+        return URI.create(text.endsWith("/") ? text : text + '/');
+    }
+
+    /**
      * 返回 UTF-8 字节长度。
      *
      * @param value 文本
@@ -262,6 +337,7 @@ public final class WechatPayValidationUtils {
         return value.getBytes(StandardCharsets.UTF_8).length;
     }
 
+    /** 判断主机文本是否为 IPv4 或 IPv6 字面量。 */
     private static boolean isIpLiteral(String host) {
         String candidate = host.startsWith("[") && host.endsWith("]")
                 ? host.substring(1, host.length() - 1) : host;
@@ -271,5 +347,13 @@ public final class WechatPayValidationUtils {
         } catch (IllegalArgumentException exception) {
             return false;
         }
+    }
+
+    /** 判断主机名是否为本地环回地址。 */
+    private static boolean isLoopbackHost(String host) {
+        return "localhost".equalsIgnoreCase(host)
+                || "127.0.0.1".equals(host)
+                || "::1".equals(host)
+                || "[::1]".equals(host);
     }
 }

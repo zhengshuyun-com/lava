@@ -18,9 +18,12 @@ package com.zhengshuyun.lava.pay.alipay;
 
 import com.zhengshuyun.lava.core.lang.ValidationUtils;
 import com.zhengshuyun.lava.http.HttpClient;
+import com.zhengshuyun.lava.http.OkHttpInterop;
+import com.zhengshuyun.lava.json.JsonCodec;
 import com.zhengshuyun.lava.pay.alipay.bill.BillClient;
 import com.zhengshuyun.lava.pay.alipay.internal.AlipayJsonUtils;
 import com.zhengshuyun.lava.pay.alipay.internal.AlipayKeyUtils;
+import com.zhengshuyun.lava.pay.alipay.internal.AlipayPagePayFormFactory;
 import com.zhengshuyun.lava.pay.alipay.internal.AlipayRuntime;
 import com.zhengshuyun.lava.pay.alipay.internal.AlipayTransport;
 import com.zhengshuyun.lava.pay.alipay.internal.AlipayValidationUtils;
@@ -38,22 +41,22 @@ import java.security.PublicKey;
 import java.time.Clock;
 
 /**
- * 线程安全的支付宝 OpenAPI 普通商户公钥模式根客户端。
+ * 线程安全的支付宝 OpenAPI V3 普通商户公钥模式根客户端。
  *
  * <p>根客户端固定绑定应用 ID、卖家 ID、应用私钥和支付宝公钥，并共享 HTTP 连接资源。
- * 页面支付由轻量上下文绑定通知地址；查单、退款、账单和通知解析直接复用根客户端协议能力。</p>
+ * 页面支付由轻量上下文绑定通知地址；查单、退款、账单和通知解析直接复用根客户端协议能力。
+ * 其中服务端 API 使用 REST V3，电脑网站页面支付按支付宝当前唯一支持的 AOP 页面跳转协议生成表单。</p>
  *
  * <p>客户端应作为长生命周期对象复用，{@link #close()} 可幂等调用。关闭后，业务入口及此前取得的
  * 子客户端均不可继续发起协议操作；应用 ID 和卖家 ID 仍可读取。默认 HTTP 客户端不会自动重试请求或跟随重定向；
  * 借入外部客户端时，调用方必须保持相同配置。</p>
  */
 public final class AlipayClient implements AutoCloseable {
-    /** 支付宝生产网关。 */
-    public static final URI DEFAULT_GATEWAY_URL =
-            URI.create("https://openapi.alipay.com/gateway.do");
-    /** 支付宝沙箱网关。 */
-    public static final URI SANDBOX_GATEWAY_URL =
-            URI.create("https://openapi-sandbox.dl.alipaydev.com/gateway.do");
+    /** 支付宝生产 OpenAPI 基础地址。 */
+    public static final URI DEFAULT_BASE_URL = URI.create("https://openapi.alipay.com");
+    /** 支付宝沙箱 OpenAPI 基础地址。 */
+    public static final URI SANDBOX_BASE_URL =
+            URI.create("https://openapi-sandbox.dl.alipaydev.com");
 
     /** 当前客户端绑定的支付宝应用 ID。 */
     private final String appId;
@@ -73,10 +76,10 @@ public final class AlipayClient implements AutoCloseable {
     /**
      * 使用已经校验的商户配置和共享运行时创建根客户端。
      *
-     * @param appId          支付宝应用 ID
-     * @param sellerId       卖家支付宝用户 ID
+     * @param appId           支付宝应用 ID
+     * @param sellerId        卖家支付宝用户 ID
      * @param alipayPublicKey 支付宝公钥
-     * @param runtime        共享协议运行时
+     * @param runtime         共享协议运行时
      */
     private AlipayClient(
             String appId,
@@ -241,14 +244,14 @@ public final class AlipayClient implements AutoCloseable {
         private @Nullable PublicKey alipayPublicKey;
         /** 可选的调用方托管 HTTP 客户端。 */
         private @Nullable HttpClient httpClient;
-        /** 支付宝 OpenAPI 网关地址。 */
-        private URI gatewayUrl = DEFAULT_GATEWAY_URL;
+        /** 支付宝 OpenAPI 基础地址。 */
+        private URI baseUrl = DEFAULT_BASE_URL;
         /** 生成支付宝协议时间戳所使用的时钟。 */
         private Clock clock = Clock.systemUTC();
         /** 构建器是否已经成功创建根客户端。 */
         private boolean built;
 
-        /** 创建使用生产网关和系统时钟的空构建器。 */
+        /** 创建使用生产 OpenAPI 地址和系统时钟的空构建器。 */
         private Builder() {
         }
 
@@ -375,37 +378,50 @@ public final class AlipayClient implements AutoCloseable {
          */
         public Builder httpClient(HttpClient value) {
             ensureNotBuilt();
-            httpClient = ValidationUtils.requireNonNull(value, "httpClient must not be null");
+            value = ValidationUtils.requireNonNull(value, "httpClient must not be null");
+            ValidationUtils.requireTrue(
+                    !OkHttpInterop.unwrap(value).retryOnConnectionFailure(),
+                    "httpClient must disable connection failure retries"
+            );
+            ValidationUtils.requireTrue(
+                    !OkHttpInterop.unwrap(value).followRedirects(),
+                    "httpClient must disable redirects"
+            );
+            ValidationUtils.requireTrue(
+                    !OkHttpInterop.unwrap(value).followSslRedirects(),
+                    "httpClient must disable cross-protocol redirects"
+            );
+            httpClient = value;
             return this;
         }
 
         /**
-         * 配置支付宝网关地址。生产环境必须使用 HTTPS；仅本地环回协议测试允许使用 HTTP。
+         * 配置支付宝 OpenAPI 基础地址。生产环境必须使用 HTTPS；仅本地环回协议测试允许使用 HTTP。
          * 地址不得包含用户信息、查询参数或片段。
          *
-         * @param value 支付宝网关地址
+         * @param value 支付宝 OpenAPI 基础地址
          * @return 当前构建器
-         * @throws IllegalArgumentException 地址为空或不符合网关安全约束
+         * @throws IllegalArgumentException 地址为空或不符合 OpenAPI 安全约束
          * @throws IllegalStateException    构建器已经成功使用
          */
-        public Builder gatewayUrl(URI value) {
+        public Builder baseUrl(URI value) {
             ensureNotBuilt();
-            gatewayUrl = AlipayValidationUtils.requireGatewayUrl(value);
+            baseUrl = AlipayValidationUtils.requireBaseUrl(value);
             return this;
         }
 
         /**
-         * 使用字符串配置支付宝网关地址。生产环境必须使用 HTTPS；仅本地环回协议测试允许使用 HTTP。
+         * 使用字符串配置支付宝 OpenAPI 基础地址。生产环境必须使用 HTTPS；仅本地环回协议测试允许使用 HTTP。
          *
-         * @param value 支付宝网关地址
+         * @param value 支付宝 OpenAPI 基础地址
          * @return 当前构建器
-         * @throws IllegalArgumentException 地址为空、语法无效或不符合网关安全约束
+         * @throws IllegalArgumentException 地址为空、语法无效或不符合 OpenAPI 安全约束
          * @throws IllegalStateException    构建器已经成功使用
          */
-        public Builder gatewayUrl(String value) {
+        public Builder baseUrl(String value) {
             ensureNotBuilt();
-            gatewayUrl = AlipayValidationUtils.requireGatewayUrl(
-                    parseUri(value, "gatewayUrl")
+            baseUrl = AlipayValidationUtils.requireBaseUrl(
+                    parseUri(value, "baseUrl")
             );
             return this;
         }
@@ -439,16 +455,30 @@ public final class AlipayClient implements AutoCloseable {
 
                 try {
                     // 3. 将协议能力和资源所有权封装为共享运行时，再创建只暴露业务入口的根客户端。
+                    JsonCodec jsonCodec = AlipayJsonUtils.codec();
                     AlipayTransport transport = new AlipayTransport(
                             checkedAppId,
                             checkedPrivateKey,
                             checkedPublicKey,
                             effectiveHttpClient,
-                            gatewayUrl,
+                            baseUrl,
                             clock,
-                            AlipayJsonUtils.codec()
+                            jsonCodec
                     );
-                    AlipayRuntime runtime = new AlipayRuntime(transport, effectiveHttpClient, ownsHttpClient);
+                    AlipayPagePayFormFactory pagePayFormFactory =
+                            new AlipayPagePayFormFactory(
+                                    checkedAppId,
+                                    checkedPrivateKey,
+                                    baseUrl,
+                                    clock,
+                                    jsonCodec
+                            );
+                    AlipayRuntime runtime = new AlipayRuntime(
+                            transport,
+                            pagePayFormFactory,
+                            effectiveHttpClient,
+                            ownsHttpClient
+                    );
                     AlipayClient client = new AlipayClient(
                             checkedAppId,
                             checkedSellerId,

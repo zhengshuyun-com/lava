@@ -18,6 +18,7 @@ public final class TradeState {
     /** 交易结束，不可退款。 */
     public static final String TRADE_FINISHED = "TRADE_FINISHED";
 
+    /** 禁止实例化交易状态常量容器。 */
     private TradeState() {
         throw new UnsupportedOperationException("Constants class");
     }

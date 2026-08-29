@@ -15,7 +15,14 @@ public final class BillType {
     public static final String SIGN_CUSTOMER = "signcustomer";
     /** 营销活动发放和核销账单。 */
     public static final String MERCHANT_ACTIVITY = "merchant_act";
+    /** 直付通二级商户交易账单。 */
+    public static final String TRADE_ZFT_MERCHANT = "trade_zft_merchant";
+    /** 直付通平台商户账务账单。 */
+    public static final String ZFT_ACCOUNT = "zft_acc";
+    /** 汇总批次结算资金到账账单。 */
+    public static final String SETTLEMENT_MERGE = "settlementMerge";
 
+    /** 禁止实例化账单类型常量容器。 */
     private BillType() {
         throw new UnsupportedOperationException("Constants class");
     }

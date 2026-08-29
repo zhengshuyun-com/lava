@@ -5,6 +5,10 @@
 
 package com.zhengshuyun.lava.pay.alipay.notification;
 
+import com.zhengshuyun.lava.core.lang.ValidationUtils;
+import com.zhengshuyun.lava.pay.alipay.exception.AlipaySecurityException;
+import com.zhengshuyun.lava.pay.alipay.exception.AlipaySecurityFailure;
+import com.zhengshuyun.lava.pay.alipay.internal.AlipayValidationUtils;
 import com.zhengshuyun.lava.pay.alipay.refund.DepositBackStatus;
 import org.jspecify.annotations.Nullable;
 
@@ -37,6 +41,40 @@ public record RefundDepositBackNotification(
         @Nullable LocalDateTime bankAckTime,
         @Nullable LocalDateTime estimatedReceiptTime
 ) {
+
+    /**
+     * 使用后端可信退款记录核对商户订单号、退款请求号和冲退金额。
+     *
+     * @param expectedOutTradeNo 可信商户订单号
+     * @param expectedOutRequestNo 可信退款请求号
+     * @param expectedAmount 可信银行卡冲退金额，单位为分
+     * @return 当前通知
+     * @throws AlipaySecurityException 任一关键字段不匹配
+     */
+    public RefundDepositBackNotification requireRefund(
+            String expectedOutTradeNo,
+            String expectedOutRequestNo,
+            long expectedAmount
+    ) {
+        expectedOutTradeNo = AlipayValidationUtils.requireOutTradeNo(
+                expectedOutTradeNo
+        );
+        expectedOutRequestNo = AlipayValidationUtils.requireOutRequestNo(
+                expectedOutRequestNo
+        );
+        ValidationUtils.requireTrue(
+                expectedAmount > 0,
+                "expectedAmount must be positive"
+        );
+        if (!expectedOutTradeNo.equals(outTradeNo)
+                || !expectedOutRequestNo.equals(outRequestNo)
+                || !Long.valueOf(expectedAmount).equals(depositBackAmount)) {
+            throw new AlipaySecurityException(
+                    AlipaySecurityFailure.RESPONSE_MISMATCH
+            );
+        }
+        return this;
+    }
 
     /**
      * 判断银行卡冲退是否已明确成功。

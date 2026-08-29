@@ -19,6 +19,8 @@ package com.zhengshuyun.lava.pay.wechat.transaction;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.zhengshuyun.lava.core.lang.ValidationUtils;
+import com.zhengshuyun.lava.pay.wechat.exception.WechatPaySecurityException;
+import com.zhengshuyun.lava.pay.wechat.exception.WechatPaySecurityFailure;
 import com.zhengshuyun.lava.pay.wechat.internal.WechatPayValidationUtils;
 import org.jspecify.annotations.Nullable;
 
@@ -58,7 +60,8 @@ public record Transaction(
         @JsonProperty("payer") @Nullable Payer payer,
         @JsonProperty("amount") @Nullable Amount amount,
         @JsonProperty("scene_info") @Nullable SceneInfo sceneInfo,
-        @JsonProperty("promotion_detail") @Nullable List<PromotionDetail> promotionDetail) {
+        @JsonProperty("promotion_detail") @Nullable List<PromotionDetail> promotionDetail
+) {
 
     /**
      * 校验必填字段并复制优惠列表。
@@ -72,6 +75,147 @@ public record Transaction(
         if (promotionDetail != null) {
             promotionDetail = List.copyOf(promotionDetail);
         }
+        if (TradeState.SUCCESS.equals(tradeState)) {
+            requireSuccessfulFields(
+                    transactionId,
+                    tradeType,
+                    bankType,
+                    successTime,
+                    payer,
+                    amount
+            );
+        }
+    }
+
+    /**
+     * 判断订单是否已经支付成功。
+     *
+     * @return 交易状态为 {@link TradeState#SUCCESS} 时返回 {@code true}
+     */
+    public boolean paid() {
+        return TradeState.SUCCESS.equals(tradeState);
+    }
+
+    /**
+     * 使用后端可信订单记录核对应用、商户订单号和订单金额。
+     *
+     * @param expectedAppid      可信应用 ID
+     * @param expectedOutTradeNo 可信商户订单号
+     * @param expectedTotal      可信订单总金额，单位为分
+     * @return 当前交易
+     * @throws WechatPaySecurityException 任一关键字段不匹配
+     */
+    public Transaction requireOrder(
+            String expectedAppid,
+            String expectedOutTradeNo,
+            long expectedTotal
+    ) {
+        ValidationUtils.requireNotBlank(expectedAppid, "expectedAppid must not be blank");
+        ValidationUtils.requireNotBlank(
+                expectedOutTradeNo,
+                "expectedOutTradeNo must not be blank"
+        );
+        WechatPayValidationUtils.requirePositive(expectedTotal, "expectedTotal");
+        if (!expectedAppid.equals(appid)
+                || !expectedOutTradeNo.equals(outTradeNo)
+                || amount == null
+                || amount.total == null
+                || amount.total != expectedTotal
+                || !"CNY".equals(amount.currency)) {
+            throw new WechatPaySecurityException(
+                    WechatPaySecurityFailure.RESPONSE_MISMATCH
+            );
+        }
+        return this;
+    }
+
+    /**
+     * 使用后端已保存的微信侧标识完整核对支付成功订单。
+     *
+     * <p>适用于重复通知或主动查单等本地已经保存微信支付订单号和付款人 OpenID 的场景。</p>
+     *
+     * @param expectedAppid         可信应用 ID
+     * @param expectedOutTradeNo    可信商户订单号
+     * @param expectedTransactionId 可信微信支付订单号
+     * @param expectedOpenid        可信付款人 OpenID
+     * @param expectedTotal         可信订单总金额，单位为分
+     * @return 当前交易
+     * @throws WechatPaySecurityException 任一关键字段不匹配
+     */
+    public Transaction requirePaidOrder(
+            String expectedAppid,
+            String expectedOutTradeNo,
+            String expectedTransactionId,
+            String expectedOpenid,
+            long expectedTotal
+    ) {
+        requireOrder(
+                expectedAppid,
+                expectedOutTradeNo,
+                expectedTotal
+        );
+        expectedTransactionId = WechatPayValidationUtils.requireId(
+                expectedTransactionId,
+                "expectedTransactionId",
+                32
+        );
+        expectedOpenid = WechatPayValidationUtils.requireText(
+                expectedOpenid,
+                "expectedOpenid",
+                1,
+                128
+        );
+        if (!paid()
+                || !expectedTransactionId.equals(transactionId)
+                || payer == null
+                || !expectedOpenid.equals(payer.openid)) {
+            throw new WechatPaySecurityException(
+                    WechatPaySecurityFailure.RESPONSE_MISMATCH
+            );
+        }
+        return this;
+    }
+
+    /**
+     * 校验支付成功状态下微信支付承诺返回的关键业务字段。
+     *
+     * @param transactionId 微信支付订单号
+     * @param tradeType     交易类型
+     * @param bankType      银行类型
+     * @param successTime   支付成功时间
+     * @param payer         支付者
+     * @param amount        订单金额
+     */
+    private static void requireSuccessfulFields(
+            @Nullable String transactionId,
+            @Nullable String tradeType,
+            @Nullable String bankType,
+            @Nullable OffsetDateTime successTime,
+            @Nullable Payer payer,
+            @Nullable Amount amount
+    ) {
+        ValidationUtils.requireNotBlank(transactionId, "transactionId must not be blank");
+        ValidationUtils.requireNotBlank(tradeType, "tradeType must not be blank");
+        ValidationUtils.requireNotBlank(bankType, "bankType must not be blank");
+        ValidationUtils.requireNonNull(successTime, "successTime must not be null");
+        ValidationUtils.requireNonNull(payer, "payer must not be null");
+        ValidationUtils.requireNotBlank(payer.openid, "payer.openid must not be blank");
+        ValidationUtils.requireNonNull(amount, "amount must not be null");
+        WechatPayValidationUtils.requirePositive(
+                ValidationUtils.requireNonNull(amount.total, "amount.total must not be null"),
+                "amount.total"
+        );
+        WechatPayValidationUtils.requireNonNegative(
+                ValidationUtils.requireNonNull(
+                        amount.payerTotal,
+                        "amount.payerTotal must not be null"
+                ),
+                "amount.payerTotal"
+        );
+        ValidationUtils.requireTrue("CNY".equals(amount.currency),
+                "amount.currency must be CNY");
+        ValidationUtils.requireTrue("CNY".equals(amount.payerCurrency),
+                "amount.payerCurrency must be CNY");
     }
 
     /**
@@ -96,7 +240,8 @@ public record Transaction(
             @JsonProperty("total") @Nullable Long total,
             @JsonProperty("payer_total") @Nullable Long payerTotal,
             @JsonProperty("currency") @Nullable String currency,
-            @JsonProperty("payer_currency") @Nullable String payerCurrency) {
+            @JsonProperty("payer_currency") @Nullable String payerCurrency
+    ) {
     }
 
     /**
@@ -135,7 +280,8 @@ public record Transaction(
             @JsonProperty("merchant_contribute") @Nullable Long merchantContribute,
             @JsonProperty("other_contribute") @Nullable Long otherContribute,
             @JsonProperty("currency") @Nullable String currency,
-            @JsonProperty("goods_detail") @Nullable List<PromotionGoodsDetail> goodsDetail) {
+            @JsonProperty("goods_detail") @Nullable List<PromotionGoodsDetail> goodsDetail
+    ) {
 
         /**
          * 复制优惠商品列表。
@@ -177,7 +323,8 @@ public record Transaction(
             @JsonProperty("quantity") long quantity,
             @JsonProperty("unit_price") long unitPrice,
             @JsonProperty("discount_amount") long discountAmount,
-            @JsonProperty("goods_remark") @Nullable String goodsRemark) {
+            @JsonProperty("goods_remark") @Nullable String goodsRemark
+    ) {
         /**
          * 校验优惠涉及的单品信息。
          */

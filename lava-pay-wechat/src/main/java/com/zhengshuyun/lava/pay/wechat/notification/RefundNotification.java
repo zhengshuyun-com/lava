@@ -8,6 +8,8 @@ package com.zhengshuyun.lava.pay.wechat.notification;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.zhengshuyun.lava.core.lang.ValidationUtils;
+import com.zhengshuyun.lava.pay.wechat.exception.WechatPaySecurityException;
+import com.zhengshuyun.lava.pay.wechat.exception.WechatPaySecurityFailure;
 import com.zhengshuyun.lava.pay.wechat.internal.WechatPayValidationUtils;
 import org.jspecify.annotations.Nullable;
 
@@ -27,7 +29,8 @@ public record RefundNotification(
         OffsetDateTime createTime,
         String eventType,
         String summary,
-        Resource refund) {
+        Resource refund
+) {
     /**
      * 校验通知必填字段。
      */
@@ -37,6 +40,88 @@ public record RefundNotification(
         ValidationUtils.requireNotBlank(eventType, "eventType must not be blank");
         ValidationUtils.requireNonNull(summary, "summary must not be null");
         ValidationUtils.requireNonNull(refund, "refund must not be null");
+    }
+
+    /**
+     * 使用后端可信退款记录核对订单号、退款单号和金额。
+     *
+     * @param expectedOutTradeNo  可信商户订单号
+     * @param expectedOutRefundNo 可信商户退款单号
+     * @param expectedTotal       可信原订单金额，单位为分
+     * @param expectedRefund      可信退款金额，单位为分
+     * @return 当前通知
+     * @throws WechatPaySecurityException 任一关键字段不匹配
+     */
+    public RefundNotification requireRefund(
+            String expectedOutTradeNo,
+            String expectedOutRefundNo,
+            long expectedTotal,
+            long expectedRefund
+    ) {
+        ValidationUtils.requireNotBlank(
+                expectedOutTradeNo,
+                "expectedOutTradeNo must not be blank"
+        );
+        ValidationUtils.requireNotBlank(
+                expectedOutRefundNo,
+                "expectedOutRefundNo must not be blank"
+        );
+        WechatPayValidationUtils.requirePositive(expectedTotal, "expectedTotal");
+        WechatPayValidationUtils.requirePositive(expectedRefund, "expectedRefund");
+        if (!expectedOutTradeNo.equals(refund.outTradeNo)
+                || !expectedOutRefundNo.equals(refund.outRefundNo)
+                || expectedTotal != refund.amount.total
+                || expectedRefund != refund.amount.refund) {
+            throw new WechatPaySecurityException(
+                    WechatPaySecurityFailure.RESPONSE_MISMATCH
+            );
+        }
+        return this;
+    }
+
+    /**
+     * 使用后端已保存的微信侧标识完整核对退款通知。
+     *
+     * @param expectedOutTradeNo  可信商户订单号
+     * @param expectedTransactionId 可信微信支付订单号
+     * @param expectedOutRefundNo 可信商户退款单号
+     * @param expectedRefundId    可信微信支付退款单号
+     * @param expectedTotal       可信原订单金额，单位为分
+     * @param expectedRefund      可信退款金额，单位为分
+     * @return 当前通知
+     * @throws WechatPaySecurityException 任一关键字段不匹配
+     */
+    public RefundNotification requireRefund(
+            String expectedOutTradeNo,
+            String expectedTransactionId,
+            String expectedOutRefundNo,
+            String expectedRefundId,
+            long expectedTotal,
+            long expectedRefund
+    ) {
+        requireRefund(
+                expectedOutTradeNo,
+                expectedOutRefundNo,
+                expectedTotal,
+                expectedRefund
+        );
+        expectedTransactionId = WechatPayValidationUtils.requireId(
+                expectedTransactionId,
+                "expectedTransactionId",
+                32
+        );
+        expectedRefundId = WechatPayValidationUtils.requireId(
+                expectedRefundId,
+                "expectedRefundId",
+                32
+        );
+        if (!expectedTransactionId.equals(refund.transactionId)
+                || !expectedRefundId.equals(refund.refundId)) {
+            throw new WechatPaySecurityException(
+                    WechatPaySecurityFailure.RESPONSE_MISMATCH
+            );
+        }
+        return this;
     }
 
     /**
@@ -62,7 +147,8 @@ public record RefundNotification(
             @JsonProperty("refund_status") String refundStatus,
             @JsonProperty("success_time") @Nullable OffsetDateTime successTime,
             @JsonProperty("user_received_account") String userReceivedAccount,
-            @JsonProperty("amount") Amount amount) {
+            @JsonProperty("amount") Amount amount
+    ) {
         /**
          * 校验退款结果必填字段。
          */
@@ -92,7 +178,8 @@ public record RefundNotification(
             @JsonProperty("total") long total,
             @JsonProperty("refund") long refund,
             @JsonProperty("payer_total") long payerTotal,
-            @JsonProperty("payer_refund") long payerRefund) {
+            @JsonProperty("payer_refund") long payerRefund
+    ) {
         /**
          * 校验退款通知金额。
          */

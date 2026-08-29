@@ -17,7 +17,12 @@ import java.nio.file.Path;
  * @param hashType 摘要类型
  * @param hashValue 实际摘要值
  */
-public record BillDownloadResult(Path path, long size, String hashType, String hashValue) {
+public record BillDownloadResult(
+        Path path,
+        long size,
+        String hashType,
+        String hashValue
+) {
     /**
      * 校验下载结果。
      */

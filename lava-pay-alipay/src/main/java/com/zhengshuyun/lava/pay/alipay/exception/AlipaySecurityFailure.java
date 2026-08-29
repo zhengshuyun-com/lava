@@ -11,6 +11,8 @@ package com.zhengshuyun.lava.pay.alipay.exception;
 public enum AlipaySecurityFailure {
     /** 响应或通知未携带签名。 */
     MISSING_SIGNATURE,
+    /** V3 响应携带重复的签名元数据头。 */
+    DUPLICATE_SIGNATURE_HEADER,
     /** 签名类型不是 RSA2。 */
     UNSUPPORTED_SIGNATURE_TYPE,
     /** 通知声明的字符集不受支持。 */

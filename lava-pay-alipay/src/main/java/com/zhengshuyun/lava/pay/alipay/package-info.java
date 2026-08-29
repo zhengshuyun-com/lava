@@ -15,7 +15,7 @@
  */
 
 /**
- * 支付宝开放平台支付协议适配。
+ * 支付宝 OpenAPI V3 支付协议适配，包含官方仍要求使用 AOP 的电脑网站页面支付。
  */
 @NullMarked
 package com.zhengshuyun.lava.pay.alipay;

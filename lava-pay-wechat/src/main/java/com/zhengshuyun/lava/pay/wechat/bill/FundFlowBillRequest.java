@@ -18,6 +18,7 @@ public final class FundFlowBillRequest {
     private final @Nullable FundFlowAccountType accountType;
     private final @Nullable BillTarType tarType;
 
+    /** 使用构建期参数创建不可变资金账单请求。 */
     private FundFlowBillRequest(Builder builder) {
         billDate = ValidationUtils.requireNonNull(builder.billDate, "billDate is required");
         accountType = builder.accountType;
@@ -68,6 +69,7 @@ public final class FundFlowBillRequest {
         private @Nullable FundFlowAccountType accountType;
         private @Nullable BillTarType tarType;
 
+        /** 创建空资金账单请求构建器。 */
         private Builder() {
         }
 

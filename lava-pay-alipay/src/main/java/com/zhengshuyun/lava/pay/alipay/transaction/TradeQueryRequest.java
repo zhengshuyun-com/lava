@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * 支付宝交易查询参数，商户订单号与支付宝交易号严格二选一。
+ * 支付宝交易查询参数。商户订单号与支付宝交易号至少提供一个；同时提供时支付宝优先使用交易号。
  */
 public final class TradeQueryRequest {
     private static final Set<String> OPTIONS = Set.of(
@@ -30,9 +30,10 @@ public final class TradeQueryRequest {
     private final @Nullable String tradeNo;
     private final List<String> queryOptions;
 
+    /** 使用构建期参数创建并校验交易查询请求。 */
     private TradeQueryRequest(Builder builder) {
-        ValidationUtils.requireTrue((builder.outTradeNo == null) != (builder.tradeNo == null),
-                "exactly one of outTradeNo and tradeNo is required");
+        ValidationUtils.requireTrue(builder.outTradeNo != null || builder.tradeNo != null,
+                "at least one of outTradeNo and tradeNo is required");
         outTradeNo = builder.outTradeNo == null ? null
                 : AlipayValidationUtils.requireOutTradeNo(builder.outTradeNo);
         tradeNo = builder.tradeNo == null ? null
@@ -82,6 +83,7 @@ public final class TradeQueryRequest {
         private @Nullable String tradeNo;
         private final Set<String> queryOptions = new LinkedHashSet<>();
 
+        /** 创建空交易查询构建器。 */
         private Builder() {
         }
 

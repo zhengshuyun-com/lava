@@ -18,6 +18,7 @@ public final class TradeBillRequest {
     private final @Nullable TradeBillType billType;
     private final @Nullable BillTarType tarType;
 
+    /** 使用构建期参数创建不可变交易账单请求。 */
     private TradeBillRequest(Builder builder) {
         billDate = ValidationUtils.requireNonNull(builder.billDate, "billDate is required");
         billType = builder.billType;
@@ -68,6 +69,7 @@ public final class TradeBillRequest {
         private @Nullable TradeBillType billType;
         private @Nullable BillTarType tarType;
 
+        /** 创建空交易账单请求构建器。 */
         private Builder() {
         }
 

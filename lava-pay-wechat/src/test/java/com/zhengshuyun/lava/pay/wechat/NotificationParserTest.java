@@ -84,6 +84,19 @@ class NotificationParserTest {
 
         assertEquals("ORDER_001", notification.transaction().outTradeNo());
         assertEquals("SUCCESS", notification.transaction().tradeState());
+        assertSame(notification, notification.requireOrder(
+                "wx1234567890",
+                "ORDER_001",
+                100
+        ));
+        assertThrows(
+                WechatPaySecurityException.class,
+                () -> notification.requireOrder(
+                        "wx1234567890",
+                        "ORDER_001",
+                        101
+                )
+        );
 
         body[body.length - 2] ^= 1;
         WechatPaySecurityException failure = assertThrows(WechatPaySecurityException.class,
@@ -108,14 +121,34 @@ class NotificationParserTest {
 
         assertEquals("ABNORMAL", notification.refund().refundStatus());
         assertEquals("REFUND_001", notification.refund().outRefundNo());
+        assertSame(notification, notification.requireRefund(
+                "ORDER_001",
+                "REFUND_001",
+                100,
+                50
+        ));
+        assertThrows(
+                WechatPaySecurityException.class,
+                () -> notification.requireRefund(
+                        "ORDER_001",
+                        "REFUND_001",
+                        100,
+                        40
+                )
+        );
     }
 
     @Test
     void staleNotificationAndMerchantMismatchFailClosed() {
         String plaintext = """
                 {"appid":"wx1234567890","mchid":"other-mchid",
-                 "out_trade_no":"ORDER_001","trade_state":"SUCCESS",
-                 "trade_state_desc":"支付成功"}
+                 "out_trade_no":"ORDER_001","transaction_id":"4200000001",
+                 "trade_type":"NATIVE","trade_state":"SUCCESS",
+                 "trade_state_desc":"支付成功","bank_type":"OTHERS",
+                 "success_time":"2026-08-29T08:00:00+08:00",
+                 "payer":{"openid":"openid"},
+                 "amount":{"total":100,"payer_total":100,
+                 "currency":"CNY","payer_currency":"CNY"}}
                 """;
         byte[] body = envelope("TRANSACTION.SUCCESS", "transaction", plaintext);
 
@@ -156,6 +189,36 @@ class NotificationParserTest {
                 () -> client.notifications().parseTransaction(
                         signedHeaders(incompleteBody, CLOCK.instant().getEpochSecond()),
                         incompleteBody));
+    }
+
+    @Test
+    void duplicateSignatureHeadersAreRejectedBeforeVerification() {
+        String plaintext = """
+                {"appid":"wx1234567890","mchid":"1900000109",
+                 "out_trade_no":"ORDER_001","transaction_id":"4200000001",
+                 "trade_type":"NATIVE","trade_state":"SUCCESS",
+                 "trade_state_desc":"支付成功","bank_type":"OTHERS",
+                 "success_time":"2026-08-29T08:00:00+08:00",
+                 "payer":{"openid":"openid"},
+                 "amount":{"total":100,"payer_total":100,
+                 "currency":"CNY","payer_currency":"CNY"}}
+                """;
+        byte[] body = envelope("TRANSACTION.SUCCESS", "transaction", plaintext);
+        HttpHeaders signed = signedHeaders(body, CLOCK.instant().getEpochSecond());
+        HttpHeaders duplicated = HttpHeaders.builder()
+                .addAll(signed)
+                .add("Wechatpay-Signature", "duplicate")
+                .build();
+
+        WechatPaySecurityException failure = assertThrows(
+                WechatPaySecurityException.class,
+                () -> client.notifications().parseTransaction(duplicated, body)
+        );
+
+        assertEquals(
+                WechatPaySecurityFailure.DUPLICATE_SIGNATURE_HEADER,
+                failure.failure()
+        );
     }
 
     @Test
@@ -203,22 +266,33 @@ class NotificationParserTest {
     }
 
     private static byte[] envelope(String eventType, String originalType, String plaintext) {
-        byte[] ciphertext = CryptoUtils.aesGcmEncrypt(API_V3_KEY, NONCE, new byte[0],
-                plaintext.getBytes(StandardCharsets.UTF_8));
+        byte[] ciphertext = CryptoUtils.aesGcmEncrypt(
+                API_V3_KEY,
+                NONCE,
+                new byte[0],
+                plaintext.getBytes(StandardCharsets.UTF_8)
+        );
         String json = """
                 {"id":"EV-001","create_time":"2026-08-29T08:00:00+08:00",
                  "resource_type":"encrypt-resource","event_type":"%s",
                  "summary":"测试通知","resource":{"original_type":"%s",
                  "algorithm":"AEAD_AES_256_GCM","ciphertext":"%s",
                  "associated_data":"","nonce":"%s"}}
-                """.formatted(eventType, originalType,
+                """.formatted(
+                eventType,
+                originalType,
                 Base64.getEncoder().encodeToString(ciphertext),
-                new String(NONCE, StandardCharsets.UTF_8));
+                new String(NONCE, StandardCharsets.UTF_8)
+        );
         return json.getBytes(StandardCharsets.UTF_8);
     }
 
     private static HttpHeaders signedHeaders(byte[] body, long timestamp) {
-        return WechatPayTestServer.signedHeaders(body, wechatKeys.getPrivate(),
-                WechatPayTestServer.PUBLIC_KEY_ID, timestamp);
+        return WechatPayTestServer.signedHeaders(
+                body,
+                wechatKeys.getPrivate(),
+                WechatPayTestServer.PUBLIC_KEY_ID,
+                timestamp
+        );
     }
 }

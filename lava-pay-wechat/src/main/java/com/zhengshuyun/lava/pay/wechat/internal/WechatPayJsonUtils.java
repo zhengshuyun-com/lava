@@ -33,6 +33,7 @@ public final class WechatPayJsonUtils {
                     inclusion -> inclusion.withValueInclusion(JsonInclude.Include.NON_NULL)))
             .build());
 
+    /** 禁止实例化微信支付 JSON 工具。 */
     private WechatPayJsonUtils() {
         throw new UnsupportedOperationException("Utility class");
     }

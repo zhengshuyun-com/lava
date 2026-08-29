@@ -5,6 +5,10 @@
 
 package com.zhengshuyun.lava.pay.alipay.transaction;
 
+import com.zhengshuyun.lava.core.lang.ValidationUtils;
+import com.zhengshuyun.lava.pay.alipay.exception.AlipaySecurityException;
+import com.zhengshuyun.lava.pay.alipay.exception.AlipaySecurityFailure;
+import com.zhengshuyun.lava.pay.alipay.internal.AlipayValidationUtils;
 import org.jspecify.annotations.Nullable;
 
 import java.time.LocalDateTime;
@@ -44,6 +48,30 @@ public record Trade(
         @Nullable String storeId,
         List<FundBill> fundBills
 ) {
+
+    /**
+     * 使用后端可信订单记录核对商户订单号和订单金额。
+     *
+     * @param expectedOutTradeNo 可信商户订单号
+     * @param expectedAmount     可信订单金额，单位为分
+     * @return 当前交易
+     * @throws AlipaySecurityException 任一关键字段不匹配
+     */
+    public Trade requireOrder(String expectedOutTradeNo, long expectedAmount) {
+        expectedOutTradeNo = AlipayValidationUtils.requireOutTradeNo(
+                expectedOutTradeNo
+        );
+        ValidationUtils.requireTrue(
+                expectedAmount > 0,
+                "expectedAmount must be positive"
+        );
+        if (!outTradeNo.equals(expectedOutTradeNo) || totalAmount != expectedAmount) {
+            throw new AlipaySecurityException(
+                    AlipaySecurityFailure.RESPONSE_MISMATCH
+            );
+        }
+        return this;
+    }
 
     /**
      * 判断交易是否已完成付款。

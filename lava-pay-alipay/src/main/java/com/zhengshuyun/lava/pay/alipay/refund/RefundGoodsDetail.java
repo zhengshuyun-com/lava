@@ -22,6 +22,7 @@ public final class RefundGoodsDetail {
     private final @Nullable String outSkuId;
     private final List<String> outCertificateNos;
 
+    /** 使用构建期参数创建并校验退款商品明细。 */
     private RefundGoodsDetail(Builder builder) {
         goodsId = AlipayValidationUtils.requireIdentifier(builder.goodsId, "goodsId", 32);
         refundAmount = AlipayValidationUtils.requirePositiveAmount(
@@ -96,6 +97,7 @@ public final class RefundGoodsDetail {
         private @Nullable String outSkuId;
         private final List<String> outCertificateNos = new ArrayList<>();
 
+        /** 创建空退款商品构建器。 */
         private Builder() {
         }
 

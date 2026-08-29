@@ -34,6 +34,7 @@ import java.time.Clock;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.HexFormat;
+import java.util.List;
 
 /**
  * 微信支付 APIv3 请求签名、应答验签和回调解密工具。
@@ -58,6 +59,7 @@ public final class WechatPayCryptoUtils {
     private static final long MAX_TIMESTAMP_SKEW_SECONDS = 5 * 60L;
     private static final SecureRandom RANDOM = new SecureRandom();
 
+    /** 禁止实例化微信支付密码学工具。 */
     private WechatPayCryptoUtils() {
         throw new UnsupportedOperationException("Utility class");
     }
@@ -90,11 +92,26 @@ public final class WechatPayCryptoUtils {
      * @param nonce 请求随机串
      * @return Authorization 请求头值
      */
-    public static String authorization(String mchid, String merchantSerialNo,
-                                       PrivateKey privateKey, String method, URI uri,
-                                       byte[] body, long timestamp, String nonce) {
-        byte[] message = requestMessage(method, requestTarget(uri), timestamp, nonce, body);
+    public static String authorization(
+            String mchid,
+            String merchantSerialNo,
+            PrivateKey privateKey,
+            String method,
+            URI uri,
+            byte[] body,
+            long timestamp,
+            String nonce
+    ) {
+        // 1. 使用最终请求目标、时间戳、随机串和原始正文构造五行签名原文。
+        byte[] message = requestMessage(
+                method,
+                requestTarget(uri),
+                timestamp,
+                nonce,
+                body
+        );
         try {
+            // 2. 使用商户 API 私钥签名，并按官方固定字段顺序生成 Authorization。
             String signature = Base64.getEncoder().encodeToString(sign(privateKey, message));
             return AUTHORIZATION_TYPE
                     + " mchid=\"" + mchid + "\""
@@ -103,6 +120,7 @@ public final class WechatPayCryptoUtils {
                     + ",timestamp=\"" + timestamp + "\""
                     + ",serial_no=\"" + merchantSerialNo + "\"";
         } finally {
+            // 3. Authorization 生成后立即清除含完整业务正文的临时签名缓冲区。
             Arrays.fill(message, (byte) 0);
         }
     }
@@ -117,9 +135,13 @@ public final class WechatPayCryptoUtils {
      * @param clock 当前时钟
      * @throws WechatPaySecurityException 请求头缺失、时间过期或签名无效
      */
-    public static void verifyMessage(HttpHeaders headers, byte[] body,
-                                     String expectedPublicKeyId, PublicKey publicKey,
-                                     Clock clock) {
+    public static void verifyMessage(
+            HttpHeaders headers,
+            byte[] body,
+            String expectedPublicKeyId,
+            PublicKey publicKey,
+            Clock clock
+    ) {
         // 1. 先完整提取签名元数据，任何缺失都不能降级为未验签处理。
         String serial = requiredHeader(headers, HEADER_SERIAL);
         String signature = requiredHeader(headers, HEADER_SIGNATURE);
@@ -129,7 +151,7 @@ public final class WechatPayCryptoUtils {
             throw new WechatPaySecurityException(
                     WechatPaySecurityFailure.UNEXPECTED_PUBLIC_KEY_ID);
         }
-        String signatureType = headers.get(HEADER_SIGNATURE_TYPE);
+        String signatureType = optionalHeader(headers, HEADER_SIGNATURE_TYPE);
         if (signatureType != null && !AUTHORIZATION_TYPE.equals(signatureType)) {
             throw new WechatPaySecurityException(
                     WechatPaySecurityFailure.UNSUPPORTED_SIGNATURE_TYPE);
@@ -183,8 +205,14 @@ public final class WechatPayCryptoUtils {
      * @param ciphertext Base64 密文和认证标签
      * @return UTF-8 明文 JSON
      */
-    public static byte[] decrypt(byte[] apiV3Key, String algorithm, String nonce,
-                                 @Nullable String associatedData, String ciphertext) {
+    public static byte[] decrypt(
+            byte[] apiV3Key,
+            String algorithm,
+            String nonce,
+            @Nullable String associatedData,
+            String ciphertext
+    ) {
+        // 1. 只接受微信支付声明的 AES-GCM 算法和完整密文参数。
         if (!ENCRYPTION_ALGORITHM.equals(algorithm)) {
             throw new WechatPaySecurityException(
                     WechatPaySecurityFailure.UNSUPPORTED_ENCRYPTION_ALGORITHM);
@@ -193,6 +221,7 @@ public final class WechatPayCryptoUtils {
                 || ciphertext.isBlank()) {
             throw new WechatPaySecurityException(WechatPaySecurityFailure.DECRYPTION_FAILED);
         }
+        // 2. 严格解码 Base64 密文，格式错误统一归类为解密安全失败。
         byte[] encrypted;
         try {
             encrypted = Base64.getDecoder().decode(ciphertext);
@@ -200,11 +229,14 @@ public final class WechatPayCryptoUtils {
             throw new WechatPaySecurityException(WechatPaySecurityFailure.DECRYPTION_FAILED);
         }
         try {
-            return CryptoUtils.aesGcmDecrypt(apiV3Key,
+            // 3. 由 AES-GCM 认证标签同时验证密文和附加数据完整性。
+            return CryptoUtils.aesGcmDecrypt(
+                    apiV3Key,
                     nonce.getBytes(StandardCharsets.UTF_8),
                     (associatedData == null ? "" : associatedData)
                             .getBytes(StandardCharsets.UTF_8),
-                    encrypted);
+                    encrypted
+            );
         } catch (CryptoException | IllegalArgumentException exception) {
             throw new WechatPaySecurityException(WechatPaySecurityFailure.DECRYPTION_FAILED);
         } finally {
@@ -226,6 +258,7 @@ public final class WechatPayCryptoUtils {
         return uri.getRawQuery() == null ? path : path + '?' + uri.getRawQuery();
     }
 
+    /** 使用商户私钥生成 RSA-SHA256 签名。 */
     private static byte[] sign(PrivateKey privateKey, byte[] message) {
         try {
             return CryptoUtils.rsaSha256Sign(privateKey, message);
@@ -234,17 +267,36 @@ public final class WechatPayCryptoUtils {
         }
     }
 
-    private static byte[] requestMessage(String method, String target, long timestamp,
-                                         String nonce, byte[] body) {
-        return lines(method, target, Long.toString(timestamp), nonce, body);
+    /** 构造微信支付五行请求签名原文。 */
+    private static byte[] requestMessage(
+            String method,
+            String target,
+            long timestamp,
+            String nonce,
+            byte[] body
+    ) {
+        return lines(
+                method,
+                target,
+                Long.toString(timestamp),
+                nonce,
+                body
+        );
     }
 
+    /** 构造微信支付三行响应验签原文。 */
     private static byte[] responseMessage(String timestamp, String nonce, byte[] body) {
         return lines(timestamp, nonce, body);
     }
 
-    private static byte[] lines(String first, String second, String third, String fourth,
-                                byte[] body) {
+    /** 拼接四行元数据和原始正文。 */
+    private static byte[] lines(
+            String first,
+            String second,
+            String third,
+            String fourth,
+            byte[] body
+    ) {
         ByteArrayOutputStream output = new ByteArrayOutputStream(body.length + 128);
         writeLine(output, first);
         writeLine(output, second);
@@ -255,6 +307,7 @@ public final class WechatPayCryptoUtils {
         return output.toByteArray();
     }
 
+    /** 拼接两行元数据和原始正文。 */
     private static byte[] lines(String first, String second, byte[] body) {
         ByteArrayOutputStream output = new ByteArrayOutputStream(body.length + 64);
         writeLine(output, first);
@@ -264,17 +317,41 @@ public final class WechatPayCryptoUtils {
         return output.toByteArray();
     }
 
+    /** 将 UTF-8 文本及换行符写入签名缓冲区。 */
     private static void writeLine(ByteArrayOutputStream output, String value) {
         output.writeBytes(value.getBytes(StandardCharsets.UTF_8));
         output.write('\n');
     }
 
+    /**
+     * 读取必填且只能出现一次的签名头，拒绝代理合并前后的歧义输入。
+     *
+     * @param headers 原始请求头集合
+     * @param name    请求头名称
+     * @return 唯一非空请求头值
+     */
     private static String requiredHeader(HttpHeaders headers, String name) {
-        String value = headers.get(name);
+        String value = optionalHeader(headers, name);
         if (value == null || value.isBlank()) {
             throw new WechatPaySecurityException(
                     WechatPaySecurityFailure.MISSING_SIGNATURE_HEADER);
         }
         return value;
+    }
+
+    /**
+     * 读取最多出现一次的签名头。
+     *
+     * @param headers 原始请求头集合
+     * @param name    请求头名称
+     * @return 请求头值；没有时为 {@code null}
+     */
+    private static @Nullable String optionalHeader(HttpHeaders headers, String name) {
+        List<String> values = headers.values(name);
+        if (values.size() > 1) {
+            throw new WechatPaySecurityException(
+                    WechatPaySecurityFailure.DUPLICATE_SIGNATURE_HEADER);
+        }
+        return values.isEmpty() ? null : values.getFirst();
     }
 }

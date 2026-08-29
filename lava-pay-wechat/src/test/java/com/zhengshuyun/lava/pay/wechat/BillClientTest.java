@@ -160,13 +160,37 @@ class BillClientTest {
     @Test
     void manuallyConstructedDownloadInfoCannotSendCredentialsToAnotherOrigin() {
         BillDownloadInfo forged = new BillDownloadInfo(
-                "SHA1", "0000000000000000000000000000000000000000",
-                URI.create("https://example.com/v3/billdownload/file?token=secret"), null);
+                "SHA1",
+                "0000000000000000000000000000000000000000",
+                URI.create("https://example.com/v3/billdownload/file?token=secret"),
+                null
+        );
+        assertFalse(forged.toString().contains("secret"));
         Path target = temporaryDirectory.resolve("forged.csv");
 
         assertThrows(WechatPayProtocolException.class,
                 () -> client.bills().download(forged, target));
         assertFalse(Files.exists(target));
+    }
+
+    @Test
+    void billDateMustBeBeforeTodayAndWithinThreeMonths() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> client.bills().applyTradeBill(
+                        TradeBillRequest.builder()
+                                .billDate(LocalDate.of(2026, 8, 29))
+                                .build()
+                )
+        );
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> client.bills().applyFundFlowBill(
+                        FundFlowBillRequest.builder()
+                                .billDate(LocalDate.of(2026, 5, 28))
+                                .build()
+                )
+        );
     }
 
     private static String sha1(byte[] value) throws Exception {

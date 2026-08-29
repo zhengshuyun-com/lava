@@ -26,6 +26,7 @@ import java.util.Set;
  * 与 Web 框架无关的支付宝支付和退款冲退通知解析器。
  *
  * <p>调用方必须传入 Web 框架完成一次表单 URL 解码后的参数，不能再次 URL 解码。
+ * 支付宝将这两类通知定义为表单通知，仍使用 V1 参数排序验签，不使用 REST V3 响应头验签。
  * 验签通过仅证明通知来自支付宝，支付通知仍需调用
  * {@link TradeNotification#requireOrder(String, long)} 与可信订单记录匹配。</p>
  */
@@ -61,9 +62,9 @@ public final class NotificationParser {
             PublicKey alipayPublicKey
     ) {
         this.runtime = ValidationUtils.requireNonNull(runtime, "runtime");
-        this.appId = appId;
-        this.sellerId = sellerId;
-        this.alipayPublicKey = alipayPublicKey;
+        this.appId = AlipayValidationUtils.requireAppId(appId);
+        this.sellerId = AlipayValidationUtils.requireSellerId(sellerId);
+        this.alipayPublicKey = AlipayKeyUtils.requirePublicKey(alipayPublicKey);
     }
 
     /**
@@ -73,9 +74,11 @@ public final class NotificationParser {
      * @return 已验签通知
      */
     public TradeNotification parseTrade(Map<String, String> params) {
+        // 1. 复制完成一次 URL 解码的表单参数，并在解释任何业务字段前执行 RSA2 验签。
         runtime.ensureOpen();
         Map<String, String> copy = copyParams(params);
         AlipayCryptoUtils.verifyNotification(copy, alipayPublicKey);
+        // 2. 将应用、卖家和通知类型绑定到当前客户端，拒绝跨应用或错误路由的通知。
         requireSame(appId, copy.get("app_id"),
                 AlipaySecurityFailure.APPLICATION_MISMATCH);
         requireSame(sellerId, copy.get("seller_id"),
@@ -83,6 +86,7 @@ public final class NotificationParser {
         requireSame(TRADE_NOTIFY_TYPE, copy.get("notify_type"),
                 AlipaySecurityFailure.NOTIFICATION_TYPE_MISMATCH);
 
+        // 3. 验证关键时间和金额字段后映射为不可变通知；订单号与金额仍由业务调用 requireOrder 核对。
         return new TradeNotification(
                 required(copy, "notify_id"),
                 AlipayDateTimeUtils.parseRequired(copy.get("notify_time"), "notify_time"),
@@ -112,6 +116,7 @@ public final class NotificationParser {
      */
     public RefundDepositBackNotification parseRefundDepositBack(
             Map<String, String> params) {
+        // 1. 复制表单参数并先验签，再校验应用和蚂蚁消息方法名。
         runtime.ensureOpen();
         Map<String, String> copy = copyParams(params);
         AlipayCryptoUtils.verifyNotification(copy, alipayPublicKey);
@@ -120,6 +125,7 @@ public final class NotificationParser {
         requireSame(DEPOSIT_BACK_METHOD, copy.get("msg_method"),
                 AlipaySecurityFailure.NOTIFICATION_TYPE_MISMATCH);
 
+        // 2. 严格解析消息时间戳和 biz_content，拒绝结构或业务状态不完整的通知。
         long timestamp;
         try {
             timestamp = Long.parseLong(required(copy, "utc_timestamp"));
@@ -144,6 +150,7 @@ public final class NotificationParser {
         if (DepositBackStatus.SUCCESS.equals(state) && amount == null) {
             throw new AlipayProtocolException("冲退成功通知缺少 dback_amount");
         }
+        // 3. 验证冲退状态及成功金额后映射为不可变通知，供业务做幂等与可信退款记录核对。
         return new RefundDepositBackNotification(
                 required(copy, "notify_id"),
                 Instant.ofEpochMilli(timestamp),
@@ -159,6 +166,12 @@ public final class NotificationParser {
         );
     }
 
+    /**
+     * 防御性复制并校验通知表单参数。
+     *
+     * @param params 原始参数
+     * @return 可安全修改的参数副本
+     */
     private static Map<String, String> copyParams(Map<String, String> params) {
         ValidationUtils.requireNonNull(params, "params must not be null");
         Map<String, String> copy = new LinkedHashMap<>();
@@ -171,14 +184,17 @@ public final class NotificationParser {
         return copy;
     }
 
+    /** 从参数表读取必填文本。 */
     private static String required(Map<String, String> params, String name) {
         return required(params.get(name), name);
     }
 
+    /** 校验协议模型中的必填文本。 */
     private static String required(@Nullable String value, String name) {
         return AlipayValidationUtils.requireResponseText(value, name);
     }
 
+    /** 按指定安全失败类型校验可信值一致性。 */
     private static void requireSame(String expected, @Nullable String actual,
                                     AlipaySecurityFailure failure) {
         if (!expected.equals(actual)) {
@@ -186,6 +202,7 @@ public final class NotificationParser {
         }
     }
 
+    /** 解析可选通知金额。 */
     private static @Nullable Long optionalMoney(@Nullable String value, String name) {
         return value == null || value.isBlank() ? null : AlipayMoneyUtils.parse(value, name);
     }

@@ -19,7 +19,8 @@ import java.util.Set;
  * 支付宝统一收单退款参数。
  *
  * <p>每次退款都强制提供稳定的退款请求号。网络异常后必须使用相同请求号和金额重试或查询，
- * 不得生成新请求号，否则可能重复退款。</p>
+ * 不得生成新请求号，否则可能重复退款。商户订单号与支付宝交易号至少提供一个；同时提供时支付宝
+ * 优先使用交易号。</p>
  */
 public final class RefundRequest {
     private static final Set<String> OPTIONS = Set.of(
@@ -35,9 +36,10 @@ public final class RefundRequest {
     private final List<RefundGoodsDetail> goodsDetail;
     private final List<String> queryOptions;
 
+    /** 使用构建期参数创建并校验退款请求。 */
     private RefundRequest(Builder builder) {
-        ValidationUtils.requireTrue((builder.outTradeNo == null) != (builder.tradeNo == null),
-                "exactly one of outTradeNo and tradeNo is required");
+        ValidationUtils.requireTrue(builder.outTradeNo != null || builder.tradeNo != null,
+                "at least one of outTradeNo and tradeNo is required");
         outTradeNo = builder.outTradeNo == null ? null
                 : AlipayValidationUtils.requireOutTradeNo(builder.outTradeNo);
         tradeNo = builder.tradeNo == null ? null
@@ -142,6 +144,7 @@ public final class RefundRequest {
         private final Set<String> queryOptions = new LinkedHashSet<>(
                 Set.of(RefundQueryOption.DEPOSIT_BACK_INFO));
 
+        /** 创建空退款请求构建器。 */
         private Builder() {
         }
 

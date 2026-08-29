@@ -1,8 +1,8 @@
 # lava-pay-alipay
 
-`lava-pay-alipay` 是面向支付宝 OpenAPI 自研普通商户的同步 Java 工具包，不依赖支付宝官方 SDK。模块基于 Lava HTTP、JSON、
-Crypto 与 JDK RSA 能力，完成 RSA2 请求签名、响应及通知验签、电脑网站支付表单生成、交易查询与关闭、退款、退款查询、
-银行卡冲退通知解析和账单下载地址查询。
+`lava-pay-alipay` 是面向支付宝 OpenAPI 普通商户公钥模式的同步 Java 工具包，不依赖支付宝官方 SDK。模块基于 Lava HTTP、
+JSON、Crypto 与 JDK RSA 能力，实现 OpenAPI V3 REST 请求签名、响应验签、电脑网站支付表单、交易查询与关闭、退款、
+退款查询、银行卡冲退通知解析和账单下载地址查询。
 
 ```xml
 <dependency>
@@ -18,13 +18,25 @@ Crypto 与 JDK RSA 能力，完成 RSA2 请求签名、响应及通知验签、�
 当前版本支持：
 
 - 自研普通商户、RSA2 公钥模式；
-- `alipay.trade.page.pay` 电脑网站支付 POST 表单；
-- `alipay.trade.query` 查单和 `alipay.trade.close` 关单；
-- `alipay.trade.refund` 退款和 `alipay.trade.fastpay.refund.query` 退款查询；
+- `alipay.trade.page.pay` 电脑网站支付 AOP POST 表单；
+- OpenAPI V3 `alipay.trade.query` 查单和 `alipay.trade.close` 关单；
+- OpenAPI V3 `alipay.trade.refund` 退款和 `alipay.trade.fastpay.refund.query` 退款查询；
 - 支付结果通知和 `alipay.trade.refund.depositback.completed` 银行卡冲退通知；
-- `alipay.data.dataservice.bill.downloadurl.query` 普通商户日/月账单下载地址查询。
+- OpenAPI V3 `alipay.data.dataservice.bill.downloadurl.query` 日/月账单下载地址查询。
 
-当前不包含服务商代调用、公钥证书模式、直付通、分账、花呗分期、指定买家、开票、账单文件下载及解析。模块只负责协议适配，
+支付宝当前采用混合协议，这不是工具包的兼容模式：
+
+| 能力 | 官方实际协议 |
+| --- | --- |
+| 页面支付 | `POST /gateway.do`，AOP `pageExecute` HTML 表单 |
+| 查单、关单、退款、退款查询 | `POST /v3/...`，JSON + V3 Authorization |
+| 账单下载地址 | `GET /v3/...`，query + V3 Authorization |
+| 支付、退款冲退通知 | URL 编码表单 + RSA2 V1 参数验签 |
+
+支付宝官方 `alipay-sdk-java-v3` 和当前页面支付文档均未提供 `/v3/alipay/trade/page/pay`。工具包不会构造不存在的 REST
+端点；除页面支付和通知这两个官方协议例外外，服务端 API 均使用真正的 OpenAPI V3。
+
+当前不包含服务商代调用、公钥证书模式、直付通支付交易、分账、花呗分期、指定买家、开票、账单文件下载及解析。模块只负责协议适配，
 不负责业务支付订单、业务幂等、渠道路由、通知持久化、轮询补偿和对账差异处理。
 
 ## 创建客户端
@@ -46,17 +58,21 @@ AlipayClient client = AlipayClient.builder()
 ```
 
 客户端线程安全，应作为长生命周期对象复用并在应用停止时关闭。默认 HTTP 客户端由它拥有；通过 `.httpClient(...)` 借入的
-客户端不会随支付宝客户端关闭。借入客户端应关闭自动重试、HTTP 重定向和跨协议重定向，让支付调用保持显式失败语义。
+客户端不会随支付宝客户端关闭。借入客户端必须关闭自动重试、HTTP 重定向和跨协议重定向；构建器会检查并拒绝不安全配置，
+让支付调用保持显式失败语义。调用方配置的拦截器属于可信边界，不得改写或记录签名、正文和敏感响应。
 
-沙箱联调时显式切换网关：
+沙箱联调时显式切换 OpenAPI 基础地址：
 
 ```java
-.gatewayUrl(AlipayClient.SANDBOX_GATEWAY_URL)
+.baseUrl(AlipayClient.SANDBOX_BASE_URL)
 ```
+
+生产配置只接受支付宝正式或沙箱 OpenAPI 域名，防止不包含主机名的 V3 签名请求被第三方中继；自定义地址仅允许环回主机进行
+本地协议测试。
 
 ## 电脑网站支付
 
-页面支付不会向支付宝发送普通服务端 API 请求，而是在商户服务端生成完整的签名 HTML 表单：
+页面支付没有 REST V3 端点。它按支付宝官方 `pageExecute` 语义，在商户服务端生成完整的 AOP 签名 HTML 表单：
 
 ```java
 import com.zhengshuyun.lava.pay.alipay.pagepay.PagePayForm;
@@ -105,6 +121,7 @@ return NotificationParser.SUCCESS;
 
 ```java
 var trade = client.transactions().queryByOutTradeNo("ORDER_001");
+trade.requireOrder("ORDER_001", 100); // 使用后端可信订单金额核对
 if (trade.paid()) {
     // 已支付
 }
@@ -130,11 +147,12 @@ var refund = client.refunds().apply(RefundRequest.builder()
         .build());
 
 if (!refund.succeeded()) {
-    // code=10000 只表示退款请求调用成功；fund_change 不是 Y 时继续查询。
+    // V3 HTTP 成功只表示请求已处理；fund_change 不是 Y 时继续查询。
     var latest = client.refunds().query(RefundQueryRequest.builder()
             .outTradeNo("ORDER_001")
             .outRequestNo("REFUND_001")
             .build());
+    latest.requireRefund("ORDER_001", "REFUND_001", 100, 50);
     boolean refunded = latest.succeeded(); // 仅 REFUND_SUCCESS 为 true
 }
 ```
@@ -145,6 +163,7 @@ if (!refund.succeeded()) {
 ```java
 var depositBack = client.notifications()
         .parseRefundDepositBack(formParameters);
+depositBack.requireRefund("ORDER_001", "REFUND_001", 50);
 
 // 按 notifyId 和 outRequestNo 幂等处理，成功后返回 success。
 ```
@@ -159,11 +178,15 @@ var info = client.bills().queryDaily(
 var downloadUrl = info.downloadUrl();
 ```
 
-模块只返回已验签下载地址。下载地址有效期很短，调用方应立即下载，并自行完成文件存储、解压、字段解析和对账差异处理。
+完整请求可通过 `BillRequest.builder()` 配置直付通二级商户 SMID。模块只返回已验签下载信息，下载地址在取得后 30 秒内未使用
+即会失效，调用方应立即下载，并自行完成文件存储、解压、字段解析和对账差异处理。
+
+当前实现严格跟随官方 Java V3 SDK/OAS 中的 `bill_type`、`bill_date` 和 `smid` 参数，不发送 SDK 尚未收录的扩展字段。
 
 ## 失败语义与安全
 
-- `AlipayApiException`：已验签的支付宝业务失败，包含 `code`、`subCode` 和可选 `traceId`；
+- `AlipayApiException`：结构化支付宝 V3 API 失败，包含 HTTP 状态、`verified`、`code`、`apiMessage`、`details`、`links`
+  和可选 `traceId`；官方 V3 SDK允许错误响应不带签名，此时 `verified=false`，只能用于诊断和重试分类；
 - `AlipayTransportException`：DNS、连接、TLS、超时或非成功 HTTP 状态，结果可能未知；
 - `AlipaySecurityException`：签名、应用、卖家、订单号或金额不匹配；
 - `AlipayProtocolException`：响应结构、金额精度或日期格式不符合协议。
@@ -173,9 +196,13 @@ var downloadUrl = info.downloadUrl();
 
 ## 官方文档
 
-- [电脑网站支付接入目录](https://ideservice.alipay.com/cms/site/0iztfv)
-- [统一收单下单并支付页面接口](https://ideservice.alipay.com/cms/site/0izblh)
-- [电脑网站支付异步通知](https://ideservice.alipay.com/cms/site/0izbju)
-- [统一收单交易查询](https://ideservice.alipay.com/cms/site/0izam7)
-- [统一收单交易退款](https://ideservice.alipay.com/cms/site/0izblj)
-- [统一收单退款查询](https://ideservice.alipay.com/cms/site/0izam8)
+- [OpenAPI V3 请求规则](https://opendocs.alipay.com/open-v3/054oog)
+- [OpenAPI V3 请求签名](https://opendocs.alipay.com/open-v3/054q58)
+- [OpenAPI V3 响应验签](https://opendocs.alipay.com/open-v3/054d0z)
+- [统一收单下单并支付页面接口](https://opendocs.alipay.com/open-v3/2423fad5_alipay.trade.page.pay?scene=22&pathHash=1dc76737)
+- [统一收单交易关闭](https://opendocs.alipay.com/open-v3/429ffb46_alipay.trade.close?scene=common&pathHash=4d948bd6)
+- [统一收单交易退款](https://opendocs.alipay.com/open-v3/01073208_alipay.trade.refund?scene=common&pathHash=dff16ab4)
+- [退款冲退完成通知](https://opendocs.alipay.com/open-v3/42a9ce75_alipay.trade.refund.depositback.completed?scene=common&pathHash=9c33d734)
+- [统一收单交易查询](https://opendocs.alipay.com/open-v3/e9ce4f59_alipay.trade.query?scene=23&pathHash=9b1a06e3)
+- [统一收单交易退款查询](https://opendocs.alipay.com/open-v3/46bff59c_alipay.trade.fastpay.refund.query?scene=common&pathHash=3901bb82)
+- [查询对账单下载地址](https://opendocs.alipay.com/open-v3/d6c4d425_alipay.data.dataservice.bill.downloadurl.query?scene=common&pathHash=b88e9ae1)

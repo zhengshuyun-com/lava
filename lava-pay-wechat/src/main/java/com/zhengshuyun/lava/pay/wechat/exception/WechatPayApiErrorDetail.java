@@ -30,5 +30,6 @@ public record WechatPayApiErrorDetail(
         @Nullable String field,
         @Nullable String value,
         @Nullable String issue,
-        @Nullable String location) {
+        @Nullable String location
+) {
 }

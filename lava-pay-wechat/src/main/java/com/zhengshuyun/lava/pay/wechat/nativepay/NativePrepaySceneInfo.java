@@ -40,7 +40,12 @@ public record NativePrepaySceneInfo(
         payerClientIp = WechatPayValidationUtils.requireIpAddress(
                 payerClientIp, "payerClientIp");
         if (deviceId != null) {
-            WechatPayValidationUtils.requireText(deviceId, "deviceId", 1, 32);
+            WechatPayValidationUtils.requireText(
+                    deviceId,
+                    "deviceId",
+                    1,
+                    32
+            );
         }
     }
 
@@ -64,6 +69,7 @@ public record NativePrepaySceneInfo(
         /** 构建期商户门店信息。 */
         private @Nullable StoreInfo storeInfo;
 
+        /** 创建空支付场景构建器。 */
         private Builder() {
         }
 
@@ -123,23 +129,42 @@ public record NativePrepaySceneInfo(
             @JsonProperty("id") String id,
             @JsonProperty("name") @Nullable String name,
             @JsonProperty("area_code") @Nullable String areaCode,
-            @JsonProperty("address") @Nullable String address) {
+            @JsonProperty("address") @Nullable String address
+    ) {
 
         /**
          * 校验门店信息。
          */
         public StoreInfo {
-            id = WechatPayValidationUtils.requireText(id, "storeInfo.id", 1, 32);
+            id = WechatPayValidationUtils.requireText(
+                    id,
+                    "storeInfo.id",
+                    1,
+                    32
+            );
             if (name != null) {
-                WechatPayValidationUtils.requireText(name, "storeInfo.name", 1, 256);
+                WechatPayValidationUtils.requireText(
+                        name,
+                        "storeInfo.name",
+                        1,
+                        256
+                );
             }
             if (areaCode != null) {
-                WechatPayValidationUtils.requireText(areaCode,
-                        "storeInfo.areaCode", 1, 32);
+                WechatPayValidationUtils.requireText(
+                        areaCode,
+                        "storeInfo.areaCode",
+                        1,
+                        32
+                );
             }
             if (address != null) {
-                WechatPayValidationUtils.requireText(address,
-                        "storeInfo.address", 1, 512);
+                WechatPayValidationUtils.requireText(
+                        address,
+                        "storeInfo.address",
+                        1,
+                        512
+                );
             }
         }
 
@@ -166,6 +191,7 @@ public record NativePrepaySceneInfo(
         /** 构建期门店详细地址。 */
         private @Nullable String address;
 
+        /** 创建空门店信息构建器。 */
         private StoreInfoBuilder() {
         }
 
@@ -219,8 +245,15 @@ public record NativePrepaySceneInfo(
          * @return 门店信息
          */
         public StoreInfo build() {
-            return new StoreInfo(ValidationUtils.requireNonNull(id,
-                    "storeInfo.id is required"), name, areaCode, address);
+            return new StoreInfo(
+                    ValidationUtils.requireNonNull(
+                            id,
+                            "storeInfo.id is required"
+                    ),
+                    name,
+                    areaCode,
+                    address
+            );
         }
     }
 }

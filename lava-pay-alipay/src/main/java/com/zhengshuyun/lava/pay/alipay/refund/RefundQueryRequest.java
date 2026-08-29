@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * 支付宝退款查询参数。
+ * 支付宝退款查询参数。商户订单号与支付宝交易号至少提供一个；同时提供时支付宝优先使用交易号。
  */
 public final class RefundQueryRequest {
     private static final Set<String> OPTIONS = Set.of(
@@ -29,9 +29,10 @@ public final class RefundQueryRequest {
     private final String outRequestNo;
     private final List<String> queryOptions;
 
+    /** 使用构建期参数创建并校验退款查询请求。 */
     private RefundQueryRequest(Builder builder) {
-        ValidationUtils.requireTrue((builder.outTradeNo == null) != (builder.tradeNo == null),
-                "exactly one of outTradeNo and tradeNo is required");
+        ValidationUtils.requireTrue(builder.outTradeNo != null || builder.tradeNo != null,
+                "at least one of outTradeNo and tradeNo is required");
         outTradeNo = builder.outTradeNo == null ? null
                 : AlipayValidationUtils.requireOutTradeNo(builder.outTradeNo);
         tradeNo = builder.tradeNo == null ? null
@@ -93,6 +94,7 @@ public final class RefundQueryRequest {
         private final Set<String> queryOptions = new LinkedHashSet<>(
                 Set.of(RefundQueryOption.DEPOSIT_BACK_INFO));
 
+        /** 创建空退款查询构建器。 */
         private Builder() {
         }
 

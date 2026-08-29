@@ -18,6 +18,7 @@ public final class AlipayMoneyUtils {
     public static final long MAX_PAYMENT_CENTS = 10_000_000_000L;
     private static final Pattern MONEY = Pattern.compile("[0-9]+(?:\\.[0-9]{1,2})?");
 
+    /** 禁止实例化支付宝金额工具。 */
     private AlipayMoneyUtils() {
         throw new UnsupportedOperationException("Utility class");
     }

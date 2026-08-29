@@ -46,8 +46,12 @@ public final class WechatPayTransportException extends WechatPayException {
      * @param url 已脱敏 URL
      * @param causeType 底层异常类型名
      */
-    public WechatPayTransportException(HttpFailureKind kind, @Nullable String method,
-                                       @Nullable String url, @Nullable String causeType) {
+    public WechatPayTransportException(
+            HttpFailureKind kind,
+            @Nullable String method,
+            @Nullable String url,
+            @Nullable String causeType
+    ) {
         super("微信支付传输失败: kind=" + ValidationUtils.requireNonNull(kind, "kind")
                 + (method == null ? "" : ", method=" + method));
         this.kind = kind;

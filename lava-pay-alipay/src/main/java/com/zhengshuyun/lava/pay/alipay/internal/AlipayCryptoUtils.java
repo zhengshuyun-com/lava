@@ -24,12 +24,15 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 支付宝 RSA2 参数签名与验签工具。
+ * 支付宝 RSA2 签名与验签工具。
+ *
+ * <p>OpenAPI V3 对固定换行原文签名；页面支付和 From 蚂蚁消息通知仍按 AOP 参数排序规则签名。</p>
  */
 public final class AlipayCryptoUtils {
     /** 支付宝 RSA-SHA256 签名类型。 */
     public static final String SIGN_TYPE = "RSA2";
 
+    /** 禁止实例化支付宝密码学工具。 */
     private AlipayCryptoUtils() {
         throw new UnsupportedOperationException("Utility class");
     }
@@ -42,7 +45,18 @@ public final class AlipayCryptoUtils {
      * @return Base64 签名
      */
     public static String sign(Map<String, String> params, PrivateKey privateKey) {
-        byte[] content = signatureContent(params).getBytes(StandardCharsets.UTF_8);
+        return sign(signatureContent(params), privateKey);
+    }
+
+    /**
+     * 对已经按协议构造完成的原文生成 RSA2 签名。
+     *
+     * @param source     未编码签名原文
+     * @param privateKey 应用私钥
+     * @return Base64 签名
+     */
+    public static String sign(String source, PrivateKey privateKey) {
+        byte[] content = source.getBytes(StandardCharsets.UTF_8);
         try {
             return Base64.getEncoder().encodeToString(
                     CryptoUtils.rsaSha256Sign(privateKey, content));
@@ -90,8 +104,11 @@ public final class AlipayCryptoUtils {
             return false;
         }
         try {
-            return CryptoUtils.rsaSha256Verify(publicKey,
-                    source.getBytes(charset), decoded);
+            return CryptoUtils.rsaSha256Verify(
+                    publicKey,
+                    source.getBytes(charset),
+                    decoded
+            );
         } catch (CryptoException exception) {
             return false;
         }
@@ -104,6 +121,7 @@ public final class AlipayCryptoUtils {
      * @param publicKey 支付宝公钥
      */
     public static void verifyNotification(Map<String, String> params, PublicKey publicKey) {
+        // 1. 签名和签名类型必须完整且明确，禁止缺失时降级为未验签通知。
         String signature = params.get("sign");
         if (signature == null || signature.isBlank()) {
             throw new AlipaySecurityException(AlipaySecurityFailure.MISSING_SIGNATURE);
@@ -113,8 +131,10 @@ public final class AlipayCryptoUtils {
                     AlipaySecurityFailure.UNSUPPORTED_SIGNATURE_TYPE);
         }
 
+        // 2. 只接受支付宝通知协议允许的字符集，避免签名原文字节存在歧义。
         Charset charset = notificationCharset(params.get("charset"));
 
+        // 3. 按 V1 规则剔除签名元数据并排序拼接原始表单值，再执行 RSA2 验签。
         Map<String, String> contentParams = new LinkedHashMap<>(params);
         contentParams.remove("sign");
         contentParams.remove("sign_type");
@@ -151,6 +171,12 @@ public final class AlipayCryptoUtils {
         return content.toString();
     }
 
+    /**
+     * 将通知字符集限制在支付宝协议允许的范围内。
+     *
+     * @param value 通知声明的字符集
+     * @return 可用于验签原文编码的字符集
+     */
     private static Charset notificationCharset(String value) {
         String name = value == null || value.isBlank() ? "UTF-8" : value;
         if (!"UTF-8".equalsIgnoreCase(name) && !"GBK".equalsIgnoreCase(name)

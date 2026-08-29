@@ -95,13 +95,15 @@ public final class NativePayClient {
                 new Amount(request.amount(), "CNY"),
                 request.detail(),
                 request.sceneInfo(),
-                settleInfo);
+                settleInfo
+        );
 
         // 3. 由传输层使用最终载荷完成 JSON 编码、请求签名、发送、响应验签和结果解析。
         return transport.post(
                 transport.endpoint(PREPAY_PATH),
                 payload,
-                NativePrepayResponse.class);
+                NativePrepayResponse.class
+        );
     }
 
     /**
@@ -137,7 +139,8 @@ public final class NativePayClient {
             @JsonProperty("amount") Amount amount,
             @JsonProperty("detail") @Nullable NativePrepayDetail detail,
             @JsonProperty("scene_info") @Nullable NativePrepaySceneInfo sceneInfo,
-            @JsonProperty("settle_info") @Nullable SettleInfo settleInfo) {
+            @JsonProperty("settle_info") @Nullable SettleInfo settleInfo
+    ) {
     }
 
     /**

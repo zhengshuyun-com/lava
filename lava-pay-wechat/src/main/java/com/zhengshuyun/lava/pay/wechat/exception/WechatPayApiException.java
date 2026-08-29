@@ -51,9 +51,13 @@ public final class WechatPayApiException extends WechatPayException {
      * @param detail 可选参数错误详情
      * @param requestId 可选微信支付 Request-ID
      */
-    public WechatPayApiException(int statusCode, String code, String apiMessage,
-                                 @Nullable WechatPayApiErrorDetail detail,
-                                 @Nullable String requestId) {
+    public WechatPayApiException(
+            int statusCode,
+            String code,
+            String apiMessage,
+            @Nullable WechatPayApiErrorDetail detail,
+            @Nullable String requestId
+    ) {
         super(format(statusCode, code, requestId));
         ValidationUtils.requireTrue(statusCode >= 100 && statusCode <= 599,
                 "statusCode must be a valid HTTP status code");
@@ -110,6 +114,7 @@ public final class WechatPayApiException extends WechatPayException {
         return requestId;
     }
 
+    /** 构造不包含响应业务值的安全异常文本。 */
     private static String format(int statusCode, String code, @Nullable String requestId) {
         StringBuilder message = new StringBuilder("微信支付 API 调用失败: status=")
                 .append(statusCode)
