@@ -20,7 +20,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.zhengshuyun.lava.http.*;
 import com.zhengshuyun.lava.json.JsonCodec;
 import com.zhengshuyun.lava.json.JsonException;
-import com.zhengshuyun.lava.pay.wechat.*;
+import com.zhengshuyun.lava.pay.wechat.exception.*;
 import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
@@ -35,23 +35,40 @@ import java.util.function.Supplier;
 
 /**
  * 微信支付 APIv3 的统一签名、发送、验签和错误解析传输层。
+ *
+ * <p>该类型仅由根客户端及各产品入口共享使用，集中保证请求正文签名与发送一致、所有业务响应
+ * 先验签后解析，并将底层 HTTP 失败转换为微信支付领域异常。它不拥有 HTTP 客户端的生命周期。</p>
  */
 public final class WechatPayTransport {
+    /** 无请求正文时参与签名和发送的共享空字节数组。 */
     private static final byte[] EMPTY_BODY = new byte[0];
+    /** 下载账单失败响应允许读取的最大字节数，防止错误正文无限占用内存。 */
     private static final int MAX_DOWNLOAD_ERROR_BYTES = 64 * 1024;
+    /** 微信支付账单下载链接允许使用的官方 API 主、备域名。 */
     private static final Set<String> OFFICIAL_API_HOSTS = Set.of(
             "api.mch.weixin.qq.com", "api2.mch.weixin.qq.com");
 
+    /** 当前普通商户号，写入请求签名和需携带商户号的业务参数。 */
     private final String mchid;
+    /** 用于请求签名的商户 API 证书序列号。 */
     private final String merchantSerialNo;
+    /** 用于生成 APIv3 请求签名的商户 API 私钥。 */
     private final PrivateKey merchantPrivateKey;
+    /** 当前使用的微信支付公钥 ID，用于声明并匹配响应或通知签名。 */
     private final String wechatPayPublicKeyId;
+    /** 用于验签微信支付 API 应答和通知的微信支付公钥。 */
     private final PublicKey wechatPayPublicKey;
+    /** APIv3 密钥的内部副本，仅用于解密回调通知资源。 */
     private final byte[] apiV3Key;
+    /** 仅用于发送请求的 HTTP 客户端；关闭责任由共享运行时或调用方承担。 */
     private final HttpClient httpClient;
+    /** 已校验的微信支付 API 根地址，用于构造业务接口端点。 */
     private final URI apiBaseUrl;
+    /** 请求签名与消息时效校验共用的时钟。 */
     private final Clock clock;
+    /** 为每次请求签名生成随机串的供应器。 */
     private final Supplier<String> nonceSupplier;
+    /** 业务请求编码及已验签响应解码使用的 JSON 编解码器。 */
     private final JsonCodec jsonCodec;
 
     /**
@@ -173,12 +190,18 @@ public final class WechatPayTransport {
      * @param requestBody 请求模型
      */
     public void postNoContent(URI uri, Object requestBody) {
+        // 1. 先编码一次并复用同一正文完成签名和发送，避免二次序列化导致签名不一致。
         byte[] body = encode(requestBody);
         HttpResponse response = execute(HttpMethod.POST, uri, body);
-        verify(response.getHeaders(), response.getBodyAsBytes());
+        byte[] responseBody = response.getBodyAsBytes();
+
+        // 2. 无论状态码是否成功，均须先验证响应来源，再根据 HTTP 语义处理结果。
+        verify(response.getHeaders(), responseBody);
         if (!response.isSuccessful()) {
             throw apiException(response);
         }
+
+        // 3. 关单接口的成功语义固定为 204 且无正文，拒绝异常成功响应以防协议变化被静默忽略。
         if (response.statusCode() != 204 || response.getContentLength() != 0) {
             throw new WechatPayProtocolException("微信支付关单响应必须为 204 空正文");
         }
@@ -191,6 +214,7 @@ public final class WechatPayTransport {
      * @return 调用方负责关闭的下载流
      */
     public HttpStream openDownload(URI uri) {
+        // 1. 下载地址来自已验签的申请账单响应，仍限制来源以防被业务代码替换为任意地址。
         requireTrustedDownloadUrl(uri);
         HttpRequest request = signedRequest(HttpMethod.GET, uri, EMPTY_BODY);
         HttpStream stream;
@@ -200,9 +224,11 @@ public final class WechatPayTransport {
             throw transportException(exception);
         }
         if (stream.isSuccessful()) {
+            // 2. 成功流直接交给调用方读取和关闭，避免在传输层缓冲整个账单文件。
             return stream;
         }
 
+        // 3. 错误流由本方法关闭，并限制读取上限后转换为统一的微信支付 API 异常。
         try (stream) {
             byte[] body;
             try {
@@ -275,6 +301,7 @@ public final class WechatPayTransport {
     }
 
     private HttpResponse execute(HttpMethod method, URI uri, byte[] body) {
+        // 签名在发送前即时生成，避免授权头中的时间戳和随机串被缓存或复用。
         HttpRequest request = signedRequest(method, uri, body);
         try {
             return httpClient.send(request);
@@ -284,12 +311,13 @@ public final class WechatPayTransport {
     }
 
     private HttpRequest signedRequest(HttpMethod method, URI uri, byte[] body) {
+        // 1. 每个请求使用独立时间戳和随机串，构造微信支付要求的授权签名。
         long timestamp = clock.instant().getEpochSecond();
         String nonce = nonceSupplier.get();
         String authorization = WechatPayCryptoUtils.authorization(mchid, merchantSerialNo,
                 merchantPrivateKey, method.getName(), uri, body, timestamp, nonce);
 
-        // 签名正文与发送正文共用同一字节数组，避免 JSON 二次序列化造成签名不一致。
+        // 2. 签名正文与发送正文共用同一字节数组，避免 JSON 二次序列化造成签名不一致。
         HttpRequest.Builder builder = HttpRequest.builder(uri, method)
                 .header(HttpHeaderNames.ACCEPT, HttpMediaTypes.APPLICATION_JSON)
                 .header(WechatPayCryptoUtils.HEADER_SERIAL, wechatPayPublicKeyId)
@@ -302,10 +330,12 @@ public final class WechatPayTransport {
     }
 
     private void requireTrustedDownloadUrl(URI uri) {
+        // 1. 先拒绝不能唯一确定网络目标的 URI，避免用户信息或片段影响下载语义。
         if (uri == null || !uri.isAbsolute() || uri.getHost() == null
                 || uri.getUserInfo() != null || uri.getRawFragment() != null) {
             throw new WechatPayProtocolException("微信支付账单下载地址无效");
         }
+        // 2. 测试环境允许与配置根地址同源；生产下载链接只允许微信支付官方主、备域名。
         boolean sameOrigin = sameOrigin(apiBaseUrl, uri);
         boolean officialOrigin = "https".equalsIgnoreCase(uri.getScheme())
                 && OFFICIAL_API_HOSTS.contains(uri.getHost().toLowerCase(Locale.ROOT))
@@ -316,6 +346,7 @@ public final class WechatPayTransport {
     }
 
     private static boolean sameOrigin(URI left, URI right) {
+        // 比较协议、主机和有效端口；省略端口时按协议默认端口参与比较。
         return left.getScheme().equalsIgnoreCase(right.getScheme())
                 && left.getHost().equalsIgnoreCase(right.getHost())
                 && effectivePort(left) == effectivePort(right);
@@ -343,6 +374,7 @@ public final class WechatPayTransport {
 
     private WechatPayApiException apiException(int statusCode, HttpHeaders headers,
                                                byte[] body) {
+        // 1. 错误响应也必须符合微信支付约定的 JSON 结构，不能将任意正文包装成业务异常。
         ApiErrorPayload error;
         try {
             error = jsonCodec.read(body, ApiErrorPayload.class);
@@ -352,6 +384,8 @@ public final class WechatPayTransport {
         if (error.code == null || error.code.isBlank() || error.message == null) {
             throw new WechatPayProtocolException("微信支付错误响应缺少 code 或 message");
         }
+
+        // 2. 将可选明细和请求 ID 一并保留，便于调用方定位具体字段及向微信支付排障。
         WechatPayApiErrorDetail detail = error.detail == null ? null
                 : new WechatPayApiErrorDetail(error.detail.field, error.detail.value,
                 error.detail.issue, error.detail.location);

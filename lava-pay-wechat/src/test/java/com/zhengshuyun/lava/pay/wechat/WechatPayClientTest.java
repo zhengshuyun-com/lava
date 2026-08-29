@@ -5,12 +5,15 @@
 
 package com.zhengshuyun.lava.pay.wechat;
 
-import com.zhengshuyun.lava.crypto.RsaSignatureUtils;
+import com.zhengshuyun.lava.crypto.CryptoUtils;
 import com.zhengshuyun.lava.http.HttpClient;
 import com.zhengshuyun.lava.http.HttpRequest;
 import com.zhengshuyun.lava.json.JsonCodec;
+import com.zhengshuyun.lava.pay.wechat.exception.*;
+import com.zhengshuyun.lava.pay.wechat.nativepay.NativePrepayDetail;
 import com.zhengshuyun.lava.pay.wechat.nativepay.NativePrepayRequest;
 import com.zhengshuyun.lava.pay.wechat.nativepay.NativePrepayResponse;
+import com.zhengshuyun.lava.pay.wechat.nativepay.NativePrepaySceneInfo;
 import com.zhengshuyun.lava.pay.wechat.refund.Refund;
 import com.zhengshuyun.lava.pay.wechat.refund.RefundRequest;
 import com.zhengshuyun.lava.pay.wechat.transaction.TradeState;
@@ -87,6 +90,9 @@ class WechatPayClientTest {
                 .outTradeNo("ORDER_001")
                 .amount(100)
                 .profitSharing(false)
+                .detail(NativePrepayDetail.builder()
+                        .costPrice(100)
+                        .build())
                 .build();
 
         NativePrepayResponse response = client
@@ -104,6 +110,10 @@ class WechatPayClientTest {
         assertEquals("https://example.com/pay/notify",
                 body.get("notify_url").stringValue());
         assertEquals(100, body.get("amount").get("total").asInt());
+        assertFalse(body.has("time_expire"));
+        assertFalse(body.has("attach"));
+        assertFalse(body.get("detail").has("invoice_id"));
+        assertFalse(body.get("detail").has("goods_detail"));
         assertTrue(verifyRequestSignature(captured));
         assertEquals(WechatPayTestServer.PUBLIC_KEY_ID,
                 captured.header("Wechatpay-Serial"));
@@ -162,6 +172,7 @@ class WechatPayClientTest {
                 .outRefundNo("REFUND_001")
                 .amount(50, 100)
                 .reason("用户取消")
+                .notifyUrl("https://example.com/refund/notify")
                 .build();
 
         Refund applied = client.refunds().apply(request);
@@ -169,7 +180,14 @@ class WechatPayClientTest {
 
         assertEquals("REFUND_001", applied.outRefundNo());
         assertEquals(applied.refundId(), queried.refundId());
-        assertEquals("/v3/refund/domestic/refunds", server.takeRequest().target());
+        WechatPayTestServer.CapturedRequest applyRequest = server.takeRequest();
+        assertEquals("/v3/refund/domestic/refunds", applyRequest.target());
+        JsonNode applyBody = JsonCodec.defaultCodec().readTree(
+                new String(applyRequest.body(), StandardCharsets.UTF_8));
+        assertFalse(applyBody.has("transaction_id"));
+        assertEquals("https://example.com/refund/notify",
+                applyBody.get("notify_url").stringValue());
+        assertFalse(applyBody.get("amount").has("from"));
         assertEquals("/v3/refund/domestic/refunds/REFUND_001",
                 server.takeRequest().target());
     }
@@ -260,6 +278,35 @@ class WechatPayClientTest {
     }
 
     @Test
+    void transactionAndRefundResponsesMustMatchRequestedBusinessIdentifiers() {
+        server.enqueueSigned(200, """
+                {"appid":"wx1234567890","mchid":"1900000109",
+                 "out_trade_no":"ORDER_002","trade_state":"NOTPAY",
+                 "trade_state_desc":"未支付"}
+                """);
+
+        WechatPaySecurityException transactionFailure = assertThrows(
+                WechatPaySecurityException.class,
+                () -> client.transactions().queryByOutTradeNo("ORDER_001"));
+        assertEquals(WechatPaySecurityFailure.RESPONSE_MISMATCH,
+                transactionFailure.failure());
+
+        server.enqueueSigned(200, refundJson().replace(
+                "\"refund\":50", "\"refund\":40"));
+        RefundRequest request = RefundRequest.builder()
+                .outTradeNo("ORDER_001")
+                .outRefundNo("REFUND_001")
+                .amount(50, 100)
+                .build();
+
+        WechatPaySecurityException refundFailure = assertThrows(
+                WechatPaySecurityException.class,
+                () -> client.refunds().apply(request));
+        assertEquals(WechatPaySecurityFailure.RESPONSE_MISMATCH,
+                refundFailure.failure());
+    }
+
+    @Test
     void closingWechatClientDoesNotCloseBorrowedHttpClient() {
         client.close();
         try (HttpClient borrowed = HttpClient.builder().build()) {
@@ -298,15 +345,26 @@ class WechatPayClientTest {
                 .addAmountFrom(new RefundRequest.AmountFrom("UNAVAILABLE", 1))
                 .build());
         assertThrows(IllegalArgumentException.class,
+                () -> WechatPayClient.builder().apiV3Key(
+                        "0123456789abcdef0123456789abcde!"));
+        assertThrows(IllegalArgumentException.class,
                 () -> WechatPayClient.builder().apiBaseUrl("http://example.com"));
         assertThrows(IllegalArgumentException.class,
                 () -> WechatPayClient.builder().apiBaseUrl("https://example.com/proxy"));
         assertThrows(IllegalArgumentException.class,
-                () -> NativePrepayRequest.SceneInfo.builder()
+                () -> client.application(APPID, "https://127.0.0.1/pay/notify"));
+        assertThrows(IllegalArgumentException.class,
+                () -> client.application(APPID, "https://localhost/pay/notify"));
+        assertThrows(IllegalArgumentException.class,
+                () -> NativePrepaySceneInfo.builder()
                         .payerClientIp("not-an-ip-address")
                         .build());
         assertThrows(IllegalArgumentException.class,
-                () -> NativePrepayRequest.GoodsDetail.builder()
+                () -> NativePrepaySceneInfo.builder()
+                        .payerClientIp("fe80::1%en0")
+                        .build());
+        assertThrows(IllegalArgumentException.class,
+                () -> NativePrepayDetail.GoodsDetail.builder()
                         .merchantGoodsId("不支持的编码")
                         .quantity(1)
                         .unitPrice(1)
@@ -316,9 +374,21 @@ class WechatPayClientTest {
     @Test
     void closedClientRejectsExistingEntryObjects() {
         var transactions = client.transactions();
+        var refunds = client.refunds();
+        var bills = client.bills();
+        var notifications = client.notifications();
+        var nativePay = client.application(
+                APPID, "https://example.com/pay/notify").nativePay();
+
         client.close();
+
         assertThrows(IllegalStateException.class,
                 () -> transactions.queryByOutTradeNo("ORDER_001"));
+        assertThrows(IllegalStateException.class, () -> refunds.apply(null));
+        assertThrows(IllegalStateException.class, () -> bills.applyTradeBill(null));
+        assertThrows(IllegalStateException.class,
+                () -> notifications.parseTransaction(null, (byte[]) null));
+        assertThrows(IllegalStateException.class, () -> nativePay.prepay(null));
     }
 
     private static boolean verifyRequestSignature(
@@ -332,7 +402,7 @@ class WechatPayClientTest {
                 + CLOCK.instant().getEpochSecond() + '\n'
                 + REQUEST_NONCE + '\n'
                 + new String(request.body(), StandardCharsets.UTF_8) + '\n';
-        return RsaSignatureUtils.verifySha256(merchantKeys.getPublic(),
+        return CryptoUtils.rsaSha256Verify(merchantKeys.getPublic(),
                 message.getBytes(StandardCharsets.UTF_8), signature);
     }
 

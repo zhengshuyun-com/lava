@@ -34,7 +34,7 @@
 - 商户号 `mchid`；
 - 已与商户号绑定的 `appid`；
 - 商户 API 私钥及对应证书或证书序列号；
-- 32 字节 APIv3 密钥；
+- 32 位 ASCII 字母数字 APIv3 密钥；
 - 微信支付公钥 ID 和公钥文件；
 - 外网可访问、无查询参数的 HTTPS 支付通知地址。
 
@@ -84,22 +84,22 @@ URI codeUrl = response.codeUrl();
 `codeUrl` 由前端或调用方选择二维码组件渲染。本模块不引入二维码图片依赖。
 微信支付返回的 `code_url` 有效期为 2 小时；过期后应使用相同下单参数重新请求以获取新链接。
 
-需要单品、门店或分账标识时，可继续配置嵌套模型：
+需要单品、门店或分账标识时，可继续配置对应业务模型：
 
 ```java
 NativePrepayRequest request = NativePrepayRequest.builder()
         .description("深圳门店订单")
         .outTradeNo("ORDER_002")
         .amount(528800)
-        .detail(NativePrepayRequest.Detail.builder()
-                .addGoodsDetail(NativePrepayRequest.GoodsDetail.builder()
+        .detail(NativePrepayDetail.builder()
+                .addGoodsDetail(NativePrepayDetail.GoodsDetail.builder()
                         .merchantGoodsId("IPHONE_001")
                         .goodsName("iPhone")
                         .quantity(1)
                         .unitPrice(528800)
                         .build())
                 .build())
-        .sceneInfo(NativePrepayRequest.SceneInfo.builder()
+        .sceneInfo(NativePrepaySceneInfo.builder()
                 .payerClientIp("203.0.113.10")
                 .deviceId("POS_001")
                 .build())
@@ -168,14 +168,16 @@ BillDownloadResult result = client.bills().download(
         info, Path.of("/data/bills/2026-08-28.csv"));
 ```
 
-下载过程先写同目录临时文件，SHA-1 与申请账单结果一致后才发布目标文件。目标已存在时拒绝覆盖；申请 `GZIP` 时保存的是
-原始压缩文件，不自动解压或解析。
+下载过程先写同目录临时文件，SHA-1 与申请账单结果一致后才发布目标文件。目标已存在时拒绝覆盖；申请 `GZIP` 时会先解压，
+再校验并保存账单原文，但不会解析账单字段。
 
 ## 失败与重试
 
+公开异常统一位于 `com.zhengshuyun.lava.pay.wechat.exception` 包：
+
 - `WechatPayApiException`：微信支付返回的 HTTP 状态码、错误码、错误详情和 `Request-ID`；
 - `WechatPayTransportException`：DNS、连接、TLS、超时等传输失败；
-- `WechatPaySecurityException`：签名、公钥 ID、时间戳、回调密文或账单摘要校验失败；
+- `WechatPaySecurityException`：签名、公钥 ID、时间戳、回调密文、响应一致性或账单摘要校验失败；
 - `WechatPayProtocolException`：响应不符合 APIv3 结构；
 - `WechatPayFileException`：账单目标冲突或文件系统失败。
 

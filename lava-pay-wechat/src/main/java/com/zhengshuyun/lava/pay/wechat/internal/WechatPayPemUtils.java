@@ -17,9 +17,8 @@
 package com.zhengshuyun.lava.pay.wechat.internal;
 
 import com.zhengshuyun.lava.core.lang.ValidationUtils;
+import com.zhengshuyun.lava.crypto.CryptoUtils;
 import com.zhengshuyun.lava.crypto.CryptoException;
-import com.zhengshuyun.lava.crypto.PemKeyUtils;
-import com.zhengshuyun.lava.crypto.RsaSignatureUtils;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -55,7 +54,7 @@ public final class WechatPayPemUtils {
      */
     public static PrivateKey readPrivateKey(Path path) {
         try {
-            PrivateKey key = PemKeyUtils.readRsaPrivateKey(readPem(path));
+            PrivateKey key = CryptoUtils.pemReadRsaPrivateKey(readPem(path));
             requireRsaKey(key, "merchantPrivateKey");
             return key;
         } catch (CryptoException exception) {
@@ -71,7 +70,7 @@ public final class WechatPayPemUtils {
      */
     public static PublicKey readPublicKey(Path path) {
         try {
-            PublicKey key = PemKeyUtils.readRsaPublicKey(readPem(path));
+            PublicKey key = CryptoUtils.pemReadRsaPublicKey(readPem(path));
             requireRsaKey(key, "wechatPayPublicKey");
             return key;
         } catch (CryptoException exception) {
@@ -162,9 +161,9 @@ public final class WechatPayPemUtils {
     public static void requireKeyPair(PrivateKey privateKey, X509Certificate certificate) {
         byte[] probe = HexFormat.of().parseHex("6c6176612d7061792d776563686174");
         try {
-            byte[] signature = RsaSignatureUtils.sha256(privateKey, probe);
+            byte[] signature = CryptoUtils.rsaSha256Sign(privateKey, probe);
             try {
-                ValidationUtils.requireTrue(RsaSignatureUtils.verifySha256(
+                ValidationUtils.requireTrue(CryptoUtils.rsaSha256Verify(
                                 certificate.getPublicKey(), probe, signature),
                         "merchantPrivateKey does not match merchantCertificate");
             } finally {

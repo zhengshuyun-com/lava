@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.zhengshuyun.lava.pay.wechat;
+package com.zhengshuyun.lava.pay.wechat.exception;
 
 import com.zhengshuyun.lava.core.lang.ValidationUtils;
 

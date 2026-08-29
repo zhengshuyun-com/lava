@@ -5,8 +5,9 @@
 
 package com.zhengshuyun.lava.pay.wechat;
 
-import com.zhengshuyun.lava.crypto.AesGcmUtils;
+import com.zhengshuyun.lava.crypto.CryptoUtils;
 import com.zhengshuyun.lava.http.HttpHeaders;
+import com.zhengshuyun.lava.pay.wechat.exception.*;
 import com.zhengshuyun.lava.pay.wechat.notification.RefundNotification;
 import com.zhengshuyun.lava.pay.wechat.notification.TransactionNotification;
 import org.junit.jupiter.api.*;
@@ -202,7 +203,7 @@ class NotificationParserTest {
     }
 
     private static byte[] envelope(String eventType, String originalType, String plaintext) {
-        byte[] ciphertext = AesGcmUtils.encrypt(API_V3_KEY, NONCE, new byte[0],
+        byte[] ciphertext = CryptoUtils.aesGcmEncrypt(API_V3_KEY, NONCE, new byte[0],
                 plaintext.getBytes(StandardCharsets.UTF_8));
         String json = """
                 {"id":"EV-001","create_time":"2026-08-29T08:00:00+08:00",

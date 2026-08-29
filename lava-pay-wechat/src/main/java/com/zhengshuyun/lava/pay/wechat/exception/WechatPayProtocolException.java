@@ -14,21 +14,23 @@
  * limitations under the License.
  */
 
-package com.zhengshuyun.lava.pay.wechat;
+package com.zhengshuyun.lava.pay.wechat.exception;
 
-import org.jspecify.annotations.Nullable;
+import java.io.Serial;
 
 /**
- * 微信支付 API 返回的参数错误详情。
- *
- * @param field 参数位置，Body 参数通常使用 JSON Pointer
- * @param value 微信支付返回的错误值；可能包含业务数据，不会写入异常文本
- * @param issue 具体错误原因
- * @param location 参数来源位置，例如 {@code body}、{@code url} 或 {@code query}
+ * 已通过传输层但无法按微信支付 APIv3 协议解释的响应或通知。
  */
-public record WechatPayApiErrorDetail(
-        @Nullable String field,
-        @Nullable String value,
-        @Nullable String issue,
-        @Nullable String location) {
+public final class WechatPayProtocolException extends WechatPayException {
+    @Serial
+    private static final long serialVersionUID = 1L;
+
+    /**
+     * 创建不包含原始报文的协议异常。
+     *
+     * @param message 精确协议失败原因
+     */
+    public WechatPayProtocolException(String message) {
+        super(message);
+    }
 }

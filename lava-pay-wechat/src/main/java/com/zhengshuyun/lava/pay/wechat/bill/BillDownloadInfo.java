@@ -9,6 +9,7 @@ import com.zhengshuyun.lava.core.lang.ValidationUtils;
 import org.jspecify.annotations.Nullable;
 
 import java.net.URI;
+import java.util.regex.Pattern;
 
 /**
  * 已验签的账单下载信息。
@@ -20,16 +21,27 @@ import java.net.URI;
  */
 public record BillDownloadInfo(String hashType, String hashValue, URI downloadUrl,
                                @Nullable BillTarType tarType) {
+    private static final Pattern SHA1_VALUE = Pattern.compile("[0-9A-Fa-f]{40}");
+
     /**
      * 校验账单下载信息。
      */
     public BillDownloadInfo {
-        ValidationUtils.requireNotBlank(hashType, "hashType must not be blank");
-        ValidationUtils.requireNotBlank(hashValue, "hashValue must not be blank");
+        ValidationUtils.requireTrue("SHA1".equalsIgnoreCase(hashType),
+                "hashType must be SHA1");
+        ValidationUtils.requireTrue(hashValue != null
+                        && SHA1_VALUE.matcher(hashValue).matches(),
+                "hashValue must be a 40-character SHA-1 value");
         ValidationUtils.requireNonNull(downloadUrl, "downloadUrl must not be null");
         ValidationUtils.requireTrue(downloadUrl.isAbsolute()
                         && ("https".equalsIgnoreCase(downloadUrl.getScheme())
                         || "http".equalsIgnoreCase(downloadUrl.getScheme())),
                 "downloadUrl must be an absolute HTTP or HTTPS URI");
+        ValidationUtils.requireTrue(downloadUrl.getHost() != null
+                        && downloadUrl.getUserInfo() == null
+                        && downloadUrl.getRawFragment() == null
+                        && downloadUrl.toASCIIString().length() <= 2048,
+                "downloadUrl must contain a host, omit user information and fragments, "
+                        + "and not exceed 2048 characters");
     }
 }

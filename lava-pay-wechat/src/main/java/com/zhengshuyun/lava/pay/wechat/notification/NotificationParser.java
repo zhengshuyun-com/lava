@@ -22,9 +22,10 @@ import com.zhengshuyun.lava.core.lang.ValidationUtils;
 import com.zhengshuyun.lava.http.HttpHeaders;
 import com.zhengshuyun.lava.json.JsonCodec;
 import com.zhengshuyun.lava.json.JsonException;
-import com.zhengshuyun.lava.pay.wechat.WechatPayProtocolException;
-import com.zhengshuyun.lava.pay.wechat.WechatPaySecurityException;
-import com.zhengshuyun.lava.pay.wechat.WechatPaySecurityFailure;
+import com.zhengshuyun.lava.pay.wechat.exception.WechatPayProtocolException;
+import com.zhengshuyun.lava.pay.wechat.exception.WechatPaySecurityException;
+import com.zhengshuyun.lava.pay.wechat.exception.WechatPaySecurityFailure;
+import com.zhengshuyun.lava.pay.wechat.internal.WechatPayRuntime;
 import com.zhengshuyun.lava.pay.wechat.internal.WechatPayTransport;
 import com.zhengshuyun.lava.pay.wechat.transaction.TradeState;
 import com.zhengshuyun.lava.pay.wechat.transaction.Transaction;
@@ -48,19 +49,16 @@ public final class NotificationParser {
     private static final Set<String> REFUND_EVENTS = Set.of(
             "REFUND.SUCCESS", "REFUND.ABNORMAL", "REFUND.CLOSED");
 
-    private final WechatPayTransport transport;
-    private final Runnable openCheck;
+    private final WechatPayRuntime runtime;
     private final JsonCodec jsonCodec = JsonCodec.defaultCodec();
 
     /**
      * 由根客户端创建通知解析器。
      *
-     * @param transport 共享协议传输层
-     * @param openCheck 根客户端存活检查
+     * @param runtime 共享运行时
      */
-    public NotificationParser(WechatPayTransport transport, Runnable openCheck) {
-        this.transport = ValidationUtils.requireNonNull(transport, "transport");
-        this.openCheck = ValidationUtils.requireNonNull(openCheck, "openCheck");
+    public NotificationParser(WechatPayRuntime runtime) {
+        this.runtime = ValidationUtils.requireNonNull(runtime, "runtime");
     }
 
     /**
@@ -83,14 +81,14 @@ public final class NotificationParser {
      * @return 支付成功通知
      */
     public TransactionNotification parseTransaction(HttpHeaders headers, byte[] body) {
-        openCheck.run();
-        VerifiedEnvelope envelope = verifiedEnvelope(headers, body);
+        WechatPayTransport transport = runtime.transport();
+        VerifiedEnvelope envelope = verifiedEnvelope(transport, headers, body);
         requireEnvelope(envelope, TRANSACTION_EVENT, "transaction");
-        byte[] plaintext = decrypt(envelope.resource());
+        byte[] plaintext = decrypt(transport, envelope.resource());
         try {
             Transaction transaction = read(plaintext, Transaction.class,
                     "支付通知资源不是预期的 JSON 结构");
-            requireMchid(transaction.mchid());
+            requireMchid(transport, transaction.mchid());
             requireSuccessfulTransaction(transaction);
             return new TransactionNotification(envelope.id(), envelope.createTime(),
                     envelope.eventType(), envelope.summary(), transaction);
@@ -119,18 +117,18 @@ public final class NotificationParser {
      * @return 退款通知
      */
     public RefundNotification parseRefund(HttpHeaders headers, byte[] body) {
-        openCheck.run();
-        VerifiedEnvelope envelope = verifiedEnvelope(headers, body);
+        WechatPayTransport transport = runtime.transport();
+        VerifiedEnvelope envelope = verifiedEnvelope(transport, headers, body);
         if (!REFUND_EVENTS.contains(envelope.eventType())) {
             throw new WechatPayProtocolException("退款通知 eventType 不受支持");
         }
         requireEnvelope(envelope, envelope.eventType(), "refund");
-        byte[] plaintext = decrypt(envelope.resource());
+        byte[] plaintext = decrypt(transport, envelope.resource());
         try {
             RefundNotification.Resource refund = read(plaintext,
                     RefundNotification.Resource.class,
                     "退款通知资源不是预期的 JSON 结构");
-            requireMchid(refund.mchid());
+            requireMchid(transport, refund.mchid());
             requireRefundStatus(envelope.eventType(), refund);
             return new RefundNotification(envelope.id(), envelope.createTime(),
                     envelope.eventType(), envelope.summary(), refund);
@@ -139,7 +137,9 @@ public final class NotificationParser {
         }
     }
 
-    private VerifiedEnvelope verifiedEnvelope(HttpHeaders headers, byte[] body) {
+    private VerifiedEnvelope verifiedEnvelope(WechatPayTransport transport,
+                                              HttpHeaders headers,
+                                              byte[] body) {
         ValidationUtils.requireNonNull(headers, "headers must not be null");
         ValidationUtils.requireNonNull(body, "body must not be null");
         ValidationUtils.requireTrue(body.length > 0 && body.length <= MAX_NOTIFICATION_BYTES,
@@ -179,13 +179,15 @@ public final class NotificationParser {
         }
     }
 
-    private byte[] decrypt(VerifiedResource resource) {
+    private static byte[] decrypt(WechatPayTransport transport,
+                                  VerifiedResource resource) {
         // 3. 仅在信封类型校验通过后解密，并由 AES-GCM 认证标签验证密文完整性。
         return transport.decrypt(resource.algorithm(), resource.nonce(),
                 resource.associatedData(), resource.ciphertext());
     }
 
-    private void requireMchid(String actualMchid) {
+    private static void requireMchid(WechatPayTransport transport,
+                                     String actualMchid) {
         if (!transport.mchid().equals(actualMchid)) {
             throw new WechatPaySecurityException(WechatPaySecurityFailure.MERCHANT_MISMATCH);
         }

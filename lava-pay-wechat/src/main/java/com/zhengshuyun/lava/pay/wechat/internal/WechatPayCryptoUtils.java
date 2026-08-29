@@ -17,12 +17,11 @@
 package com.zhengshuyun.lava.pay.wechat.internal;
 
 import com.zhengshuyun.lava.http.HttpHeaders;
-import com.zhengshuyun.lava.crypto.AesGcmUtils;
+import com.zhengshuyun.lava.crypto.CryptoUtils;
 import com.zhengshuyun.lava.crypto.CryptoException;
-import com.zhengshuyun.lava.crypto.RsaSignatureUtils;
-import com.zhengshuyun.lava.pay.wechat.WechatPayProtocolException;
-import com.zhengshuyun.lava.pay.wechat.WechatPaySecurityException;
-import com.zhengshuyun.lava.pay.wechat.WechatPaySecurityFailure;
+import com.zhengshuyun.lava.pay.wechat.exception.WechatPayProtocolException;
+import com.zhengshuyun.lava.pay.wechat.exception.WechatPaySecurityException;
+import com.zhengshuyun.lava.pay.wechat.exception.WechatPaySecurityFailure;
 import org.jspecify.annotations.Nullable;
 
 import java.io.ByteArrayOutputStream;
@@ -160,7 +159,7 @@ public final class WechatPayCryptoUtils {
                         WechatPaySecurityFailure.INVALID_SIGNATURE);
             }
             try {
-                if (!RsaSignatureUtils.verifySha256(publicKey, message, decodedSignature)) {
+                if (!CryptoUtils.rsaSha256Verify(publicKey, message, decodedSignature)) {
                     throw new WechatPaySecurityException(
                             WechatPaySecurityFailure.INVALID_SIGNATURE);
                 }
@@ -201,7 +200,7 @@ public final class WechatPayCryptoUtils {
             throw new WechatPaySecurityException(WechatPaySecurityFailure.DECRYPTION_FAILED);
         }
         try {
-            return AesGcmUtils.decrypt(apiV3Key,
+            return CryptoUtils.aesGcmDecrypt(apiV3Key,
                     nonce.getBytes(StandardCharsets.UTF_8),
                     (associatedData == null ? "" : associatedData)
                             .getBytes(StandardCharsets.UTF_8),
@@ -229,7 +228,7 @@ public final class WechatPayCryptoUtils {
 
     private static byte[] sign(PrivateKey privateKey, byte[] message) {
         try {
-            return RsaSignatureUtils.sha256(privateKey, message);
+            return CryptoUtils.rsaSha256Sign(privateKey, message);
         } catch (CryptoException exception) {
             throw new WechatPayProtocolException("无法生成微信支付请求签名");
         }

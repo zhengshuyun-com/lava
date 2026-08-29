@@ -16,7 +16,6 @@
 
 package com.zhengshuyun.lava.pay.wechat.refund;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.zhengshuyun.lava.core.lang.ValidationUtils;
 import com.zhengshuyun.lava.pay.wechat.internal.WechatPayValidationUtils;
@@ -31,7 +30,6 @@ import java.util.Set;
 /**
  * 普通支付退款申请。
  */
-@JsonInclude(JsonInclude.Include.NON_NULL)
 public final class RefundRequest {
     private final @Nullable String transactionId;
     private final @Nullable String outTradeNo;
@@ -237,6 +235,17 @@ public final class RefundRequest {
         }
 
         /**
+         * 使用字符串配置退款结果通知地址。
+         *
+         * @param value 退款结果通知地址
+         * @return 当前构建器
+         */
+        public Builder notifyUrl(String value) {
+            notifyUrl = WechatPayValidationUtils.requireNotifyUrl(value, 256);
+            return this;
+        }
+
+        /**
          * 配置退款资金来源。
          *
          * @param value 仅支持 {@link RefundFundsAccount#AVAILABLE} 或
@@ -306,7 +315,6 @@ public final class RefundRequest {
      * @param total 原订单金额
      * @param currency 固定为 CNY
      */
-    @JsonInclude(JsonInclude.Include.NON_NULL)
     public record Amount(
             @JsonProperty("refund") long refund,
             @JsonProperty("from") @Nullable List<AmountFrom> from,
@@ -371,7 +379,6 @@ public final class RefundRequest {
      * @param refundAmount 商品退款金额
      * @param refundQuantity 商品退货数量
      */
-    @JsonInclude(JsonInclude.Include.NON_NULL)
     public record GoodsDetail(
             @JsonProperty("merchant_goods_id") String merchantGoodsId,
             @JsonProperty("wechatpay_goods_id") @Nullable String wechatpayGoodsId,

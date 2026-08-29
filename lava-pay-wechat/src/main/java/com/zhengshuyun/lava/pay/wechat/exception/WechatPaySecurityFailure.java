@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-package com.zhengshuyun.lava.pay.wechat;
+package com.zhengshuyun.lava.pay.wechat.exception;
 
 /**
- * 微信支付消息真实性、时效性或机密性校验失败的稳定分类。
+ * 微信支付消息真实性、时效性、机密性或业务响应一致性校验失败的稳定分类。
  */
 public enum WechatPaySecurityFailure {
     /**
@@ -56,6 +56,10 @@ public enum WechatPaySecurityFailure {
      * 响应或解密资源中的商户号与客户端配置不一致。
      */
     MERCHANT_MISMATCH,
+    /**
+     * 已验签响应中的业务标识或关键金额与当前请求不一致。
+     */
+    RESPONSE_MISMATCH,
     /**
      * 下载账单的摘要与申请结果不一致。
      */

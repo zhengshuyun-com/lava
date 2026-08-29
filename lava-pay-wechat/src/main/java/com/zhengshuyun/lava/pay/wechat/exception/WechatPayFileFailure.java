@@ -14,23 +14,22 @@
  * limitations under the License.
  */
 
-package com.zhengshuyun.lava.pay.wechat;
-
-import java.io.Serial;
+package com.zhengshuyun.lava.pay.wechat.exception;
 
 /**
- * 已通过传输层但无法按微信支付 APIv3 协议解释的响应或通知。
+ * 账单文件处理失败的稳定分类。
  */
-public final class WechatPayProtocolException extends WechatPayException {
-    @Serial
-    private static final long serialVersionUID = 1L;
-
+public enum WechatPayFileFailure {
     /**
-     * 创建不包含原始报文的协议异常。
-     *
-     * @param message 精确协议失败原因
+     * 目标文件已经存在。
      */
-    public WechatPayProtocolException(String message) {
-        super(message);
-    }
+    TARGET_EXISTS,
+    /**
+     * 目标路径或父目录无效。
+     */
+    INVALID_TARGET,
+    /**
+     * 本地文件系统读写失败。
+     */
+    IO
 }

@@ -16,9 +16,10 @@
 
 package com.zhengshuyun.lava.pay.wechat.nativepay;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.zhengshuyun.lava.core.lang.ValidationUtils;
+import com.zhengshuyun.lava.pay.wechat.exception.WechatPayException;
+import com.zhengshuyun.lava.pay.wechat.internal.WechatPayRuntime;
 import com.zhengshuyun.lava.pay.wechat.internal.WechatPayTransport;
 import org.jspecify.annotations.Nullable;
 
@@ -27,29 +28,42 @@ import java.time.OffsetDateTime;
 
 /**
  * 微信支付 APIv3 普通商户 Native 支付入口。
+ *
+ * <p>实例固定绑定一个 APPID 和支付结果通知地址；单笔下单只接收业务参数，避免调用方误传商户号、
+ * APPID 或通知地址。二维码图片渲染、订单幂等和支付结果轮询不属于本客户端职责。</p>
  */
 public final class NativePayClient {
+    /**
+     * Native 下单接口的固定 API 路径。
+     */
     private static final String PREPAY_PATH = "/v3/pay/transactions/native";
 
-    private final WechatPayTransport transport;
+    /**
+     * 共享协议能力和根客户端生命周期所在的运行时。
+     */
+    private final WechatPayRuntime runtime;
+    /**
+     * 当前应用上下文固定绑定的 APPID。
+     */
     private final String appid;
+    /**
+     * 当前应用上下文固定使用的支付结果通知地址。
+     */
     private final URI notifyUrl;
-    private final Runnable openCheck;
 
     /**
      * 由应用上下文创建 Native 支付入口。
      *
-     * @param transport 共享协议传输层
-     * @param appid 应用 ID
+     * @param runtime   共享运行时
+     * @param appid     应用 ID
      * @param notifyUrl 固定支付通知地址
-     * @param openCheck 根客户端存活检查
      */
-    public NativePayClient(WechatPayTransport transport, String appid, URI notifyUrl,
-                           Runnable openCheck) {
-        this.transport = ValidationUtils.requireNonNull(transport, "transport");
+    public NativePayClient(WechatPayRuntime runtime,
+                           String appid,
+                           URI notifyUrl) {
+        this.runtime = ValidationUtils.requireNonNull(runtime, "runtime");
         this.appid = ValidationUtils.requireNotBlank(appid, "appid");
         this.notifyUrl = ValidationUtils.requireNonNull(notifyUrl, "notifyUrl");
-        this.openCheck = ValidationUtils.requireNonNull(openCheck, "openCheck");
     }
 
     /**
@@ -57,21 +71,59 @@ public final class NativePayClient {
      *
      * @param request 下单业务参数
      * @return 已验签的下单结果
-     * @throws com.zhengshuyun.lava.pay.wechat.WechatPayException 协议调用失败
+     * @throws WechatPayException 协议调用失败
      */
     public NativePrepayResponse prepay(NativePrepayRequest request) {
-        openCheck.run();
+        // 1. 先取得仍可用的共享运行时资源，防止根客户端关闭后继续创建支付订单。
+        WechatPayTransport transport = runtime.transport();
         ValidationUtils.requireNonNull(request, "request must not be null");
-        PrepayPayload payload = new PrepayPayload(appid, transport.mchid(),
-                request.description(), request.outTradeNo(), request.timeExpire(),
-                request.attach(), notifyUrl.toASCIIString(), request.goodsTag(),
-                request.supportFapiao(), request.amount(), request.detail(),
-                request.sceneInfo(), request.settleInfo());
-        return transport.post(transport.endpoint(PREPAY_PATH), payload,
+
+        // 2. 将固定应用配置与单笔业务参数合成为最终协议载荷，业务请求不能覆盖商户级配置。
+        Boolean profitSharing = request.profitSharing();
+        SettleInfo settleInfo = profitSharing == null
+                ? null : new SettleInfo(profitSharing);
+        PrepayPayload payload = new PrepayPayload(
+                appid,
+                transport.mchid(),
+                request.description(),
+                request.outTradeNo(),
+                request.timeExpire(),
+                request.attach(),
+                notifyUrl.toASCIIString(),
+                request.goodsTag(),
+                request.supportFapiao(),
+                new Amount(request.amount(), "CNY"),
+                request.detail(),
+                request.sceneInfo(),
+                settleInfo);
+
+        // 3. 由传输层使用最终载荷完成 JSON 编码、请求签名、发送、响应验签和结果解析。
+        return transport.post(
+                transport.endpoint(PREPAY_PATH),
+                payload,
                 NativePrepayResponse.class);
     }
 
-    @JsonInclude(JsonInclude.Include.NON_NULL)
+    /**
+     * Native 下单接口的内部请求载荷。
+     *
+     * <p>{@code appid}、{@code mchid} 和 {@code notify_url} 来自固定应用上下文及根客户端，
+     * 不接受 {@link NativePrepayRequest} 覆盖；其余字段仅承载已经完成校验的业务参数。</p>
+     *
+     * @param appid         应用上下文固定绑定的应用 ID
+     * @param mchid         根客户端固定绑定的商户号
+     * @param description   用户在微信支付侧看到的商品或服务描述
+     * @param outTradeNo    商户订单号，用于创建并关联微信支付订单
+     * @param timeExpire    可选支付截止时间
+     * @param attach        可选商户自定义数据包
+     * @param notifyUrl     应用上下文固定使用的支付结果通知地址
+     * @param goodsTag      可选订单优惠标记
+     * @param supportFapiao 可选电子发票入口开关
+     * @param amount        必填订单金额
+     * @param detail        可选订单商品明细
+     * @param sceneInfo     可选用户终端和门店场景
+     * @param settleInfo    可选分账结算标记
+     */
     private record PrepayPayload(
             @JsonProperty("appid") String appid,
             @JsonProperty("mchid") String mchid,
@@ -82,9 +134,29 @@ public final class NativePayClient {
             @JsonProperty("notify_url") String notifyUrl,
             @JsonProperty("goods_tag") @Nullable String goodsTag,
             @JsonProperty("support_fapiao") @Nullable Boolean supportFapiao,
-            @JsonProperty("amount") NativePrepayRequest.Amount amount,
-            @JsonProperty("detail") NativePrepayRequest.@Nullable Detail detail,
-            @JsonProperty("scene_info") NativePrepayRequest.@Nullable SceneInfo sceneInfo,
-            @JsonProperty("settle_info") NativePrepayRequest.@Nullable SettleInfo settleInfo) {
+            @JsonProperty("amount") Amount amount,
+            @JsonProperty("detail") @Nullable NativePrepayDetail detail,
+            @JsonProperty("scene_info") @Nullable NativePrepaySceneInfo sceneInfo,
+            @JsonProperty("settle_info") @Nullable SettleInfo settleInfo) {
+    }
+
+    /**
+     * Native 下单协议要求的订单金额对象。
+     *
+     * @param total    订单总金额，单位为分
+     * @param currency 固定为人民币 {@code CNY}
+     */
+    private record Amount(
+            @JsonProperty("total") long total,
+            @JsonProperty("currency") String currency) {
+    }
+
+    /**
+     * Native 下单协议要求的结算信息对象。
+     *
+     * @param profitSharing 是否将订单标记为分账订单
+     */
+    private record SettleInfo(
+            @JsonProperty("profit_sharing") boolean profitSharing) {
     }
 }

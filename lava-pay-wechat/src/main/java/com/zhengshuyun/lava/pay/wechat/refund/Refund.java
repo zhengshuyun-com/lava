@@ -120,7 +120,8 @@ public record Refund(
                     "amount.settlementTotal");
             WechatPayValidationUtils.requireNonNegative(discountRefund,
                     "amount.discountRefund");
-            ValidationUtils.requireNotBlank(currency, "amount.currency must not be blank");
+            ValidationUtils.requireTrue("CNY".equals(currency),
+                    "amount.currency must be CNY");
             if (refundFee != null) {
                 WechatPayValidationUtils.requireNonNegative(refundFee,
                         "amount.refundFee");

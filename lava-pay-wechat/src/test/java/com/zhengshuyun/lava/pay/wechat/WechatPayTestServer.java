@@ -7,7 +7,7 @@ package com.zhengshuyun.lava.pay.wechat;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
-import com.zhengshuyun.lava.crypto.RsaSignatureUtils;
+import com.zhengshuyun.lava.crypto.CryptoUtils;
 import com.zhengshuyun.lava.http.HttpHeaders;
 
 import java.io.ByteArrayOutputStream;
@@ -96,7 +96,7 @@ final class WechatPayTestServer implements AutoCloseable {
     static HttpHeaders signedHeaders(byte[] body, PrivateKey key, String serial,
                                      long timestamp) {
         String signature = Base64.getEncoder().encodeToString(
-                RsaSignatureUtils.sha256(key,
+                CryptoUtils.rsaSha256Sign(key,
                         responseMessage(timestamp, RESPONSE_NONCE, body)));
         return HttpHeaders.of(
                 "Wechatpay-Serial", serial,

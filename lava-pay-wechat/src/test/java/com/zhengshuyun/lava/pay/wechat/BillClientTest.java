@@ -6,9 +6,11 @@
 package com.zhengshuyun.lava.pay.wechat;
 
 import com.zhengshuyun.lava.pay.wechat.bill.*;
+import com.zhengshuyun.lava.pay.wechat.exception.*;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.ByteArrayOutputStream;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -21,6 +23,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.HexFormat;
+import java.util.zip.GZIPOutputStream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -119,6 +122,42 @@ class BillClientTest {
     }
 
     @Test
+    void gzipBillIsDecompressedBeforeHashVerificationAndPublication() throws Exception {
+        byte[] file = "交易时间,商户订单号\n2026-08-28,ORDER_001\n"
+                .getBytes(StandardCharsets.UTF_8);
+        String info = "{\"hash_type\":\"SHA1\",\"hash_value\":\"" + sha1(file)
+                + "\",\"download_url\":\"" + server.baseUrl()
+                + "download?token=secret\"}";
+        server.enqueueSigned(200, info);
+        server.enqueueUnsigned(200, gzip(file), "application/gzip");
+
+        BillDownloadInfo download = client.bills().applyTradeBill(
+                TradeBillRequest.builder()
+                        .billDate(LocalDate.of(2026, 8, 28))
+                        .tarType(BillTarType.GZIP)
+                        .build());
+        Path target = temporaryDirectory.resolve("trade.csv");
+        BillDownloadResult result = client.bills().download(download, target);
+
+        assertArrayEquals(file, Files.readAllBytes(target));
+        assertEquals(file.length, result.size());
+        assertTrue(server.takeRequest().target().contains("tar_type=GZIP"));
+        assertEquals("/download?token=secret", server.takeRequest().target());
+    }
+
+    @Test
+    void malformedSignedBillMetadataFailsBeforeDownload() {
+        String info = "{\"hash_type\":\"SHA1\",\"hash_value\":\"not-a-sha1\","
+                + "\"download_url\":\"" + server.baseUrl() + "download\"}";
+        server.enqueueSigned(200, info);
+
+        assertThrows(WechatPayProtocolException.class,
+                () -> client.bills().applyTradeBill(TradeBillRequest.builder()
+                        .billDate(LocalDate.of(2026, 8, 28))
+                        .build()));
+    }
+
+    @Test
     void manuallyConstructedDownloadInfoCannotSendCredentialsToAnotherOrigin() {
         BillDownloadInfo forged = new BillDownloadInfo(
                 "SHA1", "0000000000000000000000000000000000000000",
@@ -132,5 +171,13 @@ class BillClientTest {
 
     private static String sha1(byte[] value) throws Exception {
         return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-1").digest(value));
+    }
+
+    private static byte[] gzip(byte[] value) throws Exception {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        try (GZIPOutputStream gzip = new GZIPOutputStream(output)) {
+            gzip.write(value);
+        }
+        return output.toByteArray();
     }
 }

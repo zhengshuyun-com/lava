@@ -17,8 +17,12 @@
 package com.zhengshuyun.lava.pay.wechat.refund;
 
 import com.zhengshuyun.lava.core.lang.ValidationUtils;
+import com.zhengshuyun.lava.pay.wechat.exception.WechatPaySecurityException;
+import com.zhengshuyun.lava.pay.wechat.exception.WechatPaySecurityFailure;
+import com.zhengshuyun.lava.pay.wechat.internal.WechatPayRuntime;
 import com.zhengshuyun.lava.pay.wechat.internal.WechatPayTransport;
 import com.zhengshuyun.lava.pay.wechat.internal.WechatPayValidationUtils;
+import org.jspecify.annotations.Nullable;
 
 /**
  * 普通支付退款申请与查询客户端。
@@ -26,18 +30,15 @@ import com.zhengshuyun.lava.pay.wechat.internal.WechatPayValidationUtils;
 public final class RefundClient {
     private static final String REFUND_PATH = "/v3/refund/domestic/refunds";
 
-    private final WechatPayTransport transport;
-    private final Runnable openCheck;
+    private final WechatPayRuntime runtime;
 
     /**
      * 由根客户端创建退款入口。
      *
-     * @param transport 共享协议传输层
-     * @param openCheck 根客户端存活检查
+     * @param runtime 共享运行时
      */
-    public RefundClient(WechatPayTransport transport, Runnable openCheck) {
-        this.transport = ValidationUtils.requireNonNull(transport, "transport");
-        this.openCheck = ValidationUtils.requireNonNull(openCheck, "openCheck");
+    public RefundClient(WechatPayRuntime runtime) {
+        this.runtime = ValidationUtils.requireNonNull(runtime, "runtime");
     }
 
     /**
@@ -47,10 +48,12 @@ public final class RefundClient {
      * @return 已验签退款单
      */
     public Refund apply(RefundRequest request) {
-        openCheck.run();
-        return transport.post(transport.endpoint(REFUND_PATH),
-                ValidationUtils.requireNonNull(request, "request must not be null"),
+        WechatPayTransport transport = runtime.transport();
+        ValidationUtils.requireNonNull(request, "request must not be null");
+        Refund refund = transport.post(transport.endpoint(REFUND_PATH), request,
                 Refund.class);
+        requireApplyResponse(request, refund);
+        return refund;
     }
 
     /**
@@ -60,9 +63,33 @@ public final class RefundClient {
      * @return 已验签退款单
      */
     public Refund queryByOutRefundNo(String outRefundNo) {
-        openCheck.run();
+        WechatPayTransport transport = runtime.transport();
         outRefundNo = WechatPayValidationUtils.requireOutRefundNo(outRefundNo);
-        return transport.get(transport.endpoint(REFUND_PATH, outRefundNo, ""),
+        Refund refund = transport.get(transport.endpoint(REFUND_PATH, outRefundNo, ""),
                 Refund.class);
+        requireSame(outRefundNo, refund.outRefundNo());
+        return refund;
+    }
+
+    private static void requireApplyResponse(RefundRequest request, Refund refund) {
+        // 1. 先核对幂等退款单号和原支付订单，避免把其他业务单的已验签响应交给调用方。
+        requireSame(request.outRefundNo(), refund.outRefundNo());
+        if (request.transactionId() != null) {
+            requireSame(request.transactionId(), refund.transactionId());
+        } else {
+            requireSame(request.outTradeNo(), refund.outTradeNo());
+        }
+
+        // 2. 同一退款单号重试时微信可能返回已受理结果，金额必须仍与本次请求完全一致。
+        if (request.amount().refund() != refund.amount().refund()
+                || request.amount().total() != refund.amount().total()) {
+            throw new WechatPaySecurityException(WechatPaySecurityFailure.RESPONSE_MISMATCH);
+        }
+    }
+
+    private static void requireSame(@Nullable String expected, String actual) {
+        if (expected == null || !expected.equals(actual)) {
+            throw new WechatPaySecurityException(WechatPaySecurityFailure.RESPONSE_MISMATCH);
+        }
     }
 }

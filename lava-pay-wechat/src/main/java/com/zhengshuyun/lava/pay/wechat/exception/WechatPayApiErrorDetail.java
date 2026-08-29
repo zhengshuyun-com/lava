@@ -14,22 +14,21 @@
  * limitations under the License.
  */
 
-package com.zhengshuyun.lava.pay.wechat;
+package com.zhengshuyun.lava.pay.wechat.exception;
+
+import org.jspecify.annotations.Nullable;
 
 /**
- * 账单文件处理失败的稳定分类。
+ * 微信支付 API 返回的参数错误详情。
+ *
+ * @param field 参数位置，Body 参数通常使用 JSON Pointer
+ * @param value 微信支付返回的错误值；可能包含业务数据，不会写入异常文本
+ * @param issue 具体错误原因
+ * @param location 参数来源位置，例如 {@code body}、{@code url} 或 {@code query}
  */
-public enum WechatPayFileFailure {
-    /**
-     * 目标文件已经存在。
-     */
-    TARGET_EXISTS,
-    /**
-     * 目标路径或父目录无效。
-     */
-    INVALID_TARGET,
-    /**
-     * 本地文件系统读写失败。
-     */
-    IO
+public record WechatPayApiErrorDetail(
+        @Nullable String field,
+        @Nullable String value,
+        @Nullable String issue,
+        @Nullable String location) {
 }

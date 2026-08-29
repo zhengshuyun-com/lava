@@ -14,38 +14,28 @@
  * limitations under the License.
  */
 
-package com.zhengshuyun.lava.pay.wechat;
+package com.zhengshuyun.lava.pay.wechat.exception;
 
 import com.zhengshuyun.lava.core.lang.ValidationUtils;
 
 import java.io.Serial;
 
 /**
- * 微信支付签名、时间戳、回调密文或账单摘要校验失败。
+ * 微信支付协议适配失败的基类。
+ *
+ * <p>非法调用参数仍使用 {@link IllegalArgumentException} 表达；本类型只表示调用已经进入
+ * 微信支付协议处理后产生的 API、传输、安全、协议或文件失败。</p>
  */
-public final class WechatPaySecurityException extends WechatPayException {
+public abstract class WechatPayException extends RuntimeException {
     @Serial
     private static final long serialVersionUID = 1L;
 
-    /** 稳定的安全失败类别。 */
-    private final WechatPaySecurityFailure failure;
-
     /**
-     * 创建安全校验异常。
+     * 创建不保留底层异常对象的微信支付异常。
      *
-     * @param failure 精确失败类别
+     * @param message 不包含凭证和原始报文的诊断消息
      */
-    public WechatPaySecurityException(WechatPaySecurityFailure failure) {
-        super("微信支付安全校验失败: " + ValidationUtils.requireNonNull(failure, "failure"));
-        this.failure = failure;
-    }
-
-    /**
-     * 返回精确失败类别。
-     *
-     * @return 安全失败类别
-     */
-    public WechatPaySecurityFailure failure() {
-        return failure;
+    protected WechatPayException(String message) {
+        super(ValidationUtils.requireNotBlank(message, "message must not be blank"));
     }
 }

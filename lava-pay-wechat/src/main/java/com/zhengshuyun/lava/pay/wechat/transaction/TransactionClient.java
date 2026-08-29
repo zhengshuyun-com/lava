@@ -18,10 +18,12 @@ package com.zhengshuyun.lava.pay.wechat.transaction;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.zhengshuyun.lava.core.lang.ValidationUtils;
-import com.zhengshuyun.lava.pay.wechat.WechatPaySecurityException;
-import com.zhengshuyun.lava.pay.wechat.WechatPaySecurityFailure;
+import com.zhengshuyun.lava.pay.wechat.exception.WechatPaySecurityException;
+import com.zhengshuyun.lava.pay.wechat.exception.WechatPaySecurityFailure;
+import com.zhengshuyun.lava.pay.wechat.internal.WechatPayRuntime;
 import com.zhengshuyun.lava.pay.wechat.internal.WechatPayTransport;
 import com.zhengshuyun.lava.pay.wechat.internal.WechatPayValidationUtils;
+import org.jspecify.annotations.Nullable;
 
 import java.net.URI;
 
@@ -32,18 +34,15 @@ public final class TransactionClient {
     private static final String OUT_TRADE_NO_PREFIX = "/v3/pay/transactions/out-trade-no";
     private static final String TRANSACTION_ID_PREFIX = "/v3/pay/transactions/id";
 
-    private final WechatPayTransport transport;
-    private final Runnable openCheck;
+    private final WechatPayRuntime runtime;
 
     /**
      * 由根客户端创建交易入口。
      *
-     * @param transport 共享协议传输层
-     * @param openCheck 根客户端存活检查
+     * @param runtime 共享运行时
      */
-    public TransactionClient(WechatPayTransport transport, Runnable openCheck) {
-        this.transport = ValidationUtils.requireNonNull(transport, "transport");
-        this.openCheck = ValidationUtils.requireNonNull(openCheck, "openCheck");
+    public TransactionClient(WechatPayRuntime runtime) {
+        this.runtime = ValidationUtils.requireNonNull(runtime, "runtime");
     }
 
     /**
@@ -53,11 +52,14 @@ public final class TransactionClient {
      * @return 已验签交易状态
      */
     public Transaction queryByOutTradeNo(String outTradeNo) {
-        openCheck.run();
+        WechatPayTransport transport = runtime.transport();
         outTradeNo = WechatPayValidationUtils.requireOutTradeNo(outTradeNo);
         URI uri = transport.endpoint(OUT_TRADE_NO_PREFIX, outTradeNo, "");
-        return requireMchid(transport.get(
-                transport.query(uri, "mchid", transport.mchid()), Transaction.class));
+        Transaction transaction = transport.get(
+                transport.query(uri, "mchid", transport.mchid()), Transaction.class);
+        requireMchid(transport, transaction);
+        requireIdentifier(outTradeNo, transaction.outTradeNo());
+        return transaction;
     }
 
     /**
@@ -67,12 +69,15 @@ public final class TransactionClient {
      * @return 已验签交易状态
      */
     public Transaction queryByTransactionId(String transactionId) {
-        openCheck.run();
+        WechatPayTransport transport = runtime.transport();
         transactionId = WechatPayValidationUtils.requireId(
                 transactionId, "transactionId", 32);
         URI uri = transport.endpoint(TRANSACTION_ID_PREFIX, transactionId, "");
-        return requireMchid(transport.get(
-                transport.query(uri, "mchid", transport.mchid()), Transaction.class));
+        Transaction transaction = transport.get(
+                transport.query(uri, "mchid", transport.mchid()), Transaction.class);
+        requireMchid(transport, transaction);
+        requireIdentifier(transactionId, transaction.transactionId());
+        return transaction;
     }
 
     /**
@@ -81,17 +86,23 @@ public final class TransactionClient {
      * @param outTradeNo 商户订单号
      */
     public void close(String outTradeNo) {
-        openCheck.run();
+        WechatPayTransport transport = runtime.transport();
         outTradeNo = WechatPayValidationUtils.requireOutTradeNo(outTradeNo);
         URI uri = transport.endpoint(OUT_TRADE_NO_PREFIX, outTradeNo, "close");
         transport.postNoContent(uri, new ClosePayload(transport.mchid()));
     }
 
-    private Transaction requireMchid(Transaction transaction) {
+    private static void requireMchid(WechatPayTransport transport,
+                                     Transaction transaction) {
         if (!transport.mchid().equals(transaction.mchid())) {
             throw new WechatPaySecurityException(WechatPaySecurityFailure.MERCHANT_MISMATCH);
         }
-        return transaction;
+    }
+
+    private static void requireIdentifier(String expected, @Nullable String actual) {
+        if (!expected.equals(actual)) {
+            throw new WechatPaySecurityException(WechatPaySecurityFailure.RESPONSE_MISMATCH);
+        }
     }
 
     private record ClosePayload(@JsonProperty("mchid") String mchid) {

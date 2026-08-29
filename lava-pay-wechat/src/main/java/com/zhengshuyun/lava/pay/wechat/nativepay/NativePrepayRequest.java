@@ -16,54 +16,69 @@
 
 package com.zhengshuyun.lava.pay.wechat.nativepay;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.zhengshuyun.lava.core.lang.ValidationUtils;
-import com.zhengshuyun.lava.json.JsonCodec;
+import com.zhengshuyun.lava.pay.wechat.internal.WechatPayJsonUtils;
 import com.zhengshuyun.lava.pay.wechat.internal.WechatPayValidationUtils;
 import org.jspecify.annotations.Nullable;
 
 import java.time.OffsetDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
- * Native 下单业务参数。{@code appid}、{@code mchid} 与 {@code notify_url}
- * 由应用上下文注入，避免单次请求误配。
+ * 微信支付 APIv3 Native 下单的单笔订单业务参数。
+ *
+ * <p>该对象只承载订单本身的业务数据。{@code appid}、{@code mchid} 和
+ * {@code notify_url} 由应用上下文及根客户端统一注入，调用方不能在单笔请求中覆盖。
+ * 金额单位统一为分，构建完成后对象不可变。</p>
+ *
+ * <p>订单创建前应由业务系统先完成本地订单落库和幂等控制；本对象不负责本地订单创建、
+ * 二维码生成、支付结果轮询或通知业务处理。</p>
  */
-@JsonInclude(JsonInclude.Include.NON_NULL)
 public final class NativePrepayRequest {
+    /** 微信支付收银台展示的商品或服务描述，应能让用户明确本次支付内容。 */
     private final String description;
+    /** 商户系统内唯一的订单号，用于查单、关单、支付通知及退款关联本地订单。 */
     private final String outTradeNo;
+    /**
+     * 订单允许支付的截止时间。未设置时以微信支付下单时间为起点，默认有效期为 7 天。
+     */
     private final @Nullable OffsetDateTime timeExpire;
+    /** 商户自定义数据包，可用于携带业务关联信息。 */
     private final @Nullable String attach;
+    /** 微信支付优惠相关的订单标记。 */
     private final @Nullable String goodsTag;
+    /** 是否在微信支付侧为用户展示电子发票入口。 */
     private final @Nullable Boolean supportFapiao;
-    private final Amount amount;
-    private final @Nullable Detail detail;
-    private final @Nullable SceneInfo sceneInfo;
-    private final @Nullable SettleInfo settleInfo;
+    /** 订单应支付的总金额，单位为分。 */
+    private final long amount;
+    /** 可选订单原价、商品小票 ID 和单品列表。 */
+    private final @Nullable NativePrepayDetail detail;
+    /** 可选用户终端、商户设备和门店场景信息。 */
+    private final @Nullable NativePrepaySceneInfo sceneInfo;
+    /** 是否将订单标记为后续可能进行分账的订单。 */
+    private final @Nullable Boolean profitSharing;
 
     private NativePrepayRequest(Builder builder) {
+        // 1. 建立下单必填业务参数，保证最终请求可以关联本地订单。
         description = WechatPayValidationUtils.requireText(
                 ValidationUtils.requireNonNull(builder.description, "description is required"),
                 "description", 1, 127);
         outTradeNo = WechatPayValidationUtils.requireOutTradeNo(
                 ValidationUtils.requireNonNull(builder.outTradeNo, "outTradeNo is required"));
+        amount = WechatPayValidationUtils.requirePositive(
+                ValidationUtils.requireNonNull(builder.amount, "amount is required"), "amount");
+
+        // 2. 复制可选业务参数；APPID、商户号和通知地址不属于单笔请求，由客户端发送前注入。
         timeExpire = builder.timeExpire;
         attach = builder.attach;
         goodsTag = builder.goodsTag;
         supportFapiao = builder.supportFapiao;
-        amount = new Amount(WechatPayValidationUtils.requirePositive(
-                ValidationUtils.requireNonNull(builder.amount, "amount is required"),
-                "amount"), "CNY");
         detail = builder.detail;
         sceneInfo = builder.sceneInfo;
-        settleInfo = builder.profitSharing == null
-                ? null : new SettleInfo(builder.profitSharing);
+        profitSharing = builder.profitSharing;
 
+        // 3. 商品详情限制按与真实请求一致的紧凑 JSON 字节数计算。
         if (detail != null) {
-            int detailBytes = JsonCodec.defaultCodec().writeBytes(detail).length;
+            int detailBytes = WechatPayJsonUtils.codec().writeBytes(detail).length;
             ValidationUtils.requireTrue(detailBytes <= 6144,
                     "detail must not exceed 6144 compact JSON bytes");
         }
@@ -83,7 +98,6 @@ public final class NativePrepayRequest {
      *
      * @return 商品描述
      */
-    @JsonProperty("description")
     public String description() {
         return description;
     }
@@ -93,7 +107,6 @@ public final class NativePrepayRequest {
      *
      * @return 商户订单号
      */
-    @JsonProperty("out_trade_no")
     public String outTradeNo() {
         return outTradeNo;
     }
@@ -103,7 +116,6 @@ public final class NativePrepayRequest {
      *
      * @return 支付结束时间；未配置时为 {@code null}
      */
-    @JsonProperty("time_expire")
     public @Nullable OffsetDateTime timeExpire() {
         return timeExpire;
     }
@@ -113,7 +125,6 @@ public final class NativePrepayRequest {
      *
      * @return 商户数据包；未配置时为 {@code null}
      */
-    @JsonProperty("attach")
     public @Nullable String attach() {
         return attach;
     }
@@ -123,7 +134,6 @@ public final class NativePrepayRequest {
      *
      * @return 订单优惠标记；未配置时为 {@code null}
      */
-    @JsonProperty("goods_tag")
     public @Nullable String goodsTag() {
         return goodsTag;
     }
@@ -133,18 +143,16 @@ public final class NativePrepayRequest {
      *
      * @return 电子发票入口标识；未配置时为 {@code null}
      */
-    @JsonProperty("support_fapiao")
     public @Nullable Boolean supportFapiao() {
         return supportFapiao;
     }
 
     /**
-     * 返回订单金额。
+     * 返回订单总金额。
      *
-     * @return 订单金额
+     * @return 订单总金额，单位为分
      */
-    @JsonProperty("amount")
-    public Amount amount() {
+    public long amount() {
         return amount;
     }
 
@@ -153,8 +161,7 @@ public final class NativePrepayRequest {
      *
      * @return 商品详情；未配置时为 {@code null}
      */
-    @JsonProperty("detail")
-    public @Nullable Detail detail() {
+    public @Nullable NativePrepayDetail detail() {
         return detail;
     }
 
@@ -163,34 +170,42 @@ public final class NativePrepayRequest {
      *
      * @return 场景信息；未配置时为 {@code null}
      */
-    @JsonProperty("scene_info")
-    public @Nullable SceneInfo sceneInfo() {
+    public @Nullable NativePrepaySceneInfo sceneInfo() {
         return sceneInfo;
     }
 
     /**
-     * 返回结算信息。
+     * 返回分账订单标识。
      *
-     * @return 结算信息；未配置时为 {@code null}
+     * @return 分账订单标识；未配置时为 {@code null}
      */
-    @JsonProperty("settle_info")
-    public @Nullable SettleInfo settleInfo() {
-        return settleInfo;
+    public @Nullable Boolean profitSharing() {
+        return profitSharing;
     }
 
     /**
      * Native 下单请求构建器。
      */
     public static final class Builder {
+        /** 构建期商品描述，设置前为 {@code null}。 */
         private @Nullable String description;
+        /** 构建期商户订单号，设置前为 {@code null}。 */
         private @Nullable String outTradeNo;
+        /** 构建期支付截止时间。 */
         private @Nullable OffsetDateTime timeExpire;
+        /** 构建期商户数据包。 */
         private @Nullable String attach;
+        /** 构建期订单优惠标记。 */
         private @Nullable String goodsTag;
+        /** 构建期电子发票入口开关。 */
         private @Nullable Boolean supportFapiao;
+        /** 构建期订单总金额，设置前为 {@code null}，单位为分。 */
         private @Nullable Long amount;
-        private @Nullable Detail detail;
-        private @Nullable SceneInfo sceneInfo;
+        /** 构建期商品详情。 */
+        private @Nullable NativePrepayDetail detail;
+        /** 构建期支付场景信息。 */
+        private @Nullable NativePrepaySceneInfo sceneInfo;
+        /** 构建期分账订单标记。 */
         private @Nullable Boolean profitSharing;
 
         private Builder() {
@@ -281,7 +296,7 @@ public final class NativePrepayRequest {
          * @param value 商品详情
          * @return 当前构建器
          */
-        public Builder detail(Detail value) {
+        public Builder detail(NativePrepayDetail value) {
             detail = ValidationUtils.requireNonNull(value, "detail must not be null");
             return this;
         }
@@ -292,7 +307,7 @@ public final class NativePrepayRequest {
          * @param value 支付场景信息
          * @return 当前构建器
          */
-        public Builder sceneInfo(SceneInfo value) {
+        public Builder sceneInfo(NativePrepaySceneInfo value) {
             sceneInfo = ValidationUtils.requireNonNull(value, "sceneInfo must not be null");
             return this;
         }
@@ -316,457 +331,5 @@ public final class NativePrepayRequest {
         public NativePrepayRequest build() {
             return new NativePrepayRequest(this);
         }
-    }
-
-    /**
-     * 订单金额。
-     *
-     * @param total 总金额，单位为分
-     * @param currency 固定为 CNY
-     */
-    public record Amount(
-            @JsonProperty("total") long total,
-            @JsonProperty("currency") String currency) {
-        /**
-         * 校验订单金额与币种。
-         */
-        public Amount {
-            WechatPayValidationUtils.requirePositive(total, "amount.total");
-            ValidationUtils.requireTrue("CNY".equals(currency),
-                    "amount.currency must be CNY");
-        }
-    }
-
-    /**
-     * 可选商品详情。
-     *
-     * @param costPrice 订单原价
-     * @param invoiceId 商品小票 ID
-     * @param goodsDetail 单品列表
-     */
-    @JsonInclude(JsonInclude.Include.NON_NULL)
-    public record Detail(
-            @JsonProperty("cost_price") @Nullable Long costPrice,
-            @JsonProperty("invoice_id") @Nullable String invoiceId,
-            @JsonProperty("goods_detail") @Nullable List<GoodsDetail> goodsDetail) {
-
-        /**
-         * 校验详情并复制单品列表。
-         */
-        public Detail {
-            if (costPrice != null) {
-                WechatPayValidationUtils.requirePositive(costPrice, "costPrice");
-            }
-            if (invoiceId != null) {
-                WechatPayValidationUtils.requireText(invoiceId, "invoiceId", 1, 32);
-            }
-            if (goodsDetail != null) {
-                ValidationUtils.requireNotEmpty(goodsDetail,
-                        "goodsDetail must contain at least one item");
-                goodsDetail = List.copyOf(goodsDetail);
-            }
-            ValidationUtils.requireTrue(costPrice != null || invoiceId != null
-                            || goodsDetail != null,
-                    "detail must contain at least one field");
-        }
-
-        /**
-         * 创建商品详情构建器。
-         *
-         * @return 新构建器
-         */
-        public static DetailBuilder builder() {
-            return new DetailBuilder();
-        }
-    }
-
-    /**
-     * 商品详情构建器。
-     */
-    public static final class DetailBuilder {
-        private @Nullable Long costPrice;
-        private @Nullable String invoiceId;
-        private final List<GoodsDetail> goodsDetail = new ArrayList<>();
-
-        private DetailBuilder() {
-        }
-
-        /**
-         * 配置订单原价。
-         *
-         * @param value 订单原价，单位为分
-         * @return 当前构建器
-         */
-        public DetailBuilder costPrice(long value) {
-            costPrice = WechatPayValidationUtils.requirePositive(value, "costPrice");
-            return this;
-        }
-
-        /**
-         * 配置商品小票 ID。
-         *
-         * @param value 商品小票 ID
-         * @return 当前构建器
-         */
-        public DetailBuilder invoiceId(String value) {
-            invoiceId = WechatPayValidationUtils.requireText(value, "invoiceId", 1, 32);
-            return this;
-        }
-
-        /**
-         * 追加一项单品信息。
-         *
-         * @param value 待追加单品
-         * @return 当前构建器
-         */
-        public DetailBuilder addGoodsDetail(GoodsDetail value) {
-            goodsDetail.add(ValidationUtils.requireNonNull(value,
-                    "goodsDetail must not be null"));
-            return this;
-        }
-
-        /**
-         * 校验并创建商品详情。
-         *
-         * @return 不可变商品详情
-         */
-        public Detail build() {
-            return new Detail(costPrice, invoiceId,
-                    goodsDetail.isEmpty() ? null : List.copyOf(goodsDetail));
-        }
-    }
-
-    /**
-     * 单品信息。
-     *
-     * @param merchantGoodsId 商户侧商品编码
-     * @param wechatpayGoodsId 微信支付商品编码
-     * @param goodsName 商品名称
-     * @param quantity 商品数量
-     * @param unitPrice 商品单价，单位为分
-     */
-    @JsonInclude(JsonInclude.Include.NON_NULL)
-    public record GoodsDetail(
-            @JsonProperty("merchant_goods_id") String merchantGoodsId,
-            @JsonProperty("wechatpay_goods_id") @Nullable String wechatpayGoodsId,
-            @JsonProperty("goods_name") @Nullable String goodsName,
-            @JsonProperty("quantity") long quantity,
-            @JsonProperty("unit_price") long unitPrice) {
-
-        /**
-         * 校验单品信息。
-         */
-        public GoodsDetail {
-            merchantGoodsId = WechatPayValidationUtils.requireMerchantGoodsId(
-                    merchantGoodsId);
-            if (wechatpayGoodsId != null) {
-                WechatPayValidationUtils.requireText(wechatpayGoodsId,
-                        "wechatpayGoodsId", 1, 32);
-            }
-            if (goodsName != null) {
-                WechatPayValidationUtils.requireText(goodsName, "goodsName", 1, 256);
-            }
-            WechatPayValidationUtils.requirePositive(quantity, "quantity");
-            WechatPayValidationUtils.requirePositive(unitPrice, "unitPrice");
-        }
-
-        /**
-         * 创建单品信息构建器。
-         *
-         * @return 新构建器
-         */
-        public static GoodsDetailBuilder builder() {
-            return new GoodsDetailBuilder();
-        }
-    }
-
-    /**
-     * 单品信息构建器。
-     */
-    public static final class GoodsDetailBuilder {
-        private @Nullable String merchantGoodsId;
-        private @Nullable String wechatpayGoodsId;
-        private @Nullable String goodsName;
-        private @Nullable Long quantity;
-        private @Nullable Long unitPrice;
-
-        private GoodsDetailBuilder() {
-        }
-
-        /**
-         * 配置商户侧商品编码。
-         *
-         * @param value 商户侧商品编码
-         * @return 当前构建器
-         */
-        public GoodsDetailBuilder merchantGoodsId(String value) {
-            merchantGoodsId = value;
-            return this;
-        }
-
-        /**
-         * 配置微信支付商品编码。
-         *
-         * @param value 微信支付商品编码
-         * @return 当前构建器
-         */
-        public GoodsDetailBuilder wechatpayGoodsId(String value) {
-            wechatpayGoodsId = value;
-            return this;
-        }
-
-        /**
-         * 配置商品名称。
-         *
-         * @param value 商品名称
-         * @return 当前构建器
-         */
-        public GoodsDetailBuilder goodsName(String value) {
-            goodsName = value;
-            return this;
-        }
-
-        /**
-         * 配置商品数量。
-         *
-         * @param value 商品数量
-         * @return 当前构建器
-         */
-        public GoodsDetailBuilder quantity(long value) {
-            quantity = value;
-            return this;
-        }
-
-        /**
-         * 配置商品单价。
-         *
-         * @param value 商品单价，单位为分
-         * @return 当前构建器
-         */
-        public GoodsDetailBuilder unitPrice(long value) {
-            unitPrice = value;
-            return this;
-        }
-
-        /**
-         * 校验并创建单品信息。
-         *
-         * @return 不可变单品信息
-         */
-        public GoodsDetail build() {
-            return new GoodsDetail(
-                    ValidationUtils.requireNonNull(merchantGoodsId,
-                            "merchantGoodsId is required"),
-                    wechatpayGoodsId, goodsName,
-                    ValidationUtils.requireNonNull(quantity, "quantity is required"),
-                    ValidationUtils.requireNonNull(unitPrice, "unitPrice is required"));
-        }
-    }
-
-    /**
-     * 支付场景信息。
-     *
-     * @param payerClientIp 用户终端 IP
-     * @param deviceId 商户端设备号
-     * @param storeInfo 门店信息
-     */
-    @JsonInclude(JsonInclude.Include.NON_NULL)
-    public record SceneInfo(
-            @JsonProperty("payer_client_ip") String payerClientIp,
-            @JsonProperty("device_id") @Nullable String deviceId,
-            @JsonProperty("store_info") @Nullable StoreInfo storeInfo) {
-
-        /**
-         * 校验场景信息。
-         */
-        public SceneInfo {
-            payerClientIp = WechatPayValidationUtils.requireIpAddress(
-                    payerClientIp, "payerClientIp");
-            if (deviceId != null) {
-                WechatPayValidationUtils.requireText(deviceId, "deviceId", 1, 32);
-            }
-        }
-
-        /**
-         * 创建场景信息构建器。
-         *
-         * @return 新构建器
-         */
-        public static SceneInfoBuilder builder() {
-            return new SceneInfoBuilder();
-        }
-    }
-
-    /**
-     * 场景信息构建器。
-     */
-    public static final class SceneInfoBuilder {
-        private @Nullable String payerClientIp;
-        private @Nullable String deviceId;
-        private @Nullable StoreInfo storeInfo;
-
-        private SceneInfoBuilder() {
-        }
-
-        /**
-         * 配置用户终端 IP。
-         *
-         * @param value 用户终端 IP
-         * @return 当前构建器
-         */
-        public SceneInfoBuilder payerClientIp(String value) {
-            payerClientIp = value;
-            return this;
-        }
-
-        /**
-         * 配置商户端设备号。
-         *
-         * @param value 商户端设备号
-         * @return 当前构建器
-         */
-        public SceneInfoBuilder deviceId(String value) {
-            deviceId = value;
-            return this;
-        }
-
-        /**
-         * 配置门店信息。
-         *
-         * @param value 门店信息
-         * @return 当前构建器
-         */
-        public SceneInfoBuilder storeInfo(StoreInfo value) {
-            storeInfo = ValidationUtils.requireNonNull(value, "storeInfo must not be null");
-            return this;
-        }
-
-        /**
-         * 校验并创建场景信息。
-         *
-         * @return 不可变场景信息
-         */
-        public SceneInfo build() {
-            return new SceneInfo(ValidationUtils.requireNonNull(payerClientIp,
-                    "payerClientIp is required"), deviceId, storeInfo);
-        }
-    }
-
-    /**
-     * 商户门店信息。
-     *
-     * @param id 门店编号
-     * @param name 门店名称
-     * @param areaCode 地区编码
-     * @param address 详细地址
-     */
-    @JsonInclude(JsonInclude.Include.NON_NULL)
-    public record StoreInfo(
-            @JsonProperty("id") String id,
-            @JsonProperty("name") @Nullable String name,
-            @JsonProperty("area_code") @Nullable String areaCode,
-            @JsonProperty("address") @Nullable String address) {
-
-        /**
-         * 校验门店信息。
-         */
-        public StoreInfo {
-            id = WechatPayValidationUtils.requireText(id, "storeInfo.id", 1, 32);
-            if (name != null) {
-                WechatPayValidationUtils.requireText(name, "storeInfo.name", 1, 256);
-            }
-            if (areaCode != null) {
-                WechatPayValidationUtils.requireText(areaCode,
-                        "storeInfo.areaCode", 1, 32);
-            }
-            if (address != null) {
-                WechatPayValidationUtils.requireText(address,
-                        "storeInfo.address", 1, 512);
-            }
-        }
-
-        /**
-         * 创建门店信息构建器。
-         *
-         * @return 新构建器
-         */
-        public static StoreInfoBuilder builder() {
-            return new StoreInfoBuilder();
-        }
-    }
-
-    /**
-     * 门店信息构建器。
-     */
-    public static final class StoreInfoBuilder {
-        private @Nullable String id;
-        private @Nullable String name;
-        private @Nullable String areaCode;
-        private @Nullable String address;
-
-        private StoreInfoBuilder() {
-        }
-
-        /**
-         * 配置门店编号。
-         *
-         * @param value 门店编号
-         * @return 当前构建器
-         */
-        public StoreInfoBuilder id(String value) {
-            id = value;
-            return this;
-        }
-
-        /**
-         * 配置门店名称。
-         *
-         * @param value 门店名称
-         * @return 当前构建器
-         */
-        public StoreInfoBuilder name(String value) {
-            name = value;
-            return this;
-        }
-
-        /**
-         * 配置地区编码。
-         *
-         * @param value 地区编码
-         * @return 当前构建器
-         */
-        public StoreInfoBuilder areaCode(String value) {
-            areaCode = value;
-            return this;
-        }
-
-        /**
-         * 配置门店详细地址。
-         *
-         * @param value 门店详细地址
-         * @return 当前构建器
-         */
-        public StoreInfoBuilder address(String value) {
-            address = value;
-            return this;
-        }
-
-        /**
-         * 校验并创建门店信息。
-         *
-         * @return 不可变门店信息
-         */
-        public StoreInfo build() {
-            return new StoreInfo(ValidationUtils.requireNonNull(id,
-                    "storeInfo.id is required"), name, areaCode, address);
-        }
-    }
-
-    /**
-     * 结算信息。
-     *
-     * @param profitSharing 是否为分账订单
-     */
-    public record SettleInfo(@JsonProperty("profit_sharing") boolean profitSharing) {
     }
 }
