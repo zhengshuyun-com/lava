@@ -25,11 +25,12 @@ import java.security.GeneralSecurityException;
 import java.util.HexFormat;
 
 /**
- * {@link CryptoUtils} 使用的 HMAC 消息认证码实现。
+ * HMAC 消息认证码工具。
  *
- * <p>标准算法通过 JCA 获取，不绑定具体 Provider，也不修改 JVM 全局 Provider 列表。</p>
+ * <p>标准算法通过 JCA 获取，不绑定具体 Provider，也不修改 JVM 全局 Provider 列表。
+ * 也可通过 {@link CryptoUtils} 使用统一便捷入口。</p>
  */
-final class HmacUtils {
+public final class HmacUtils {
 
     /** JCA 定义的 HMAC-SHA-256 标准算法名。 */
     private static final String HMAC_SHA_256 = "HmacSHA256";
@@ -53,7 +54,7 @@ final class HmacUtils {
      * @throws IllegalArgumentException 密钥或数据为 {@code null}，或者密钥为空时抛出
      * @throws CryptoException 当前 JCA 环境无法提供 HMAC-SHA-256 时抛出
      */
-    static byte[] sha256(byte[] key, byte[] data) {
+    public static byte[] sha256(byte[] key, byte[] data) {
         // 1. 在创建 JCA 对象前校验输入，明确区分参数错误与 Provider 执行失败。
         ValidationUtils.requireNonNull(key, "key must not be null");
         ValidationUtils.requireTrue(key.length > 0, "key must not be empty");
@@ -80,7 +81,7 @@ final class HmacUtils {
      * @throws IllegalArgumentException 密钥或数据为 {@code null}，或者密钥为空时抛出
      * @throws CryptoException 当前 JCA 环境无法提供 HMAC-SHA-256 时抛出
      */
-    static String sha256Hex(byte[] key, byte[] data) {
+    public static String sha256Hex(byte[] key, byte[] data) {
         return LOWERCASE_HEX.formatHex(sha256(key, data));
     }
 
@@ -93,7 +94,7 @@ final class HmacUtils {
      * @throws IllegalArgumentException 密钥或数据为 {@code null}，或者密钥为空时抛出
      * @throws CryptoException 当前 JCA 环境无法提供 HMAC-SHA-256 时抛出
      */
-    static String sha256Hex(String key, String data) {
+    public static String sha256Hex(String key, String data) {
         ValidationUtils.requireNonNull(key, "key must not be null");
         ValidationUtils.requireNonNull(data, "data must not be null");
         return sha256Hex(

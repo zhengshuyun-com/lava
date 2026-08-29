@@ -27,8 +27,8 @@ import java.security.spec.ECGenParameterSpec;
 /**
  * EC 密钥生成工具，且不修改全局 Provider 列表。
  *
- * <p>常用密钥生成入口由 {@link CryptoUtils} 统一提供；本类型同时定义调用方选择标准曲线时使用的
- * {@link Curve} 枚举。</p>
+ * <p>本类型同时定义调用方选择标准曲线时使用的 {@link Curve} 枚举。也可通过 {@link CryptoUtils}
+ * 使用统一便捷入口。</p>
  */
 public final class EcKeyUtils {
 
@@ -78,7 +78,7 @@ public final class EcKeyUtils {
      *
      * @return P-256 EC 密钥对
      */
-    static KeyPair generate() {
+    public static KeyPair generate() {
         return generate(Curve.P256);
     }
 
@@ -88,7 +88,7 @@ public final class EcKeyUtils {
      * @param curve EC 曲线
      * @return 指定曲线的 EC 密钥对
      */
-    static KeyPair generate(Curve curve) {
+    public static KeyPair generate(Curve curve) {
         return generate(curve, new SecureRandom());
     }
 
@@ -100,7 +100,7 @@ public final class EcKeyUtils {
      * @return 指定曲线的 EC 密钥对
      * @throws CryptoException JDK Provider 不支持所需 EC 操作时抛出
      */
-    static KeyPair generate(Curve curve, SecureRandom secureRandom) {
+    public static KeyPair generate(Curve curve, SecureRandom secureRandom) {
         // 1. 先校验曲线和随机源，避免将调用方参数错误包装成密码学执行失败。
         ValidationUtils.requireNonNull(curve, "curve must not be null");
         ValidationUtils.requireNonNull(secureRandom, "secureRandom must not be null");

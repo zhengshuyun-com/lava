@@ -2,7 +2,9 @@
 
 `lava-crypto` 提供 HMAC-SHA-256、RSA-SHA256、AES-GCM、Argon2id 密码哈希、JDK EC 密钥生成以及严格的 EC/RSA PEM
 读取。它使用 Bouncy Castle lightweight Argon2 API，但不会向 JVM 全局注册 Bouncy Castle Provider；标准 RSA、AES 与
-EC 能力通过 JCA 获取。无状态密码学能力统一从 `CryptoUtils` 进入，带策略状态的密码哈希由 `PasswordHasher` 提供。
+EC 能力通过 JCA 获取。无状态密码学能力既可以从 `CryptoUtils` 统一进入，也可以按算法直接使用对应的
+`AesGcmUtils`、`HmacUtils`、`RsaSignatureUtils`、`EcKeyUtils` 和 `PemKeyUtils`；带策略状态的密码哈希由
+`PasswordHasher` 提供。
 
 ```xml
 <dependency>

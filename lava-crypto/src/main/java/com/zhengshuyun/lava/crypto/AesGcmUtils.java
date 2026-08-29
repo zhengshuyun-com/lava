@@ -24,12 +24,12 @@ import javax.crypto.spec.SecretKeySpec;
 import java.security.GeneralSecurityException;
 
 /**
- * {@link CryptoUtils} 使用的 JCA AES-GCM 认证加密实现。
+ * JCA AES-GCM 认证加密工具。
  *
  * <p>本工具不会生成或管理 nonce；调用方必须保证同一密钥下 nonce 唯一。所有输入数组均为借用，
- * 不会被修改；加密和解密结果均为新创建的数组。</p>
+ * 不会被修改；加密和解密结果均为新创建的数组。也可通过 {@link CryptoUtils} 使用统一便捷入口。</p>
  */
-final class AesGcmUtils {
+public final class AesGcmUtils {
 
     private static final String AES_GCM_TRANSFORMATION = "AES/GCM/NoPadding";
     private static final int AUTHENTICATION_TAG_LENGTH_BITS = 128;
@@ -52,7 +52,7 @@ final class AesGcmUtils {
      * @throws IllegalArgumentException 参数无效时抛出
      * @throws CryptoException          JCA 环境无法完成加密时抛出
      */
-    static byte[] encrypt(
+    public static byte[] encrypt(
             byte[] key, byte[] nonce, byte[] associatedData, byte[] plaintext) {
         return crypt(Cipher.ENCRYPT_MODE, key, nonce, associatedData, plaintext,
                 "Failed to encrypt with AES-GCM");
@@ -69,7 +69,7 @@ final class AesGcmUtils {
      * @throws IllegalArgumentException 参数无效时抛出
      * @throws CryptoException          认证标签无效或 JCA 环境无法完成解密时抛出
      */
-    static byte[] decrypt(
+    public static byte[] decrypt(
             byte[] key, byte[] nonce, byte[] associatedData, byte[] ciphertext) {
         return crypt(Cipher.DECRYPT_MODE, key, nonce, associatedData, ciphertext,
                 "Failed to authenticate or decrypt AES-GCM data");

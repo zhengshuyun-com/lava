@@ -31,12 +31,13 @@ import java.util.Arrays;
 import java.util.Base64;
 
 /**
- * {@link CryptoUtils} 使用的严格 PEM 编解码实现。
+ * 严格的 PEM 密钥编解码工具。
  *
  * <p>导出入口当前只支持 EC 密钥；读取入口分别提供 EC 与 RSA 类型安全方法。解析时只接受单个、
- * 首尾完整匹配的 PEM 块，并限制 PEM 文本与 DER 编码的大小。</p>
+ * 首尾完整匹配的 PEM 块，并限制 PEM 文本与 DER 编码的大小。也可通过 {@link CryptoUtils}
+ * 使用统一便捷入口。</p>
  */
-final class PemKeyUtils {
+public final class PemKeyUtils {
 
     /**
      * 单个 PEM 输入允许的最大字符数。
@@ -70,7 +71,7 @@ final class PemKeyUtils {
      * @throws IllegalArgumentException key 为 null 时抛出
      * @throws CryptoException 密钥类型、格式或编码不受支持时抛出
      */
-    static String toPem(Key key) {
+    public static String toPem(Key key) {
         // 1. 先限定支持的密钥类型和算法，避免仅凭编码格式误判密钥用途。
         ValidationUtils.requireNonNull(key, "key must not be null");
 
@@ -140,7 +141,7 @@ final class PemKeyUtils {
      * @throws IllegalArgumentException pem 为 null 时抛出
      * @throws CryptoException PEM 格式、大小或密钥内容无效时抛出
      */
-    static ECPrivateKey readEcPrivateKey(String pem) {
+    public static ECPrivateKey readEcPrivateKey(String pem) {
         byte[] encodedKey = decodeStrict(pem, PRIVATE_HEADER, PRIVATE_FOOTER);
         try {
             Key key = KeyFactory.getInstance("EC", EcKeyUtils.SUN_EC_PROVIDER)
@@ -166,7 +167,7 @@ final class PemKeyUtils {
      * @throws IllegalArgumentException pem 为 null 时抛出
      * @throws CryptoException PEM 格式、大小或密钥内容无效时抛出
      */
-    static ECPublicKey readEcPublicKey(String pem) {
+    public static ECPublicKey readEcPublicKey(String pem) {
         byte[] encodedKey = decodeStrict(pem, PUBLIC_HEADER, PUBLIC_FOOTER);
         try {
             Key key = KeyFactory.getInstance("EC", EcKeyUtils.SUN_EC_PROVIDER)
@@ -192,7 +193,7 @@ final class PemKeyUtils {
      * @throws IllegalArgumentException pem 为 null 时抛出
      * @throws CryptoException PEM 格式、大小或密钥内容无效时抛出
      */
-    static RSAPrivateKey readRsaPrivateKey(String pem) {
+    public static RSAPrivateKey readRsaPrivateKey(String pem) {
         byte[] encodedKey = decodeStrict(pem, PRIVATE_HEADER, PRIVATE_FOOTER);
         try {
             Key key = KeyFactory.getInstance("RSA")
@@ -218,7 +219,7 @@ final class PemKeyUtils {
      * @throws IllegalArgumentException pem 为 null 时抛出
      * @throws CryptoException PEM 格式、大小或密钥内容无效时抛出
      */
-    static RSAPublicKey readRsaPublicKey(String pem) {
+    public static RSAPublicKey readRsaPublicKey(String pem) {
         byte[] encodedKey = decodeStrict(pem, PUBLIC_HEADER, PUBLIC_FOOTER);
         try {
             Key key = KeyFactory.getInstance("RSA")
