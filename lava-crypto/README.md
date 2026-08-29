@@ -72,7 +72,7 @@ RSA 工具接受普通 JCA 或 HSM Provider 提供的密钥，不要求密钥可
 ## EC、RSA 与 PEM
 
 ```java
-KeyPair pair = CryptoUtils.ecGenerateKeyPair(CryptoUtils.EcCurve.P256);
+KeyPair pair = CryptoUtils.ecGenerateKeyPair(EcKeyUtils.Curve.P256);
 String publicPem = CryptoUtils.pemEncode(pair.getPublic());
 String privatePem = CryptoUtils.pemEncode(pair.getPrivate());
 

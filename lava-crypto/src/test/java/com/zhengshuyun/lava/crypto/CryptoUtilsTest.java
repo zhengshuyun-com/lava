@@ -25,14 +25,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CryptoUtilsTest {
 
-    /** 统一门面必须公开，具体算法实现必须保持为包级类型。 */
+    /** 统一门面必须公开；仅承载公开曲线类型的 EC 工具例外。 */
     @Test
     void exposesOnlyTheFacadeForStatelessCryptography() {
         assertTrue(Modifier.isPublic(CryptoUtils.class.getModifiers()));
         assertFalse(Modifier.isPublic(HmacUtils.class.getModifiers()));
         assertFalse(Modifier.isPublic(RsaSignatureUtils.class.getModifiers()));
         assertFalse(Modifier.isPublic(AesGcmUtils.class.getModifiers()));
-        assertFalse(Modifier.isPublic(EcKeyUtils.class.getModifiers()));
+        assertTrue(Modifier.isPublic(EcKeyUtils.class.getModifiers()));
         assertFalse(Modifier.isPublic(PemKeyUtils.class.getModifiers()));
     }
 }

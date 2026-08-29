@@ -34,7 +34,7 @@ class PemKeyUtilsTest {
     @Test
     void everySupportedCurveRoundTripsAndSignsWithoutProviderMutation() throws Exception {
         List<String> providersBefore = providerNames();
-        for (CryptoUtils.EcCurve curve : CryptoUtils.EcCurve.values()) {
+        for (EcKeyUtils.Curve curve : EcKeyUtils.Curve.values()) {
             KeyPair pair = CryptoUtils.ecGenerateKeyPair(curve);
             String privatePem = CryptoUtils.pemEncode(pair.getPrivate());
             String publicPem = CryptoUtils.pemEncode(pair.getPublic());
@@ -139,18 +139,18 @@ class PemKeyUtilsTest {
     @Test
     void generatedKeysUseOnlyTheRequestedCurves() {
         assertEquals(256, ((java.security.interfaces.ECPublicKey) CryptoUtils
-                .ecGenerateKeyPair(CryptoUtils.EcCurve.P256)
+                .ecGenerateKeyPair(EcKeyUtils.Curve.P256)
                 .getPublic()).getParams().getCurve().getField().getFieldSize());
         assertEquals(384, ((java.security.interfaces.ECPublicKey) CryptoUtils
-                .ecGenerateKeyPair(CryptoUtils.EcCurve.P384)
+                .ecGenerateKeyPair(EcKeyUtils.Curve.P384)
                 .getPublic()).getParams().getCurve().getField().getFieldSize());
         assertEquals(521, ((java.security.interfaces.ECPublicKey) CryptoUtils
-                .ecGenerateKeyPair(CryptoUtils.EcCurve.P521)
+                .ecGenerateKeyPair(EcKeyUtils.Curve.P521)
                 .getPublic()).getParams().getCurve().getField().getFieldSize());
-        assertEquals("secp256r1", CryptoUtils.EcCurve.P256.standardName());
+        assertEquals("secp256r1", EcKeyUtils.Curve.P256.standardName());
     }
 
-    private static String signatureAlgorithm(CryptoUtils.EcCurve curve) {
+    private static String signatureAlgorithm(EcKeyUtils.Curve curve) {
         return switch (curve) {
             case P256 -> "SHA256withECDSA";
             case P384 -> "SHA384withECDSA";

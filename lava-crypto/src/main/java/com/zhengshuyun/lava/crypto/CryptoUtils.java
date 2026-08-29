@@ -37,38 +37,6 @@ import java.security.interfaces.RSAPublicKey;
 public final class CryptoUtils {
 
     /**
-     * 当前 EC 密钥生成入口支持的标准曲线。
-     */
-    public enum EcCurve {
-        /** NIST P-256 曲线。 */
-        P256("secp256r1"),
-        /** NIST P-384 曲线。 */
-        P384("secp384r1"),
-        /** NIST P-521 曲线。 */
-        P521("secp521r1");
-
-        private final String standardName;
-
-        /**
-         * 创建与 JCA 标准名称绑定的曲线枚举。
-         *
-         * @param standardName JCA 标准曲线名称
-         */
-        EcCurve(String standardName) {
-            this.standardName = standardName;
-        }
-
-        /**
-         * 返回 JCA 使用的标准曲线名称。
-         *
-         * @return 标准曲线名称
-         */
-        public String standardName() {
-            return standardName;
-        }
-    }
-
-    /**
      * 工具类不允许实例化。
      */
     private CryptoUtils() {
@@ -191,7 +159,7 @@ public final class CryptoUtils {
      * @throws IllegalArgumentException curve 为 null 时抛出
      * @throws CryptoException          JDK Provider 不支持所需 EC 操作时抛出
      */
-    public static KeyPair ecGenerateKeyPair(EcCurve curve) {
+    public static KeyPair ecGenerateKeyPair(EcKeyUtils.Curve curve) {
         return EcKeyUtils.generate(curve);
     }
 
@@ -204,7 +172,7 @@ public final class CryptoUtils {
      * @throws IllegalArgumentException 参数为 null 时抛出
      * @throws CryptoException          JDK Provider 不支持所需 EC 操作时抛出
      */
-    public static KeyPair ecGenerateKeyPair(EcCurve curve, SecureRandom secureRandom) {
+    public static KeyPair ecGenerateKeyPair(EcKeyUtils.Curve curve, SecureRandom secureRandom) {
         return EcKeyUtils.generate(curve, secureRandom);
     }
 
