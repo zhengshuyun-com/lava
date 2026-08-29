@@ -1,0 +1,68 @@
+/*
+ * Copyright 2026 整数科技 (zhengshuyun.com)
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ */
+
+package com.zhengshuyun.lava.pay.alipay.internal;
+
+import com.zhengshuyun.lava.pay.alipay.exception.AlipayPayProtocolException;
+
+import java.math.BigDecimal;
+import java.util.regex.Pattern;
+
+/**
+ * 支付宝元字符串与公开分金额之间的无损转换工具。
+ */
+public final class AlipayPayMoneyUtils {
+    /** 电脑网站支付单笔订单最大金额，单位为分。 */
+    public static final long MAX_PAYMENT_CENTS = 10_000_000_000L;
+    private static final Pattern MONEY = Pattern.compile("[0-9]+(?:\\.[0-9]{1,2})?");
+
+    private AlipayPayMoneyUtils() {
+        throw new UnsupportedOperationException("Utility class");
+    }
+
+    /**
+     * 将正数分金额转换为固定两位小数的元字符串。
+     *
+     * @param cents 金额，单位为分
+     * @return 固定两位小数的元字符串
+     */
+    public static String formatPositive(long cents) {
+        if (cents <= 0) {
+            throw new IllegalArgumentException("amount must be positive");
+        }
+        return formatNonNegative(cents);
+    }
+
+    /**
+     * 将非负分金额转换为固定两位小数的元字符串。
+     *
+     * @param cents 金额，单位为分
+     * @return 固定两位小数的元字符串
+     */
+    public static String formatNonNegative(long cents) {
+        if (cents < 0) {
+            throw new IllegalArgumentException("amount must not be negative");
+        }
+        return cents / 100 + "." + (cents % 100 < 10 ? "0" : "") + cents % 100;
+    }
+
+    /**
+     * 将支付宝金额文本精确解析为分，拒绝多于两位小数或数值溢出。
+     *
+     * @param value 协议金额文本
+     * @param name  字段名
+     * @return 金额，单位为分
+     */
+    public static long parse(String value, String name) {
+        if (value == null || !MONEY.matcher(value).matches()) {
+            throw new AlipayPayProtocolException("支付宝响应字段 " + name + " 不是有效金额");
+        }
+        try {
+            return new BigDecimal(value).movePointRight(2).longValueExact();
+        } catch (ArithmeticException exception) {
+            throw new AlipayPayProtocolException("支付宝响应字段 " + name + " 超出金额范围");
+        }
+    }
+}

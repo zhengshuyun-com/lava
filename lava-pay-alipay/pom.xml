@@ -34,7 +34,22 @@
     <dependencies>
         <dependency>
             <groupId>com.zhengshuyun</groupId>
+            <artifactId>lava-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.zhengshuyun</groupId>
+            <artifactId>lava-json</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.zhengshuyun</groupId>
             <artifactId>lava-http</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.zhengshuyun</groupId>
+            <artifactId>lava-crypto</artifactId>
             <version>${project.version}</version>
         </dependency>
     </dependencies>
