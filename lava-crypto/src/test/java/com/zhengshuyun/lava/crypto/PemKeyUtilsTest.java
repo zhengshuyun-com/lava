@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Test;
 import java.math.BigInteger;
 import java.security.*;
 import java.security.interfaces.ECPrivateKey;
+import java.security.interfaces.RSAPrivateKey;
 import java.security.spec.ECParameterSpec;
 import java.util.Arrays;
 import java.util.List;
@@ -100,6 +101,23 @@ class PemKeyUtilsTest {
     }
 
     @Test
+    void rsaPemCanBeReadByExplicitRsaEntrypoints() throws Exception {
+        KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
+        generator.initialize(2048);
+        KeyPair pair = generator.generateKeyPair();
+        String privatePem = toPrivatePem(pair.getPrivate().getEncoded());
+        String publicPem = toPublicPem(pair.getPublic().getEncoded());
+
+        RSAPrivateKey privateKey = PemKeyUtils.readRsaPrivateKey(privatePem);
+        var publicKey = PemKeyUtils.readRsaPublicKey(publicPem);
+        byte[] data = {1, 2, 3};
+        byte[] signature = RsaSignatureUtils.sha256(privateKey, data);
+
+        assertTrue(RsaSignatureUtils.verifySha256(publicKey, data, signature));
+        assertThrows(CryptoException.class, () -> PemKeyUtils.readRsaPrivateKey(publicPem));
+    }
+
+    @Test
     void nonExportableHsmStyleKeyHasExplicitFailure() {
         CryptoException missingEncoding = assertThrows(
                 CryptoException.class,
@@ -143,6 +161,12 @@ class PemKeyUtilsTest {
         String base64 = java.util.Base64.getMimeEncoder(64, new byte[]{'\n'})
                 .encodeToString(encoded);
         return "-----BEGIN PRIVATE KEY-----\n" + base64 + "\n-----END PRIVATE KEY-----\n";
+    }
+
+    private static String toPublicPem(byte[] encoded) {
+        String base64 = java.util.Base64.getMimeEncoder(64, new byte[]{'\n'})
+                .encodeToString(encoded);
+        return "-----BEGIN PUBLIC KEY-----\n" + base64 + "\n-----END PUBLIC KEY-----\n";
     }
 
     private static final class NonExportableEcPrivateKey implements ECPrivateKey {

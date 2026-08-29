@@ -1,6 +1,6 @@
 # Lava
 
-Lava 是面向 Java 25 的模块化基础设施工具库，为 Java 应用提供 ID、重试、受限 IO、JSON、HTTP/SSE、进程内调度、密码学和邮件收发能力。
+Lava 是面向 Java 25 的模块化基础设施工具库，为 Java 应用提供 ID、重试、受限 IO、JSON、HTTP/SSE、支付渠道协议、进程内调度、密码学和邮件收发能力。
 各模块可以独立使用，不依赖 Spring 或其他应用框架，适用于后端服务、命令行工具和独立 Java 应用。
 
 - [GitHub](https://github.com/zhengshuyuncom/lava)
@@ -14,8 +14,10 @@ Lava 是面向 Java 25 的模块化基础设施工具库，为 Java 应用提供
 | [`lava-core`](lava-core/README.md)         | UUIDv7、Snowflake、重试、受限 IO、时间和参数校验          |
 | [`lava-json`](lava-json/README.md)         | 基于 Jackson 3 的线程安全 JSON 编解码                     |
 | [`lava-http`](lava-http/README.md)         | 基于 OkHttp 5 的 HTTP 客户端、流式响应和 SSE              |
+| [`lava-pay-wechat`](lava-pay-wechat/README.md) | 微信支付 API v3 协议适配，不依赖微信官方 SDK          |
+| [`lava-pay-alipay`](lava-pay-alipay/README.md) | 支付宝开放平台支付协议适配，不依赖支付宝官方 SDK      |
 | [`lava-schedule`](lava-schedule/README.md) | 有界并发的进程内调度和 Cron 触发                          |
-| [`lava-crypto`](lava-crypto/README.md)     | Argon2id、HMAC、EC 密钥和 PEM 处理                        |
+| [`lava-crypto`](lava-crypto/README.md)     | Argon2id、HMAC、RSA/AES、EC 密钥和 PEM 处理               |
 | [`lava-mail`](lava-mail/README.md)         | SMTP、IMAP、MIME 和 OAuth 2 邮件认证                      |
 
 ## 快速开始

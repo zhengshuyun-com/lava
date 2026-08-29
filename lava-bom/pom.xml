@@ -73,6 +73,18 @@
                 <artifactId>lava-http</artifactId>
                 <version>${project.version}</version>
             </dependency>
+            <!-- 微信支付 API v3 协议适配。 -->
+            <dependency>
+                <groupId>com.zhengshuyun</groupId>
+                <artifactId>lava-pay-wechat</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <!-- 支付宝开放平台支付协议适配。 -->
+            <dependency>
+                <groupId>com.zhengshuyun</groupId>
+                <artifactId>lava-pay-alipay</artifactId>
+                <version>${project.version}</version>
+            </dependency>
             <!-- 进程内定时调度。 -->
             <dependency>
                 <groupId>com.zhengshuyun</groupId>

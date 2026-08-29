@@ -1,8 +1,8 @@
 # lava-crypto
 
-`lava-crypto` 提供 HMAC-SHA-256、Argon2id 密码哈希、JDK EC 密钥生成和严格的 EC PEM 编解码。它使用 Bouncy Castle
-lightweight Argon2 API，但不会向 JVM 全局注册 Bouncy Castle Provider；EC P-256/P-384/P-521 密钥由 JDK `EC` provider
-生成。
+`lava-crypto` 提供 HMAC-SHA-256、RSA-SHA256、AES-GCM、Argon2id 密码哈希、JDK EC 密钥生成以及严格的 EC/RSA PEM
+读取。它使用 Bouncy Castle lightweight Argon2 API，但不会向 JVM 全局注册 Bouncy Castle Provider；标准 RSA、AES 与
+EC 能力通过 JCA 获取。
 
 ```xml
 <dependency>
@@ -56,7 +56,20 @@ String。空密码和全空白密码可以哈希；最小长度、复杂度、�
 
 不要记录密码、完整 PHC 或派生中间值。PHC 包含 salt 和参数，虽不是明文密码，仍应按认证数据保护。
 
-## EC 与 PEM
+## RSA-SHA256 与 AES-GCM
+
+```java
+byte[] signature = RsaSignatureUtils.sha256(privateKey, data);
+boolean valid = RsaSignatureUtils.verifySha256(publicKey, data, signature);
+
+byte[] ciphertext = AesGcmUtils.encrypt(key, nonce, associatedData, plaintext);
+byte[] restored = AesGcmUtils.decrypt(key, nonce, associatedData, ciphertext);
+```
+
+RSA 工具接受普通 JCA 或 HSM Provider 提供的密钥，不要求密钥可导出。AES-GCM 使用 128 位认证标签；调用方必须保证同一
+密钥下 nonce 唯一，并负责在使用后清理密钥和明文数组。
+
+## EC、RSA 与 PEM
 
 ```java
 KeyPair pair = EcKeyUtils.generate(EcKeyUtils.Curve.P256);
@@ -67,10 +80,12 @@ ECPublicKey publicKey = PemKeyUtils.readEcPublicKey(publicPem);
 ECPrivateKey privateKey = PemKeyUtils.readEcPrivateKey(privatePem);
 ```
 
-`PemKeyUtils` 只接受：
+`PemKeyUtils` 的读取入口只接受：
 
 - EC private key：PKCS#8 `PRIVATE KEY`
 - EC public key：X.509 SubjectPublicKeyInfo `PUBLIC KEY`
+- RSA private key：PKCS#8 `PRIVATE KEY`
+- RSA public key：X.509 SubjectPublicKeyInfo `PUBLIC KEY`
 
 解析器限制 PEM 字符数和 DER 字节数，要求唯一且匹配的 header/footer，并校验算法和格式。它不支持传统 `EC PRIVATE KEY`
 、证书、多个拼接块或加密 PEM。

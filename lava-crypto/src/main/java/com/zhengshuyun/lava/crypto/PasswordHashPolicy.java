@@ -47,6 +47,9 @@ public record PasswordHashPolicy(
     public static final PasswordHashPolicy DEFAULT =
             new PasswordHashPolicy(DEFAULT_GENERATION, DEFAULT_VERIFICATION_LIMITS);
 
+    /**
+     * 校验生成参数未超过验证资源上限。
+     */
     public PasswordHashPolicy {
         ValidationUtils.requireNonNull(generation, "generation must not be null");
         ValidationUtils.requireNonNull(verificationLimits, "verificationLimits must not be null");
@@ -90,6 +93,9 @@ public record PasswordHashPolicy(
             int saltLengthBytes,
             int hashLengthBytes) {
 
+        /**
+         * 校验 Argon2id 生成参数。
+         */
         public Generation {
             requirePositive(memoryKiB, "memoryKiB");
             requirePositive(iterations, "iterations");
@@ -149,6 +155,9 @@ public record PasswordHashPolicy(
                     DEFAULT_MAX_ENCODED_LENGTH);
         }
 
+        /**
+         * 校验 Argon2id 验证资源上限。
+         */
         public VerificationLimits {
             requirePositive(maxMemoryKiB, "maxMemoryKiB");
             requirePositive(maxIterations, "maxIterations");

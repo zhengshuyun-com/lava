@@ -35,8 +35,11 @@ public final class EcKeyUtils {
      * JDK SunEC 实现及本 API 支持的曲线。
      */
     public enum Curve {
+        /** NIST P-256 曲线。 */
         P256("secp256r1"),
+        /** NIST P-384 曲线。 */
         P384("secp384r1"),
+        /** NIST P-521 曲线。 */
         P521("secp521r1");
 
         private final String standardName;
