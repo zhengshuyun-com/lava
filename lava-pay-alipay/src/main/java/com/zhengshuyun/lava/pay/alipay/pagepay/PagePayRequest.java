@@ -6,8 +6,8 @@
 package com.zhengshuyun.lava.pay.alipay.pagepay;
 
 import com.zhengshuyun.lava.core.lang.ValidationUtils;
-import com.zhengshuyun.lava.pay.alipay.internal.AlipayPayMoneyUtils;
-import com.zhengshuyun.lava.pay.alipay.internal.AlipayPayValidationUtils;
+import com.zhengshuyun.lava.pay.alipay.internal.AlipayMoneyUtils;
+import com.zhengshuyun.lava.pay.alipay.internal.AlipayValidationUtils;
 import org.jspecify.annotations.Nullable;
 
 import java.time.Duration;
@@ -26,9 +26,12 @@ import java.util.Set;
  */
 public final class PagePayRequest {
     private static final Set<String> QR_MODES = Set.of(
-            PagePayQrMode.SIMPLE_FRONT, PagePayQrMode.FRONT,
-            PagePayQrMode.REDIRECT, PagePayQrMode.MINI_FRONT,
-            PagePayQrMode.CUSTOM_WIDTH);
+            PagePayQrMode.SIMPLE_FRONT,
+            PagePayQrMode.FRONT,
+            PagePayQrMode.REDIRECT,
+            PagePayQrMode.MINI_FRONT,
+            PagePayQrMode.CUSTOM_WIDTH
+    );
     private static final Duration MIN_TIMEOUT = Duration.ofMinutes(1);
     private static final Duration MAX_TIMEOUT = Duration.ofDays(15);
 
@@ -48,15 +51,20 @@ public final class PagePayRequest {
     private final @Nullable String passbackParams;
 
     private PagePayRequest(Builder builder) {
-        outTradeNo = AlipayPayValidationUtils.requireOutTradeNo(builder.outTradeNo);
-        totalAmount = AlipayPayValidationUtils.requirePositiveAmount(
+        outTradeNo = AlipayValidationUtils.requireOutTradeNo(builder.outTradeNo);
+        totalAmount = AlipayValidationUtils.requirePositiveAmount(
                 ValidationUtils.requireNonNull(builder.totalAmount, "totalAmount is required"),
-                AlipayPayMoneyUtils.MAX_PAYMENT_CENTS, "totalAmount");
-        subject = AlipayPayValidationUtils.requireText(builder.subject, "subject", 1, 256);
+                AlipayMoneyUtils.MAX_PAYMENT_CENTS, "totalAmount");
+        subject = AlipayValidationUtils.requireText(
+                builder.subject,
+                "subject",
+                1,
+                256
+        );
         ValidationUtils.requireTrue(subject.codePoints().noneMatch(
                         value -> value == '/' || value == '=' || value == '&'),
                 "subject must not contain '/', '=', or '&'");
-        body = AlipayPayValidationUtils.requireOptionalText(builder.body, "body", 400);
+        body = AlipayValidationUtils.requireOptionalText(builder.body, "body", 400);
         ValidationUtils.requireTrue(builder.timeExpire == null || builder.timeout == null,
                 "timeExpire and timeout are mutually exclusive");
         timeExpire = builder.timeExpire;
@@ -70,7 +78,7 @@ public final class PagePayRequest {
         }
 
         qrPayMode = builder.qrPayMode == null ? null
-                : AlipayPayValidationUtils.requireOneOf(
+                : AlipayValidationUtils.requireOneOf(
                 builder.qrPayMode, "qrPayMode", QR_MODES);
         qrcodeWidth = builder.qrcodeWidth;
         if (PagePayQrMode.CUSTOM_WIDTH.equals(qrPayMode)) {
@@ -92,10 +100,10 @@ public final class PagePayRequest {
                 new LinkedHashSet<>(builder.disablePayChannels));
         ValidationUtils.requireTrue(enablePayChannels.isEmpty() || disablePayChannels.isEmpty(),
                 "enablePayChannels and disablePayChannels are mutually exclusive");
-        storeId = AlipayPayValidationUtils.requireOptionalText(builder.storeId, "storeId", 32);
-        merchantOrderNo = AlipayPayValidationUtils.requireOptionalText(
+        storeId = AlipayValidationUtils.requireOptionalText(builder.storeId, "storeId", 32);
+        merchantOrderNo = AlipayValidationUtils.requireOptionalText(
                 builder.merchantOrderNo, "merchantOrderNo", 32);
-        passbackParams = AlipayPayValidationUtils.requireOptionalText(
+        passbackParams = AlipayValidationUtils.requireOptionalText(
                 builder.passbackParams, "passbackParams", 512);
     }
 
@@ -420,7 +428,12 @@ public final class PagePayRequest {
         }
 
         private static String requireChannel(String value) {
-            value = AlipayPayValidationUtils.requireText(value, "payChannel", 1, 64);
+            value = AlipayValidationUtils.requireText(
+                    value,
+                    "payChannel",
+                    1,
+                    64
+            );
             ValidationUtils.requireTrue(value.indexOf(',') < 0,
                     "payChannel must not contain commas");
             return value;

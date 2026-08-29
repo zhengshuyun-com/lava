@@ -5,7 +5,7 @@
 
 package com.zhengshuyun.lava.pay.alipay.internal;
 
-import com.zhengshuyun.lava.pay.alipay.exception.AlipayPayProtocolException;
+import com.zhengshuyun.lava.pay.alipay.exception.AlipayProtocolException;
 
 import java.math.BigDecimal;
 import java.util.regex.Pattern;
@@ -13,12 +13,12 @@ import java.util.regex.Pattern;
 /**
  * 支付宝元字符串与公开分金额之间的无损转换工具。
  */
-public final class AlipayPayMoneyUtils {
+public final class AlipayMoneyUtils {
     /** 电脑网站支付单笔订单最大金额，单位为分。 */
     public static final long MAX_PAYMENT_CENTS = 10_000_000_000L;
     private static final Pattern MONEY = Pattern.compile("[0-9]+(?:\\.[0-9]{1,2})?");
 
-    private AlipayPayMoneyUtils() {
+    private AlipayMoneyUtils() {
         throw new UnsupportedOperationException("Utility class");
     }
 
@@ -57,12 +57,12 @@ public final class AlipayPayMoneyUtils {
      */
     public static long parse(String value, String name) {
         if (value == null || !MONEY.matcher(value).matches()) {
-            throw new AlipayPayProtocolException("支付宝响应字段 " + name + " 不是有效金额");
+            throw new AlipayProtocolException("支付宝响应字段 " + name + " 不是有效金额");
         }
         try {
             return new BigDecimal(value).movePointRight(2).longValueExact();
         } catch (ArithmeticException exception) {
-            throw new AlipayPayProtocolException("支付宝响应字段 " + name + " 超出金额范围");
+            throw new AlipayProtocolException("支付宝响应字段 " + name + " 超出金额范围");
         }
     }
 }

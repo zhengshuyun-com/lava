@@ -11,7 +11,7 @@ import org.jspecify.annotations.Nullable;
 /**
  * 支付宝网关调用未获得可验证协议响应。
  */
-public final class AlipayPayTransportException extends AlipayPayException {
+public final class AlipayTransportException extends AlipayException {
     /** 底层传输失败类型。 */
     private final @Nullable HttpFailureKind kind;
     /** 支付宝网关返回的非成功 HTTP 状态码。 */
@@ -31,10 +31,12 @@ public final class AlipayPayTransportException extends AlipayPayException {
      * @param url       请求地址
      * @param causeType 底层异常类型
      */
-    public AlipayPayTransportException(HttpFailureKind kind,
-                                       @Nullable String method,
-                                       @Nullable String url,
-                                       @Nullable String causeType) {
+    public AlipayTransportException(
+            HttpFailureKind kind,
+            @Nullable String method,
+            @Nullable String url,
+            @Nullable String causeType
+    ) {
         super("支付宝网关传输失败：" + kind);
         this.kind = kind;
         statusCode = null;
@@ -48,7 +50,7 @@ public final class AlipayPayTransportException extends AlipayPayException {
      *
      * @param statusCode HTTP 状态码
      */
-    public AlipayPayTransportException(int statusCode) {
+    public AlipayTransportException(int statusCode) {
         super("支付宝网关返回非成功 HTTP 状态：" + statusCode);
         kind = null;
         this.statusCode = statusCode;

@@ -6,7 +6,7 @@
 package com.zhengshuyun.lava.pay.alipay.refund;
 
 import com.zhengshuyun.lava.core.lang.ValidationUtils;
-import com.zhengshuyun.lava.pay.alipay.internal.AlipayPayValidationUtils;
+import com.zhengshuyun.lava.pay.alipay.internal.AlipayValidationUtils;
 import org.jspecify.annotations.Nullable;
 
 import java.util.LinkedHashSet;
@@ -21,7 +21,8 @@ public final class RefundQueryRequest {
             RefundQueryOption.REFUND_DETAIL_ITEM_LIST,
             RefundQueryOption.GMT_REFUND_PAY,
             RefundQueryOption.DEPOSIT_BACK_INFO,
-            RefundQueryOption.REFUND_VOUCHER_DETAIL_LIST);
+            RefundQueryOption.REFUND_VOUCHER_DETAIL_LIST
+    );
 
     private final @Nullable String outTradeNo;
     private final @Nullable String tradeNo;
@@ -32,10 +33,10 @@ public final class RefundQueryRequest {
         ValidationUtils.requireTrue((builder.outTradeNo == null) != (builder.tradeNo == null),
                 "exactly one of outTradeNo and tradeNo is required");
         outTradeNo = builder.outTradeNo == null ? null
-                : AlipayPayValidationUtils.requireOutTradeNo(builder.outTradeNo);
+                : AlipayValidationUtils.requireOutTradeNo(builder.outTradeNo);
         tradeNo = builder.tradeNo == null ? null
-                : AlipayPayValidationUtils.requireTradeNo(builder.tradeNo);
-        outRequestNo = AlipayPayValidationUtils.requireOutRequestNo(builder.outRequestNo);
+                : AlipayValidationUtils.requireTradeNo(builder.tradeNo);
+        outRequestNo = AlipayValidationUtils.requireOutRequestNo(builder.outRequestNo);
         queryOptions = List.copyOf(builder.queryOptions);
     }
 
@@ -135,7 +136,7 @@ public final class RefundQueryRequest {
          * @return 当前构建器
          */
         public Builder addQueryOption(String value) {
-            queryOptions.add(AlipayPayValidationUtils.requireOneOf(
+            queryOptions.add(AlipayValidationUtils.requireOneOf(
                     value, "queryOption", OPTIONS));
             return this;
         }

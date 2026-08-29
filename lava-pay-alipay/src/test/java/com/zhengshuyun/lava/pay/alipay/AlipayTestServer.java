@@ -25,25 +25,25 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
-final class AlipayPayTestServer implements AutoCloseable {
+final class AlipayTestServer implements AutoCloseable {
     private final HttpServer server;
     private final ExecutorService executor;
     private final PrivateKey alipayPrivateKey;
     private final BlockingQueue<PlannedResponse> responses = new LinkedBlockingQueue<>();
     private final BlockingQueue<CapturedRequest> requests = new LinkedBlockingQueue<>();
 
-    private AlipayPayTestServer(HttpServer server, ExecutorService executor,
+    private AlipayTestServer(HttpServer server, ExecutorService executor,
                                 PrivateKey alipayPrivateKey) {
         this.server = server;
         this.executor = executor;
         this.alipayPrivateKey = alipayPrivateKey;
     }
 
-    static AlipayPayTestServer start(PrivateKey alipayPrivateKey) {
+    static AlipayTestServer start(PrivateKey alipayPrivateKey) {
         try {
             HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
             ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
-            AlipayPayTestServer result = new AlipayPayTestServer(
+            AlipayTestServer result = new AlipayTestServer(
                     server, executor, alipayPrivateKey);
             server.createContext("/gateway.do", result::handle);
             server.setExecutor(executor);
@@ -97,9 +97,12 @@ final class AlipayPayTestServer implements AutoCloseable {
 
     private void handle(HttpExchange exchange) throws IOException {
         byte[] requestBody = exchange.getRequestBody().readAllBytes();
-        requests.add(new CapturedRequest(exchange.getRequestMethod(),
+        requests.add(new CapturedRequest(
+                exchange.getRequestMethod(),
                 exchange.getRequestURI().toString(),
-                Map.copyOf(exchange.getRequestHeaders()), requestBody));
+                Map.copyOf(exchange.getRequestHeaders()),
+                requestBody
+        ));
         PlannedResponse response = responses.poll();
         if (response == null) {
             response = new PlannedResponse(500,
@@ -118,8 +121,12 @@ final class AlipayPayTestServer implements AutoCloseable {
         executor.close();
     }
 
-    record CapturedRequest(String method, String target,
-                           Map<String, List<String>> headers, byte[] body) {
+    record CapturedRequest(
+            String method,
+            String target,
+            Map<String, List<String>> headers,
+            byte[] body
+    ) {
         Map<String, String> queryParams() {
             int question = target.indexOf('?');
             return question < 0 ? Map.of() : parseForm(target.substring(question + 1));

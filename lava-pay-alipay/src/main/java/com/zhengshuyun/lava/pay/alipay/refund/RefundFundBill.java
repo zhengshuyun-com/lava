@@ -15,7 +15,10 @@ import org.jspecify.annotations.Nullable;
  * @param realAmount  渠道实际退款金额，单位为分；没有时为 {@code null}
  * @param fundType    银行卡资金类型；没有时为 {@code null}
  */
-public record RefundFundBill(String fundChannel, long amount,
-                             @Nullable Long realAmount,
-                             @Nullable String fundType) {
+public record RefundFundBill(
+        String fundChannel,
+        long amount,
+        @Nullable Long realAmount,
+        @Nullable String fundType
+) {
 }

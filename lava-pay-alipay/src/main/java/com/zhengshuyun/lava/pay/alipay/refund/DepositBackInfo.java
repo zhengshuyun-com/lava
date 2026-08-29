@@ -18,9 +18,11 @@ import java.time.LocalDateTime;
  * @param bankAckTime           银行响应时间；没有时为 {@code null}
  * @param estimatedReceiptTime  预计银行入账时间；没有时为 {@code null}
  */
-public record DepositBackInfo(boolean hasDepositBack,
-                              @Nullable String status,
-                              @Nullable Long amount,
-                              @Nullable LocalDateTime bankAckTime,
-                              @Nullable LocalDateTime estimatedReceiptTime) {
+public record DepositBackInfo(
+        boolean hasDepositBack,
+        @Nullable String status,
+        @Nullable Long amount,
+        @Nullable LocalDateTime bankAckTime,
+        @Nullable LocalDateTime estimatedReceiptTime
+) {
 }

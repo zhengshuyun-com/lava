@@ -8,9 +8,9 @@ package com.zhengshuyun.lava.pay.alipay.bill;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.zhengshuyun.lava.core.lang.ValidationUtils;
-import com.zhengshuyun.lava.pay.alipay.exception.AlipayPayProtocolException;
-import com.zhengshuyun.lava.pay.alipay.internal.AlipayPayRuntime;
-import com.zhengshuyun.lava.pay.alipay.internal.AlipayPayTransport;
+import com.zhengshuyun.lava.pay.alipay.exception.AlipayProtocolException;
+import com.zhengshuyun.lava.pay.alipay.internal.AlipayRuntime;
+import com.zhengshuyun.lava.pay.alipay.internal.AlipayTransport;
 import org.jspecify.annotations.Nullable;
 
 import java.net.URI;
@@ -23,14 +23,14 @@ import java.time.YearMonth;
 public final class BillClient {
     private static final String METHOD = "alipay.data.dataservice.bill.downloadurl.query";
 
-    private final AlipayPayRuntime runtime;
+    private final AlipayRuntime runtime;
 
     /**
      * 由根客户端创建账单入口。
      *
      * @param runtime 共享运行时
      */
-    public BillClient(AlipayPayRuntime runtime) {
+    public BillClient(AlipayRuntime runtime) {
         this.runtime = ValidationUtils.requireNonNull(runtime, "runtime");
     }
 
@@ -63,7 +63,7 @@ public final class BillClient {
      * @return 已验签下载信息
      */
     public BillDownloadInfo query(BillRequest request) {
-        AlipayPayTransport transport = runtime.transport();
+        AlipayTransport transport = runtime.transport();
         ValidationUtils.requireNonNull(request, "request must not be null");
         validateDate(transport, request);
         String billDate = request.date() == null
@@ -72,13 +72,13 @@ public final class BillClient {
                 new RequestPayload(request.billType(), billDate), Payload.class);
         URI downloadUrl = parseUrl(response.downloadUrl);
         if (downloadUrl == null && response.fileCode == null) {
-            throw new AlipayPayProtocolException(
+            throw new AlipayProtocolException(
                     "支付宝账单响应未返回下载地址或文件状态");
         }
         return new BillDownloadInfo(downloadUrl, response.fileCode);
     }
 
-    private static void validateDate(AlipayPayTransport transport, BillRequest request) {
+    private static void validateDate(AlipayTransport transport, BillRequest request) {
         LocalDate today = transport.currentDateTime().toLocalDate();
         if (request.date() != null) {
             ValidationUtils.requireTrue(request.date().isBefore(today),
@@ -102,13 +102,13 @@ public final class BillClient {
         try {
             uri = URI.create(value);
         } catch (IllegalArgumentException exception) {
-            throw new AlipayPayProtocolException("支付宝账单下载地址格式无效");
+            throw new AlipayProtocolException("支付宝账单下载地址格式无效");
         }
         if (!uri.isAbsolute() || uri.getHost() == null || uri.getUserInfo() != null
                 || uri.getRawFragment() != null
                 || !("http".equalsIgnoreCase(uri.getScheme())
                 || "https".equalsIgnoreCase(uri.getScheme()))) {
-            throw new AlipayPayProtocolException("支付宝账单下载地址格式无效");
+            throw new AlipayProtocolException("支付宝账单下载地址格式无效");
         }
         return uri;
     }

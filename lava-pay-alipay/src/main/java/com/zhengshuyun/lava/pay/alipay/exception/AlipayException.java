@@ -8,13 +8,13 @@ package com.zhengshuyun.lava.pay.alipay.exception;
 /**
  * 支付宝支付协议异常的公共基类。
  */
-public abstract class AlipayPayException extends RuntimeException {
+public abstract class AlipayException extends RuntimeException {
     /**
      * 使用不含敏感协议内容的消息创建异常。
      *
      * @param message 安全错误消息
      */
-    protected AlipayPayException(String message) {
+    protected AlipayException(String message) {
         super(message);
     }
 
@@ -24,7 +24,7 @@ public abstract class AlipayPayException extends RuntimeException {
      * @param message 安全错误消息
      * @param cause   底层异常
      */
-    protected AlipayPayException(String message, Throwable cause) {
+    protected AlipayException(String message, Throwable cause) {
         super(message, cause);
     }
 }

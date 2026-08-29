@@ -12,13 +12,13 @@ import com.zhengshuyun.lava.json.JsonMapperFactory;
 /**
  * 支付宝协议共享 JSON 编解码器。
  */
-public final class AlipayPayJsonUtils {
+public final class AlipayJsonUtils {
     private static final JsonCodec CODEC = new JsonCodec(JsonMapperFactory.builder()
             .customize(builder -> builder.changeDefaultPropertyInclusion(
                     inclusion -> inclusion.withValueInclusion(JsonInclude.Include.NON_NULL)))
             .build());
 
-    private AlipayPayJsonUtils() {
+    private AlipayJsonUtils() {
         throw new UnsupportedOperationException("Utility class");
     }
 

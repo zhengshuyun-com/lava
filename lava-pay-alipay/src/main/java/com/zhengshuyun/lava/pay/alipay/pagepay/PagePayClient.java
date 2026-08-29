@@ -7,10 +7,10 @@ package com.zhengshuyun.lava.pay.alipay.pagepay;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.zhengshuyun.lava.core.lang.ValidationUtils;
-import com.zhengshuyun.lava.pay.alipay.internal.AlipayPayMoneyUtils;
-import com.zhengshuyun.lava.pay.alipay.internal.AlipayPayRuntime;
-import com.zhengshuyun.lava.pay.alipay.internal.AlipayPayTransport;
-import com.zhengshuyun.lava.pay.alipay.internal.AlipayPayValidationUtils;
+import com.zhengshuyun.lava.pay.alipay.internal.AlipayMoneyUtils;
+import com.zhengshuyun.lava.pay.alipay.internal.AlipayRuntime;
+import com.zhengshuyun.lava.pay.alipay.internal.AlipayTransport;
+import com.zhengshuyun.lava.pay.alipay.internal.AlipayValidationUtils;
 import org.jspecify.annotations.Nullable;
 
 import java.net.URI;
@@ -31,7 +31,7 @@ public final class PagePayClient {
     private static final DateTimeFormatter DATE_TIME = DateTimeFormatter.ofPattern(
             "yyyy-MM-dd HH:mm:ss");
 
-    private final AlipayPayRuntime runtime;
+    private final AlipayRuntime runtime;
     private final URI notifyUrl;
     private final URI returnUrl;
 
@@ -42,10 +42,10 @@ public final class PagePayClient {
      * @param notifyUrl 异步通知地址
      * @param returnUrl 同步返回地址
      */
-    public PagePayClient(AlipayPayRuntime runtime, URI notifyUrl, URI returnUrl) {
+    public PagePayClient(AlipayRuntime runtime, URI notifyUrl, URI returnUrl) {
         this.runtime = ValidationUtils.requireNonNull(runtime, "runtime");
-        this.notifyUrl = AlipayPayValidationUtils.requireCallbackUrl(notifyUrl, "notifyUrl");
-        this.returnUrl = AlipayPayValidationUtils.requireCallbackUrl(returnUrl, "returnUrl");
+        this.notifyUrl = AlipayValidationUtils.requireCallbackUrl(notifyUrl, "notifyUrl");
+        this.returnUrl = AlipayValidationUtils.requireCallbackUrl(returnUrl, "returnUrl");
     }
 
     /**
@@ -55,7 +55,7 @@ public final class PagePayClient {
      * @return 应作为 HTML 响应正文输出的表单
      */
     public PagePayForm createForm(PagePayRequest request) {
-        AlipayPayTransport transport = runtime.transport();
+        AlipayTransport transport = runtime.transport();
         ValidationUtils.requireNonNull(request, "request must not be null");
         validateTimeExpire(transport, request.timeExpire());
 
@@ -67,7 +67,7 @@ public final class PagePayClient {
                 : request.goodsDetail().stream().map(GoodsPayload::from).toList();
         PagePayPayload payload = new PagePayPayload(
                 request.outTradeNo(),
-                AlipayPayMoneyUtils.formatPositive(request.totalAmount()),
+                AlipayMoneyUtils.formatPositive(request.totalAmount()),
                 request.subject(),
                 PRODUCT_CODE,
                 request.body(),
@@ -84,8 +84,14 @@ public final class PagePayClient {
                 request.storeId(),
                 request.merchantOrderNo(),
                 request.passbackParams() == null ? null
-                        : URLEncoder.encode(request.passbackParams(), StandardCharsets.UTF_8));
-        return new PagePayForm(transport.pageForm(METHOD, payload, notifyUrl, returnUrl));
+                        : URLEncoder.encode(request.passbackParams(), StandardCharsets.UTF_8)
+        );
+        return new PagePayForm(transport.pageForm(
+                METHOD,
+                payload,
+                notifyUrl,
+                returnUrl
+        ));
     }
 
     /**
@@ -106,7 +112,7 @@ public final class PagePayClient {
         return returnUrl;
     }
 
-    private static void validateTimeExpire(AlipayPayTransport transport,
+    private static void validateTimeExpire(AlipayTransport transport,
                                            @Nullable LocalDateTime timeExpire) {
         if (timeExpire == null) {
             return;
@@ -133,7 +139,8 @@ public final class PagePayClient {
             @JsonProperty("integration_type") String integrationType,
             @JsonProperty("store_id") @Nullable String storeId,
             @JsonProperty("merchant_order_no") @Nullable String merchantOrderNo,
-            @JsonProperty("passback_params") @Nullable String passbackParams) {
+            @JsonProperty("passback_params") @Nullable String passbackParams
+    ) {
     }
 
     private record GoodsPayload(
@@ -145,12 +152,20 @@ public final class PagePayClient {
             @JsonProperty("goods_category") @Nullable String goodsCategory,
             @JsonProperty("categories_tree") @Nullable String categoriesTree,
             @JsonProperty("body") @Nullable String body,
-            @JsonProperty("show_url") @Nullable String showUrl) {
+            @JsonProperty("show_url") @Nullable String showUrl
+    ) {
         private static GoodsPayload from(PagePayGoodsDetail value) {
-            return new GoodsPayload(value.goodsId(), value.goodsName(), value.quantity(),
-                    AlipayPayMoneyUtils.formatPositive(value.price()), value.alipayGoodsId(),
-                    value.goodsCategory(), value.categoriesTree(), value.body(),
-                    value.showUrl() == null ? null : value.showUrl().toASCIIString());
+            return new GoodsPayload(
+                    value.goodsId(),
+                    value.goodsName(),
+                    value.quantity(),
+                    AlipayMoneyUtils.formatPositive(value.price()),
+                    value.alipayGoodsId(),
+                    value.goodsCategory(),
+                    value.categoriesTree(),
+                    value.body(),
+                    value.showUrl() == null ? null : value.showUrl().toASCIIString()
+            );
         }
     }
 }

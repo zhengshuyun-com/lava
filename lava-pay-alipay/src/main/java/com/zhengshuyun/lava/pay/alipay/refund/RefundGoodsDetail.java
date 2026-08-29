@@ -6,7 +6,7 @@
 package com.zhengshuyun.lava.pay.alipay.refund;
 
 import com.zhengshuyun.lava.core.lang.ValidationUtils;
-import com.zhengshuyun.lava.pay.alipay.internal.AlipayPayValidationUtils;
+import com.zhengshuyun.lava.pay.alipay.internal.AlipayValidationUtils;
 import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -23,13 +23,13 @@ public final class RefundGoodsDetail {
     private final List<String> outCertificateNos;
 
     private RefundGoodsDetail(Builder builder) {
-        goodsId = AlipayPayValidationUtils.requireIdentifier(builder.goodsId, "goodsId", 32);
-        refundAmount = AlipayPayValidationUtils.requirePositiveAmount(
+        goodsId = AlipayValidationUtils.requireIdentifier(builder.goodsId, "goodsId", 32);
+        refundAmount = AlipayValidationUtils.requirePositiveAmount(
                 ValidationUtils.requireNonNull(builder.refundAmount,
                         "refundAmount is required"), 999_999_999L, "refundAmount");
-        outItemId = AlipayPayValidationUtils.requireOptionalText(
+        outItemId = AlipayValidationUtils.requireOptionalText(
                 builder.outItemId, "outItemId", 64);
-        outSkuId = AlipayPayValidationUtils.requireOptionalText(
+        outSkuId = AlipayValidationUtils.requireOptionalText(
                 builder.outSkuId, "outSkuId", 64);
         outCertificateNos = List.copyOf(builder.outCertificateNos);
     }
@@ -150,7 +150,7 @@ public final class RefundGoodsDetail {
          * @return 当前构建器
          */
         public Builder addOutCertificateNo(String value) {
-            outCertificateNos.add(AlipayPayValidationUtils.requireIdentifier(
+            outCertificateNos.add(AlipayValidationUtils.requireIdentifier(
                     value, "outCertificateNo", 128));
             return this;
         }

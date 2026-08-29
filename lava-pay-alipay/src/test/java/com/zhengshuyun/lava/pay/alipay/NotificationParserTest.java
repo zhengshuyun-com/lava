@@ -5,9 +5,9 @@
 
 package com.zhengshuyun.lava.pay.alipay;
 
-import com.zhengshuyun.lava.pay.alipay.exception.AlipayPaySecurityException;
-import com.zhengshuyun.lava.pay.alipay.exception.AlipayPaySecurityFailure;
-import com.zhengshuyun.lava.pay.alipay.internal.AlipayPayCryptoUtils;
+import com.zhengshuyun.lava.pay.alipay.exception.AlipaySecurityException;
+import com.zhengshuyun.lava.pay.alipay.exception.AlipaySecurityFailure;
+import com.zhengshuyun.lava.pay.alipay.internal.AlipayCryptoUtils;
 import com.zhengshuyun.lava.pay.alipay.notification.RefundDepositBackNotification;
 import com.zhengshuyun.lava.pay.alipay.notification.TradeNotification;
 import org.junit.jupiter.api.*;
@@ -28,7 +28,7 @@ class NotificationParserTest {
     private static KeyPair appKeys;
     private static KeyPair alipayKeys;
 
-    private AlipayPayClient client;
+    private AlipayClient client;
 
     @BeforeAll
     static void generateKeys() throws Exception {
@@ -40,7 +40,7 @@ class NotificationParserTest {
 
     @BeforeEach
     void setUp() {
-        client = AlipayPayClient.builder()
+        client = AlipayClient.builder()
                 .appId(APP_ID)
                 .sellerId(SELLER_ID)
                 .appPrivateKey(appKeys.getPrivate())
@@ -69,36 +69,43 @@ class NotificationParserTest {
                 Map.entry("trade_status", "TRADE_SUCCESS"),
                 Map.entry("total_amount", "1.23"),
                 Map.entry("receipt_amount", "1.00"),
-                Map.entry("gmt_payment", "2026-08-29 12:02:00")));
+                Map.entry("gmt_payment", "2026-08-29 12:02:00")
+        ));
 
         TradeNotification notification = client.notifications().parseTrade(params)
                 .requireOrder("ORDER_001", 123);
 
         assertTrue(notification.paid());
         assertEquals(100L, notification.receiptAmount());
-        assertEquals(LocalDateTime.of(2026, 8, 29, 12, 2),
+        assertEquals(LocalDateTime.of(
+                2026,
+                8,
+                29,
+                12,
+                2
+        ),
                 notification.paymentTime());
         assertTrue(params.containsKey("sign"), "parser must not mutate caller parameters");
-        AlipayPaySecurityException mismatch = assertThrows(
-                AlipayPaySecurityException.class,
+        AlipaySecurityException mismatch = assertThrows(
+                AlipaySecurityException.class,
                 () -> notification.requireOrder("ORDER_001", 124));
-        assertEquals(AlipayPaySecurityFailure.RESPONSE_MISMATCH, mismatch.failure());
+        assertEquals(AlipaySecurityFailure.RESPONSE_MISMATCH, mismatch.failure());
     }
 
     @Test
     void tamperedOrWrongMerchantNotificationsFailClosed() {
         Map<String, String> tampered = signed(baseTradeParams(SELLER_ID));
         tampered.put("total_amount", "9.99");
-        AlipayPaySecurityException invalid = assertThrows(
-                AlipayPaySecurityException.class,
+        AlipaySecurityException invalid = assertThrows(
+                AlipaySecurityException.class,
                 () -> client.notifications().parseTrade(tampered));
-        assertEquals(AlipayPaySecurityFailure.INVALID_SIGNATURE, invalid.failure());
+        assertEquals(AlipaySecurityFailure.INVALID_SIGNATURE, invalid.failure());
 
         Map<String, String> wrongSeller = signed(baseTradeParams("2088000000000000"));
-        AlipayPaySecurityException seller = assertThrows(
-                AlipayPaySecurityException.class,
+        AlipaySecurityException seller = assertThrows(
+                AlipaySecurityException.class,
                 () -> client.notifications().parseTrade(wrongSeller));
-        assertEquals(AlipayPaySecurityFailure.SELLER_MISMATCH, seller.failure());
+        assertEquals(AlipaySecurityFailure.SELLER_MISMATCH, seller.failure());
     }
 
     @Test
@@ -116,7 +123,8 @@ class NotificationParserTest {
                         "out_request_no":"REFUND_001","dback_status":"S",
                         "dback_amount":"0.50","bank_ack_time":"2026-08-29 12:10:00",
                         "est_bank_receipt_time":"2026-08-30 12:00:00"}
-                        """.strip())));
+                        """.strip())
+        ));
 
         RefundDepositBackNotification notification =
                 client.notifications().parseRefundDepositBack(params);
@@ -148,7 +156,7 @@ class NotificationParserTest {
         Map<String, String> params = new LinkedHashMap<>(values);
         Map<String, String> signable = new LinkedHashMap<>(params);
         signable.remove("sign_type");
-        params.put("sign", AlipayPayCryptoUtils.sign(signable, alipayKeys.getPrivate()));
+        params.put("sign", AlipayCryptoUtils.sign(signable, alipayKeys.getPrivate()));
         return params;
     }
 }

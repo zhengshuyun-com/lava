@@ -7,9 +7,9 @@ package com.zhengshuyun.lava.pay.alipay.internal;
 
 import com.zhengshuyun.lava.crypto.CryptoException;
 import com.zhengshuyun.lava.crypto.CryptoUtils;
-import com.zhengshuyun.lava.pay.alipay.exception.AlipayPayProtocolException;
-import com.zhengshuyun.lava.pay.alipay.exception.AlipayPaySecurityException;
-import com.zhengshuyun.lava.pay.alipay.exception.AlipayPaySecurityFailure;
+import com.zhengshuyun.lava.pay.alipay.exception.AlipayProtocolException;
+import com.zhengshuyun.lava.pay.alipay.exception.AlipaySecurityException;
+import com.zhengshuyun.lava.pay.alipay.exception.AlipaySecurityFailure;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.charset.Charset;
@@ -26,11 +26,11 @@ import java.util.Map;
 /**
  * 支付宝 RSA2 参数签名与验签工具。
  */
-public final class AlipayPayCryptoUtils {
+public final class AlipayCryptoUtils {
     /** 支付宝 RSA-SHA256 签名类型。 */
     public static final String SIGN_TYPE = "RSA2";
 
-    private AlipayPayCryptoUtils() {
+    private AlipayCryptoUtils() {
         throw new UnsupportedOperationException("Utility class");
     }
 
@@ -47,7 +47,7 @@ public final class AlipayPayCryptoUtils {
             return Base64.getEncoder().encodeToString(
                     CryptoUtils.rsaSha256Sign(privateKey, content));
         } catch (CryptoException exception) {
-            throw new AlipayPayProtocolException("无法生成支付宝 RSA2 请求签名");
+            throw new AlipayProtocolException("无法生成支付宝 RSA2 请求签名");
         }
     }
 
@@ -60,7 +60,12 @@ public final class AlipayPayCryptoUtils {
      * @return 是否有效
      */
     public static boolean verify(String source, String signature, PublicKey publicKey) {
-        return verify(source, signature, publicKey, StandardCharsets.UTF_8);
+        return verify(
+                source,
+                signature,
+                publicKey,
+                StandardCharsets.UTF_8
+        );
     }
 
     /**
@@ -72,8 +77,12 @@ public final class AlipayPayCryptoUtils {
      * @param charset   原文字符集
      * @return 是否有效
      */
-    public static boolean verify(String source, String signature, PublicKey publicKey,
-                                 Charset charset) {
+    public static boolean verify(
+            String source,
+            String signature,
+            PublicKey publicKey,
+            Charset charset
+    ) {
         byte[] decoded;
         try {
             decoded = Base64.getDecoder().decode(signature);
@@ -97,11 +106,11 @@ public final class AlipayPayCryptoUtils {
     public static void verifyNotification(Map<String, String> params, PublicKey publicKey) {
         String signature = params.get("sign");
         if (signature == null || signature.isBlank()) {
-            throw new AlipayPaySecurityException(AlipayPaySecurityFailure.MISSING_SIGNATURE);
+            throw new AlipaySecurityException(AlipaySecurityFailure.MISSING_SIGNATURE);
         }
         if (!SIGN_TYPE.equals(params.get("sign_type"))) {
-            throw new AlipayPaySecurityException(
-                    AlipayPaySecurityFailure.UNSUPPORTED_SIGNATURE_TYPE);
+            throw new AlipaySecurityException(
+                    AlipaySecurityFailure.UNSUPPORTED_SIGNATURE_TYPE);
         }
 
         Charset charset = notificationCharset(params.get("charset"));
@@ -109,8 +118,13 @@ public final class AlipayPayCryptoUtils {
         Map<String, String> contentParams = new LinkedHashMap<>(params);
         contentParams.remove("sign");
         contentParams.remove("sign_type");
-        if (!verify(signatureContent(contentParams), signature, publicKey, charset)) {
-            throw new AlipayPaySecurityException(AlipayPaySecurityFailure.INVALID_SIGNATURE);
+        if (!verify(
+                signatureContent(contentParams),
+                signature,
+                publicKey,
+                charset
+        )) {
+            throw new AlipaySecurityException(AlipaySecurityFailure.INVALID_SIGNATURE);
         }
     }
 
@@ -141,14 +155,14 @@ public final class AlipayPayCryptoUtils {
         String name = value == null || value.isBlank() ? "UTF-8" : value;
         if (!"UTF-8".equalsIgnoreCase(name) && !"GBK".equalsIgnoreCase(name)
                 && !"GB2312".equalsIgnoreCase(name)) {
-            throw new AlipayPaySecurityException(
-                    AlipayPaySecurityFailure.UNSUPPORTED_CHARSET);
+            throw new AlipaySecurityException(
+                    AlipaySecurityFailure.UNSUPPORTED_CHARSET);
         }
         try {
             return Charset.forName(name);
         } catch (UnsupportedCharsetException exception) {
-            throw new AlipayPaySecurityException(
-                    AlipayPaySecurityFailure.UNSUPPORTED_CHARSET);
+            throw new AlipaySecurityException(
+                    AlipaySecurityFailure.UNSUPPORTED_CHARSET);
         }
     }
 }

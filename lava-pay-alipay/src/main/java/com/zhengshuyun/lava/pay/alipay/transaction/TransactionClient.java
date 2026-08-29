@@ -20,14 +20,14 @@ public final class TransactionClient {
     private static final String QUERY_METHOD = "alipay.trade.query";
     private static final String CLOSE_METHOD = "alipay.trade.close";
 
-    private final AlipayPayRuntime runtime;
+    private final AlipayRuntime runtime;
 
     /**
      * 由根客户端创建交易入口。
      *
      * @param runtime 共享运行时
      */
-    public TransactionClient(AlipayPayRuntime runtime) {
+    public TransactionClient(AlipayRuntime runtime) {
         this.runtime = ValidationUtils.requireNonNull(runtime, "runtime");
     }
 
@@ -58,33 +58,40 @@ public final class TransactionClient {
      * @return 已验签交易状态
      */
     public Trade query(TradeQueryRequest request) {
-        AlipayPayTransport transport = runtime.transport();
+        AlipayTransport transport = runtime.transport();
         ValidationUtils.requireNonNull(request, "request must not be null");
         TradePayload response = transport.execute(QUERY_METHOD,
                 new QueryPayload(request.outTradeNo(), request.tradeNo(),
                         request.queryOptions().isEmpty() ? null : request.queryOptions()),
                 TradePayload.class);
 
-        String outTradeNo = AlipayPayValidationUtils.requireResponseText(
+        String outTradeNo = AlipayValidationUtils.requireResponseText(
                 response.outTradeNo, "out_trade_no");
-        String tradeState = AlipayPayValidationUtils.requireResponseText(
+        String tradeState = AlipayValidationUtils.requireResponseText(
                 response.tradeState, "trade_status");
         if (request.outTradeNo() != null) {
-            AlipayPayValidationUtils.requireSame(request.outTradeNo(), outTradeNo);
+            AlipayValidationUtils.requireSame(request.outTradeNo(), outTradeNo);
         } else {
-            AlipayPayValidationUtils.requireSame(request.tradeNo(), response.tradeNo);
+            AlipayValidationUtils.requireSame(request.tradeNo(), response.tradeNo);
         }
         List<Trade.FundBill> fundBills = response.fundBills == null ? List.of()
                 : response.fundBills.stream().map(TransactionClient::toFundBill).toList();
-        return new Trade(response.tradeNo, outTradeNo, tradeState,
-                AlipayPayMoneyUtils.parse(response.totalAmount, "total_amount"),
-                response.buyerOpenId, response.buyerUserId, response.buyerLogonId,
-                AlipayPayDateTimeUtils.parseOptional(response.sendPayDate, "send_pay_date"),
+        return new Trade(
+                response.tradeNo,
+                outTradeNo,
+                tradeState,
+                AlipayMoneyUtils.parse(response.totalAmount, "total_amount"),
+                response.buyerOpenId,
+                response.buyerUserId,
+                response.buyerLogonId,
+                AlipayDateTimeUtils.parseOptional(response.sendPayDate, "send_pay_date"),
                 optionalMoney(response.buyerPayAmount, "buyer_pay_amount"),
                 optionalMoney(response.receiptAmount, "receipt_amount"),
                 optionalMoney(response.invoiceAmount, "invoice_amount"),
                 optionalMoney(response.pointAmount, "point_amount"),
-                response.storeId, fundBills);
+                response.storeId,
+                fundBills
+        );
     }
 
     /**
@@ -114,29 +121,29 @@ public final class TransactionClient {
      * @return 已验签关闭结果
      */
     public TradeCloseResult close(TradeCloseRequest request) {
-        AlipayPayTransport transport = runtime.transport();
+        AlipayTransport transport = runtime.transport();
         ValidationUtils.requireNonNull(request, "request must not be null");
         ClosePayload response = transport.execute(CLOSE_METHOD,
                 new CloseRequestPayload(request.outTradeNo(), request.tradeNo(),
                         request.operatorId()), ClosePayload.class);
         if (request.outTradeNo() != null) {
-            AlipayPayValidationUtils.requireSame(request.outTradeNo(), response.outTradeNo);
+            AlipayValidationUtils.requireSame(request.outTradeNo(), response.outTradeNo);
         } else {
-            AlipayPayValidationUtils.requireSame(request.tradeNo(), response.tradeNo);
+            AlipayValidationUtils.requireSame(request.tradeNo(), response.tradeNo);
         }
         return new TradeCloseResult(response.tradeNo, response.outTradeNo);
     }
 
     private static Trade.FundBill toFundBill(FundBillPayload value) {
         return new Trade.FundBill(
-                AlipayPayValidationUtils.requireResponseText(
+                AlipayValidationUtils.requireResponseText(
                         value.fundChannel, "fund_channel"),
-                AlipayPayMoneyUtils.parse(value.amount, "fund_bill_list.amount"),
+                AlipayMoneyUtils.parse(value.amount, "fund_bill_list.amount"),
                 optionalMoney(value.realAmount, "fund_bill_list.real_amount"));
     }
 
     private static @Nullable Long optionalMoney(@Nullable String value, String name) {
-        return value == null ? null : AlipayPayMoneyUtils.parse(value, name);
+        return value == null ? null : AlipayMoneyUtils.parse(value, name);
     }
 
     private record QueryPayload(
@@ -166,7 +173,8 @@ public final class TransactionClient {
             @JsonProperty("invoice_amount") @Nullable String invoiceAmount,
             @JsonProperty("point_amount") @Nullable String pointAmount,
             @JsonProperty("store_id") @Nullable String storeId,
-            @JsonProperty("fund_bill_list") @Nullable List<FundBillPayload> fundBills) {
+            @JsonProperty("fund_bill_list") @Nullable List<FundBillPayload> fundBills
+    ) {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

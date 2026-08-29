@@ -6,7 +6,7 @@
 package com.zhengshuyun.lava.pay.alipay.bill;
 
 import com.zhengshuyun.lava.core.lang.ValidationUtils;
-import com.zhengshuyun.lava.pay.alipay.internal.AlipayPayValidationUtils;
+import com.zhengshuyun.lava.pay.alipay.internal.AlipayValidationUtils;
 import org.jspecify.annotations.Nullable;
 
 import java.time.LocalDate;
@@ -25,7 +25,7 @@ public final class BillRequest {
     private final @Nullable YearMonth month;
 
     private BillRequest(Builder builder) {
-        billType = AlipayPayValidationUtils.requireOneOf(
+        billType = AlipayValidationUtils.requireOneOf(
                 builder.billType, "billType", TYPES);
         ValidationUtils.requireTrue((builder.date == null) != (builder.month == null),
                 "exactly one of date and month is required");

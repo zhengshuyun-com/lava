@@ -33,11 +33,11 @@ Crypto 与 JDK RSA 能力，完成 RSA2 请求签名、响应及通知验签、�
 `appPrivateKey` 字段，不能改用 PKCS#1 `appPrivatePkcsKey`，也不能自行添加 PEM 头尾或转换格式。
 
 ```java
-import com.zhengshuyun.lava.pay.alipay.AlipayPayClient;
+import com.zhengshuyun.lava.pay.alipay.AlipayClient;
 
 import java.nio.file.Path;
 
-AlipayPayClient client = AlipayPayClient.builder()
+AlipayClient client = AlipayClient.builder()
         .appId(System.getenv("ALIPAY_APP_ID"))
         .sellerId(System.getenv("ALIPAY_SELLER_ID"))
         .appPrivateKey(Path.of("/secure/alipay_app_private_key.pem"))
@@ -51,7 +51,7 @@ AlipayPayClient client = AlipayPayClient.builder()
 沙箱联调时显式切换网关：
 
 ```java
-.gatewayUrl(AlipayPayClient.SANDBOX_GATEWAY_URL)
+.gatewayUrl(AlipayClient.SANDBOX_GATEWAY_URL)
 ```
 
 ## 电脑网站支付
@@ -163,10 +163,10 @@ var downloadUrl = info.downloadUrl();
 
 ## 失败语义与安全
 
-- `AlipayPayApiException`：已验签的支付宝业务失败，包含 `code`、`subCode` 和可选 `traceId`；
-- `AlipayPayTransportException`：DNS、连接、TLS、超时或非成功 HTTP 状态，结果可能未知；
-- `AlipayPaySecurityException`：签名、应用、卖家、订单号或金额不匹配；
-- `AlipayPayProtocolException`：响应结构、金额精度或日期格式不符合协议。
+- `AlipayApiException`：已验签的支付宝业务失败，包含 `code`、`subCode` 和可选 `traceId`；
+- `AlipayTransportException`：DNS、连接、TLS、超时或非成功 HTTP 状态，结果可能未知；
+- `AlipaySecurityException`：签名、应用、卖家、订单号或金额不匹配；
+- `AlipayProtocolException`：响应结构、金额精度或日期格式不符合协议。
 
 模块不会自动重试、轮询或将未知结果判为失败。私钥、签名原文、完整响应正文和账单下载令牌不会进入默认异常文本；业务日志仍不得
 记录私钥、完整通知参数或支付表单。

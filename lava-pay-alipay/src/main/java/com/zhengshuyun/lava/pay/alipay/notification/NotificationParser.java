@@ -9,9 +9,9 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.zhengshuyun.lava.core.lang.ValidationUtils;
 import com.zhengshuyun.lava.json.JsonException;
-import com.zhengshuyun.lava.pay.alipay.exception.AlipayPayProtocolException;
-import com.zhengshuyun.lava.pay.alipay.exception.AlipayPaySecurityException;
-import com.zhengshuyun.lava.pay.alipay.exception.AlipayPaySecurityFailure;
+import com.zhengshuyun.lava.pay.alipay.exception.AlipayProtocolException;
+import com.zhengshuyun.lava.pay.alipay.exception.AlipaySecurityException;
+import com.zhengshuyun.lava.pay.alipay.exception.AlipaySecurityFailure;
 import com.zhengshuyun.lava.pay.alipay.internal.*;
 import com.zhengshuyun.lava.pay.alipay.refund.DepositBackStatus;
 import org.jspecify.annotations.Nullable;
@@ -41,7 +41,7 @@ public final class NotificationParser {
     private static final Set<String> DEPOSIT_BACK_STATES = Set.of(
             DepositBackStatus.SUCCESS, DepositBackStatus.FAILED);
 
-    private final AlipayPayRuntime runtime;
+    private final AlipayRuntime runtime;
     private final String appId;
     private final String sellerId;
     private final PublicKey alipayPublicKey;
@@ -54,8 +54,12 @@ public final class NotificationParser {
      * @param sellerId        期望卖家用户 ID
      * @param alipayPublicKey 支付宝公钥
      */
-    public NotificationParser(AlipayPayRuntime runtime, String appId, String sellerId,
-                              PublicKey alipayPublicKey) {
+    public NotificationParser(
+            AlipayRuntime runtime,
+            String appId,
+            String sellerId,
+            PublicKey alipayPublicKey
+    ) {
         this.runtime = ValidationUtils.requireNonNull(runtime, "runtime");
         this.appId = appId;
         this.sellerId = sellerId;
@@ -71,23 +75,23 @@ public final class NotificationParser {
     public TradeNotification parseTrade(Map<String, String> params) {
         runtime.ensureOpen();
         Map<String, String> copy = copyParams(params);
-        AlipayPayCryptoUtils.verifyNotification(copy, alipayPublicKey);
+        AlipayCryptoUtils.verifyNotification(copy, alipayPublicKey);
         requireSame(appId, copy.get("app_id"),
-                AlipayPaySecurityFailure.APPLICATION_MISMATCH);
+                AlipaySecurityFailure.APPLICATION_MISMATCH);
         requireSame(sellerId, copy.get("seller_id"),
-                AlipayPaySecurityFailure.SELLER_MISMATCH);
+                AlipaySecurityFailure.SELLER_MISMATCH);
         requireSame(TRADE_NOTIFY_TYPE, copy.get("notify_type"),
-                AlipayPaySecurityFailure.NOTIFICATION_TYPE_MISMATCH);
+                AlipaySecurityFailure.NOTIFICATION_TYPE_MISMATCH);
 
         return new TradeNotification(
                 required(copy, "notify_id"),
-                AlipayPayDateTimeUtils.parseRequired(copy.get("notify_time"), "notify_time"),
+                AlipayDateTimeUtils.parseRequired(copy.get("notify_time"), "notify_time"),
                 appId,
                 sellerId,
                 required(copy, "trade_no"),
                 required(copy, "out_trade_no"),
                 required(copy, "trade_status"),
-                AlipayPayMoneyUtils.parse(required(copy, "total_amount"), "total_amount"),
+                AlipayMoneyUtils.parse(required(copy, "total_amount"), "total_amount"),
                 optionalMoney(copy.get("receipt_amount"), "receipt_amount"),
                 optionalMoney(copy.get("buyer_pay_amount"), "buyer_pay_amount"),
                 optionalMoney(copy.get("refund_fee"), "refund_fee"),
@@ -95,8 +99,9 @@ public final class NotificationParser {
                 copy.get("subject"),
                 copy.get("body"),
                 copy.get("passback_params"),
-                AlipayPayDateTimeUtils.parseOptional(copy.get("gmt_payment"), "gmt_payment"),
-                AlipayPayDateTimeUtils.parseOptional(copy.get("gmt_close"), "gmt_close"));
+                AlipayDateTimeUtils.parseOptional(copy.get("gmt_payment"), "gmt_payment"),
+                AlipayDateTimeUtils.parseOptional(copy.get("gmt_close"), "gmt_close")
+        );
     }
 
     /**
@@ -109,45 +114,49 @@ public final class NotificationParser {
             Map<String, String> params) {
         runtime.ensureOpen();
         Map<String, String> copy = copyParams(params);
-        AlipayPayCryptoUtils.verifyNotification(copy, alipayPublicKey);
+        AlipayCryptoUtils.verifyNotification(copy, alipayPublicKey);
         requireSame(appId, copy.get("app_id"),
-                AlipayPaySecurityFailure.APPLICATION_MISMATCH);
+                AlipaySecurityFailure.APPLICATION_MISMATCH);
         requireSame(DEPOSIT_BACK_METHOD, copy.get("msg_method"),
-                AlipayPaySecurityFailure.NOTIFICATION_TYPE_MISMATCH);
+                AlipaySecurityFailure.NOTIFICATION_TYPE_MISMATCH);
 
         long timestamp;
         try {
             timestamp = Long.parseLong(required(copy, "utc_timestamp"));
         } catch (NumberFormatException exception) {
-            throw new AlipayPayProtocolException("退款冲退通知时间戳无效");
+            throw new AlipayProtocolException("退款冲退通知时间戳无效");
         }
         if (timestamp < 0) {
-            throw new AlipayPayProtocolException("退款冲退通知时间戳无效");
+            throw new AlipayProtocolException("退款冲退通知时间戳无效");
         }
         DepositBackPayload payload;
         try {
-            payload = AlipayPayJsonUtils.codec().read(
+            payload = AlipayJsonUtils.codec().read(
                     required(copy, "biz_content"), DepositBackPayload.class);
         } catch (JsonException exception) {
-            throw new AlipayPayProtocolException("退款冲退通知 biz_content 结构无效");
+            throw new AlipayProtocolException("退款冲退通知 biz_content 结构无效");
         }
         String state = required(payload.state, "dback_status");
         if (!DEPOSIT_BACK_STATES.contains(state)) {
-            throw new AlipayPayProtocolException("退款冲退通知状态无效");
+            throw new AlipayProtocolException("退款冲退通知状态无效");
         }
         Long amount = optionalMoney(payload.amount, "dback_amount");
         if (DepositBackStatus.SUCCESS.equals(state) && amount == null) {
-            throw new AlipayPayProtocolException("冲退成功通知缺少 dback_amount");
+            throw new AlipayProtocolException("冲退成功通知缺少 dback_amount");
         }
         return new RefundDepositBackNotification(
-                required(copy, "notify_id"), Instant.ofEpochMilli(timestamp), appId,
+                required(copy, "notify_id"),
+                Instant.ofEpochMilli(timestamp),
+                appId,
                 required(payload.tradeNo, "trade_no"),
                 required(payload.outTradeNo, "out_trade_no"),
                 required(payload.outRequestNo, "out_request_no"),
-                state, amount,
-                AlipayPayDateTimeUtils.parseOptional(payload.bankAckTime, "bank_ack_time"),
-                AlipayPayDateTimeUtils.parseOptional(
-                        payload.estimatedReceiptTime, "est_bank_receipt_time"));
+                state,
+                amount,
+                AlipayDateTimeUtils.parseOptional(payload.bankAckTime, "bank_ack_time"),
+                AlipayDateTimeUtils.parseOptional(
+                        payload.estimatedReceiptTime, "est_bank_receipt_time")
+        );
     }
 
     private static Map<String, String> copyParams(Map<String, String> params) {
@@ -167,18 +176,18 @@ public final class NotificationParser {
     }
 
     private static String required(@Nullable String value, String name) {
-        return AlipayPayValidationUtils.requireResponseText(value, name);
+        return AlipayValidationUtils.requireResponseText(value, name);
     }
 
     private static void requireSame(String expected, @Nullable String actual,
-                                    AlipayPaySecurityFailure failure) {
+                                    AlipaySecurityFailure failure) {
         if (!expected.equals(actual)) {
-            throw new AlipayPaySecurityException(failure);
+            throw new AlipaySecurityException(failure);
         }
     }
 
     private static @Nullable Long optionalMoney(@Nullable String value, String name) {
-        return value == null || value.isBlank() ? null : AlipayPayMoneyUtils.parse(value, name);
+        return value == null || value.isBlank() ? null : AlipayMoneyUtils.parse(value, name);
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -189,6 +198,7 @@ public final class NotificationParser {
             @JsonProperty("dback_status") @Nullable String state,
             @JsonProperty("dback_amount") @Nullable String amount,
             @JsonProperty("bank_ack_time") @Nullable String bankAckTime,
-            @JsonProperty("est_bank_receipt_time") @Nullable String estimatedReceiptTime) {
+            @JsonProperty("est_bank_receipt_time") @Nullable String estimatedReceiptTime
+    ) {
     }
 }

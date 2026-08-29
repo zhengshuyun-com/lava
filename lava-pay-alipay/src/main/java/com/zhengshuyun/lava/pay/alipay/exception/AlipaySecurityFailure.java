@@ -8,7 +8,7 @@ package com.zhengshuyun.lava.pay.alipay.exception;
 /**
  * 支付宝签名与业务一致性校验失败分类。
  */
-public enum AlipayPaySecurityFailure {
+public enum AlipaySecurityFailure {
     /** 响应或通知未携带签名。 */
     MISSING_SIGNATURE,
     /** 签名类型不是 RSA2。 */

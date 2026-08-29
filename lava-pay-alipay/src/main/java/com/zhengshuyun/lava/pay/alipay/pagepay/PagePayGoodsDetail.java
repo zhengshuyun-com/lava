@@ -6,7 +6,7 @@
 package com.zhengshuyun.lava.pay.alipay.pagepay;
 
 import com.zhengshuyun.lava.core.lang.ValidationUtils;
-import com.zhengshuyun.lava.pay.alipay.internal.AlipayPayValidationUtils;
+import com.zhengshuyun.lava.pay.alipay.internal.AlipayValidationUtils;
 import org.jspecify.annotations.Nullable;
 
 import java.net.URI;
@@ -26,22 +26,26 @@ public final class PagePayGoodsDetail {
     private final @Nullable URI showUrl;
 
     private PagePayGoodsDetail(Builder builder) {
-        goodsId = AlipayPayValidationUtils.requireIdentifier(builder.goodsId,
+        goodsId = AlipayValidationUtils.requireIdentifier(builder.goodsId,
                 "goodsId", 64);
-        goodsName = AlipayPayValidationUtils.requireText(builder.goodsName,
-                "goodsName", 1, 256);
+        goodsName = AlipayValidationUtils.requireText(
+                builder.goodsName,
+                "goodsName",
+                1,
+                256
+        );
         quantity = ValidationUtils.requireNonNull(builder.quantity, "quantity is required");
         ValidationUtils.requireTrue(quantity > 0, "quantity must be positive");
-        price = AlipayPayValidationUtils.requirePositiveAmount(
+        price = AlipayValidationUtils.requirePositiveAmount(
                 ValidationUtils.requireNonNull(builder.price, "price is required"),
                 999_999_999L, "price");
-        alipayGoodsId = AlipayPayValidationUtils.requireOptionalText(
+        alipayGoodsId = AlipayValidationUtils.requireOptionalText(
                 builder.alipayGoodsId, "alipayGoodsId", 32);
-        goodsCategory = AlipayPayValidationUtils.requireOptionalText(
+        goodsCategory = AlipayValidationUtils.requireOptionalText(
                 builder.goodsCategory, "goodsCategory", 24);
-        categoriesTree = AlipayPayValidationUtils.requireOptionalText(
+        categoriesTree = AlipayValidationUtils.requireOptionalText(
                 builder.categoriesTree, "categoriesTree", 128);
-        body = AlipayPayValidationUtils.requireOptionalText(builder.body, "body", 400);
+        body = AlipayValidationUtils.requireOptionalText(builder.body, "body", 400);
         showUrl = builder.showUrl;
         if (showUrl != null) {
             ValidationUtils.requireTrue(showUrl.isAbsolute()

@@ -13,8 +13,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /**
  * 支付宝根客户端与各功能入口共享的传输资源和关闭状态。
  */
-public final class AlipayPayRuntime implements AutoCloseable {
-    private final AlipayPayTransport transport;
+public final class AlipayRuntime implements AutoCloseable {
+    private final AlipayTransport transport;
     private final HttpClient httpClient;
     private final boolean ownsHttpClient;
     private final AtomicBoolean closed = new AtomicBoolean();
@@ -26,7 +26,7 @@ public final class AlipayPayRuntime implements AutoCloseable {
      * @param httpClient     HTTP 客户端
      * @param ownsHttpClient 是否负责关闭 HTTP 客户端
      */
-    public AlipayPayRuntime(AlipayPayTransport transport, HttpClient httpClient,
+    public AlipayRuntime(AlipayTransport transport, HttpClient httpClient,
                             boolean ownsHttpClient) {
         this.transport = ValidationUtils.requireNonNull(transport, "transport");
         this.httpClient = ValidationUtils.requireNonNull(httpClient, "httpClient");
@@ -39,7 +39,7 @@ public final class AlipayPayRuntime implements AutoCloseable {
      * @return 传输层
      * @throws IllegalStateException 根客户端已经关闭
      */
-    public AlipayPayTransport transport() {
+    public AlipayTransport transport() {
         ensureOpen();
         return transport;
     }
@@ -49,7 +49,7 @@ public final class AlipayPayRuntime implements AutoCloseable {
      */
     public void ensureOpen() {
         if (closed.get()) {
-            throw new IllegalStateException("AlipayPayClient is closed");
+            throw new IllegalStateException("AlipayClient is closed");
         }
     }
 

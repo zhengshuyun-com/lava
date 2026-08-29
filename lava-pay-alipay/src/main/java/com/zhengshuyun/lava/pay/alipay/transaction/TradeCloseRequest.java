@@ -6,7 +6,7 @@
 package com.zhengshuyun.lava.pay.alipay.transaction;
 
 import com.zhengshuyun.lava.core.lang.ValidationUtils;
-import com.zhengshuyun.lava.pay.alipay.internal.AlipayPayValidationUtils;
+import com.zhengshuyun.lava.pay.alipay.internal.AlipayValidationUtils;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -21,10 +21,10 @@ public final class TradeCloseRequest {
         ValidationUtils.requireTrue((builder.outTradeNo == null) != (builder.tradeNo == null),
                 "exactly one of outTradeNo and tradeNo is required");
         outTradeNo = builder.outTradeNo == null ? null
-                : AlipayPayValidationUtils.requireOutTradeNo(builder.outTradeNo);
+                : AlipayValidationUtils.requireOutTradeNo(builder.outTradeNo);
         tradeNo = builder.tradeNo == null ? null
-                : AlipayPayValidationUtils.requireTradeNo(builder.tradeNo);
-        operatorId = AlipayPayValidationUtils.requireOptionalText(
+                : AlipayValidationUtils.requireTradeNo(builder.tradeNo);
+        operatorId = AlipayValidationUtils.requireOptionalText(
                 builder.operatorId, "operatorId", 28);
     }
 

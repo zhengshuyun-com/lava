@@ -20,14 +20,14 @@ public final class RefundClient {
     private static final String APPLY_METHOD = "alipay.trade.refund";
     private static final String QUERY_METHOD = "alipay.trade.fastpay.refund.query";
 
-    private final AlipayPayRuntime runtime;
+    private final AlipayRuntime runtime;
 
     /**
      * 由根客户端创建退款入口。
      *
      * @param runtime 共享运行时
      */
-    public RefundClient(AlipayPayRuntime runtime) {
+    public RefundClient(AlipayRuntime runtime) {
         this.runtime = ValidationUtils.requireNonNull(runtime, "runtime");
     }
 
@@ -38,27 +38,41 @@ public final class RefundClient {
      * @return 已验签退款结果；应通过 {@link RefundResult#succeeded()} 判断是否明确成功
      */
     public RefundResult apply(RefundRequest request) {
-        AlipayPayTransport transport = runtime.transport();
+        AlipayTransport transport = runtime.transport();
         ValidationUtils.requireNonNull(request, "request must not be null");
         List<GoodsPayload> goods = request.goodsDetail().isEmpty() ? null
                 : request.goodsDetail().stream().map(GoodsPayload::from).toList();
         ApplyPayload response = transport.execute(APPLY_METHOD,
-                new ApplyRequestPayload(request.outTradeNo(), request.tradeNo(),
-                        AlipayPayMoneyUtils.formatPositive(request.refundAmount()),
-                        request.reason(), request.outRequestNo(), goods,
-                        request.queryOptions()), ApplyPayload.class);
+                new ApplyRequestPayload(
+                        request.outTradeNo(),
+                        request.tradeNo(),
+                        AlipayMoneyUtils.formatPositive(request.refundAmount()),
+                        request.reason(),
+                        request.outRequestNo(),
+                        goods,
+                        request.queryOptions()
+                ), ApplyPayload.class);
 
-        String tradeNo = AlipayPayValidationUtils.requireResponseText(
+        String tradeNo = AlipayValidationUtils.requireResponseText(
                 response.tradeNo, "trade_no");
-        String outTradeNo = AlipayPayValidationUtils.requireResponseText(
+        String outTradeNo = AlipayValidationUtils.requireResponseText(
                 response.outTradeNo, "out_trade_no");
-        requireRequestedTrade(request.outTradeNo(), request.tradeNo(),
-                outTradeNo, tradeNo);
-        return new RefundResult(tradeNo, outTradeNo, response.fundChange,
-                AlipayPayMoneyUtils.parse(response.refundFee, "refund_fee"),
+        requireRequestedTrade(
+                request.outTradeNo(),
+                request.tradeNo(),
+                outTradeNo,
+                tradeNo
+        );
+        return new RefundResult(
+                tradeNo,
+                outTradeNo,
+                response.fundChange,
+                AlipayMoneyUtils.parse(response.refundFee, "refund_fee"),
                 optionalMoney(response.sendBackFee, "send_back_fee"),
-                response.buyerOpenId, response.buyerLogonId,
-                toFundBills(response.fundBills));
+                response.buyerOpenId,
+                response.buyerLogonId,
+                toFundBills(response.fundBills)
+        );
     }
 
     /**
@@ -68,40 +82,49 @@ public final class RefundClient {
      * @return 已验签退款查询结果
      */
     public RefundQueryResult query(RefundQueryRequest request) {
-        AlipayPayTransport transport = runtime.transport();
+        AlipayTransport transport = runtime.transport();
         ValidationUtils.requireNonNull(request, "request must not be null");
         QueryPayload response = transport.execute(QUERY_METHOD,
-                new QueryRequestPayload(request.outTradeNo(), request.tradeNo(),
-                        request.outRequestNo(), request.queryOptions()), QueryPayload.class);
+                new QueryRequestPayload(
+                        request.outTradeNo(),
+                        request.tradeNo(),
+                        request.outRequestNo(),
+                        request.queryOptions()
+                ), QueryPayload.class);
 
         if (response.outTradeNo != null && request.outTradeNo() != null) {
-            AlipayPayValidationUtils.requireSame(request.outTradeNo(), response.outTradeNo);
+            AlipayValidationUtils.requireSame(request.outTradeNo(), response.outTradeNo);
         }
         if (response.tradeNo != null && request.tradeNo() != null) {
-            AlipayPayValidationUtils.requireSame(request.tradeNo(), response.tradeNo);
+            AlipayValidationUtils.requireSame(request.tradeNo(), response.tradeNo);
         }
         if (response.outRequestNo != null) {
-            AlipayPayValidationUtils.requireSame(request.outRequestNo(), response.outRequestNo);
+            AlipayValidationUtils.requireSame(request.outRequestNo(), response.outRequestNo);
         }
-        return new RefundQueryResult(response.tradeNo, response.outTradeNo,
+        return new RefundQueryResult(
+                response.tradeNo,
+                response.outTradeNo,
                 response.outRequestNo,
                 optionalMoney(response.totalAmount, "total_amount"),
                 optionalMoney(response.refundAmount, "refund_amount"),
                 response.refundStatus,
-                AlipayPayDateTimeUtils.parseOptional(response.refundTime, "gmt_refund_pay"),
+                AlipayDateTimeUtils.parseOptional(response.refundTime, "gmt_refund_pay"),
                 optionalMoney(response.sendBackFee, "send_back_fee"),
                 toDepositBackInfo(response.depositBackInfo),
-                toFundBills(response.fundBills));
+                toFundBills(response.fundBills)
+        );
     }
 
-    private static void requireRequestedTrade(@Nullable String requestedOutTradeNo,
-                                              @Nullable String requestedTradeNo,
-                                              String actualOutTradeNo,
-                                              String actualTradeNo) {
+    private static void requireRequestedTrade(
+            @Nullable String requestedOutTradeNo,
+            @Nullable String requestedTradeNo,
+            String actualOutTradeNo,
+            String actualTradeNo
+    ) {
         if (requestedOutTradeNo != null) {
-            AlipayPayValidationUtils.requireSame(requestedOutTradeNo, actualOutTradeNo);
+            AlipayValidationUtils.requireSame(requestedOutTradeNo, actualOutTradeNo);
         } else {
-            AlipayPayValidationUtils.requireSame(requestedTradeNo, actualTradeNo);
+            AlipayValidationUtils.requireSame(requestedTradeNo, actualTradeNo);
         }
     }
 
@@ -109,11 +132,12 @@ public final class RefundClient {
             @Nullable List<FundBillPayload> values) {
         return values == null ? List.of() : values.stream().map(value ->
                 new RefundFundBill(
-                        AlipayPayValidationUtils.requireResponseText(
+                        AlipayValidationUtils.requireResponseText(
                                 value.fundChannel, "fund_channel"),
-                        AlipayPayMoneyUtils.parse(value.amount, "fund_bill.amount"),
+                        AlipayMoneyUtils.parse(value.amount, "fund_bill.amount"),
                         optionalMoney(value.realAmount, "fund_bill.real_amount"),
-                        value.fundType)).toList();
+                        value.fundType
+                )).toList();
     }
 
     private static @Nullable DepositBackInfo toDepositBackInfo(
@@ -124,20 +148,23 @@ public final class RefundClient {
         if (value.hasDepositBack != null
                 && !"true".equalsIgnoreCase(value.hasDepositBack)
                 && !"false".equalsIgnoreCase(value.hasDepositBack)) {
-            throw new com.zhengshuyun.lava.pay.alipay.exception.AlipayPayProtocolException(
+            throw new com.zhengshuyun.lava.pay.alipay.exception.AlipayProtocolException(
                     "支付宝银行卡冲退标识无效");
         }
-        return new DepositBackInfo(Boolean.parseBoolean(value.hasDepositBack),
-                value.status, optionalMoney(value.amount, "deposit_back_info.dback_amount"),
-                AlipayPayDateTimeUtils.parseOptional(
+        return new DepositBackInfo(
+                Boolean.parseBoolean(value.hasDepositBack),
+                value.status,
+                optionalMoney(value.amount, "deposit_back_info.dback_amount"),
+                AlipayDateTimeUtils.parseOptional(
                         value.bankAckTime, "deposit_back_info.bank_ack_time"),
-                AlipayPayDateTimeUtils.parseOptional(
+                AlipayDateTimeUtils.parseOptional(
                         value.estimatedReceiptTime,
-                        "deposit_back_info.est_bank_receipt_time"));
+                        "deposit_back_info.est_bank_receipt_time")
+        );
     }
 
     private static @Nullable Long optionalMoney(@Nullable String value, String name) {
-        return value == null ? null : AlipayPayMoneyUtils.parse(value, name);
+        return value == null ? null : AlipayMoneyUtils.parse(value, name);
     }
 
     private record ApplyRequestPayload(
@@ -147,14 +174,16 @@ public final class RefundClient {
             @JsonProperty("refund_reason") @Nullable String reason,
             @JsonProperty("out_request_no") String outRequestNo,
             @JsonProperty("refund_goods_detail") @Nullable List<GoodsPayload> goodsDetail,
-            @JsonProperty("query_options") List<String> queryOptions) {
+            @JsonProperty("query_options") List<String> queryOptions
+    ) {
     }
 
     private record QueryRequestPayload(
             @JsonProperty("out_trade_no") @Nullable String outTradeNo,
             @JsonProperty("trade_no") @Nullable String tradeNo,
             @JsonProperty("out_request_no") String outRequestNo,
-            @JsonProperty("query_options") List<String> queryOptions) {
+            @JsonProperty("query_options") List<String> queryOptions
+    ) {
     }
 
     private record GoodsPayload(
@@ -162,12 +191,16 @@ public final class RefundClient {
             @JsonProperty("refund_amount") String refundAmount,
             @JsonProperty("out_item_id") @Nullable String outItemId,
             @JsonProperty("out_sku_id") @Nullable String outSkuId,
-            @JsonProperty("out_certificate_no_list") @Nullable List<String> certificateNos) {
+            @JsonProperty("out_certificate_no_list") @Nullable List<String> certificateNos
+    ) {
         private static GoodsPayload from(RefundGoodsDetail value) {
-            return new GoodsPayload(value.goodsId(),
-                    AlipayPayMoneyUtils.formatPositive(value.refundAmount()),
-                    value.outItemId(), value.outSkuId(),
-                    value.outCertificateNos().isEmpty() ? null : value.outCertificateNos());
+            return new GoodsPayload(
+                    value.goodsId(),
+                    AlipayMoneyUtils.formatPositive(value.refundAmount()),
+                    value.outItemId(),
+                    value.outSkuId(),
+                    value.outCertificateNos().isEmpty() ? null : value.outCertificateNos()
+            );
         }
     }
 
@@ -180,7 +213,8 @@ public final class RefundClient {
             @JsonProperty("send_back_fee") @Nullable String sendBackFee,
             @JsonProperty("buyer_open_id") @Nullable String buyerOpenId,
             @JsonProperty("buyer_logon_id") @Nullable String buyerLogonId,
-            @JsonProperty("refund_detail_item_list") @Nullable List<FundBillPayload> fundBills) {
+            @JsonProperty("refund_detail_item_list") @Nullable List<FundBillPayload> fundBills
+    ) {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -194,7 +228,8 @@ public final class RefundClient {
             @JsonProperty("gmt_refund_pay") @Nullable String refundTime,
             @JsonProperty("send_back_fee") @Nullable String sendBackFee,
             @JsonProperty("deposit_back_info") @Nullable DepositBackPayload depositBackInfo,
-            @JsonProperty("refund_detail_item_list") @Nullable List<FundBillPayload> fundBills) {
+            @JsonProperty("refund_detail_item_list") @Nullable List<FundBillPayload> fundBills
+    ) {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -202,7 +237,8 @@ public final class RefundClient {
             @JsonProperty("fund_channel") @Nullable String fundChannel,
             @JsonProperty("amount") @Nullable String amount,
             @JsonProperty("real_amount") @Nullable String realAmount,
-            @JsonProperty("fund_type") @Nullable String fundType) {
+            @JsonProperty("fund_type") @Nullable String fundType
+    ) {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -211,6 +247,7 @@ public final class RefundClient {
             @JsonProperty("dback_status") @Nullable String status,
             @JsonProperty("dback_amount") @Nullable String amount,
             @JsonProperty("bank_ack_time") @Nullable String bankAckTime,
-            @JsonProperty("est_bank_receipt_time") @Nullable String estimatedReceiptTime) {
+            @JsonProperty("est_bank_receipt_time") @Nullable String estimatedReceiptTime
+    ) {
     }
 }

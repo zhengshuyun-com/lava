@@ -6,8 +6,8 @@
 package com.zhengshuyun.lava.pay.alipay.refund;
 
 import com.zhengshuyun.lava.core.lang.ValidationUtils;
-import com.zhengshuyun.lava.pay.alipay.internal.AlipayPayMoneyUtils;
-import com.zhengshuyun.lava.pay.alipay.internal.AlipayPayValidationUtils;
+import com.zhengshuyun.lava.pay.alipay.internal.AlipayMoneyUtils;
+import com.zhengshuyun.lava.pay.alipay.internal.AlipayValidationUtils;
 import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -39,15 +39,15 @@ public final class RefundRequest {
         ValidationUtils.requireTrue((builder.outTradeNo == null) != (builder.tradeNo == null),
                 "exactly one of outTradeNo and tradeNo is required");
         outTradeNo = builder.outTradeNo == null ? null
-                : AlipayPayValidationUtils.requireOutTradeNo(builder.outTradeNo);
+                : AlipayValidationUtils.requireOutTradeNo(builder.outTradeNo);
         tradeNo = builder.tradeNo == null ? null
-                : AlipayPayValidationUtils.requireTradeNo(builder.tradeNo);
-        refundAmount = AlipayPayValidationUtils.requirePositiveAmount(
+                : AlipayValidationUtils.requireTradeNo(builder.tradeNo);
+        refundAmount = AlipayValidationUtils.requirePositiveAmount(
                 ValidationUtils.requireNonNull(builder.refundAmount,
                         "refundAmount is required"),
-                AlipayPayMoneyUtils.MAX_PAYMENT_CENTS, "refundAmount");
-        outRequestNo = AlipayPayValidationUtils.requireOutRequestNo(builder.outRequestNo);
-        reason = AlipayPayValidationUtils.requireOptionalText(
+                AlipayMoneyUtils.MAX_PAYMENT_CENTS, "refundAmount");
+        outRequestNo = AlipayValidationUtils.requireOutRequestNo(builder.outRequestNo);
+        reason = AlipayValidationUtils.requireOptionalText(
                 builder.reason, "reason", 256);
         goodsDetail = List.copyOf(builder.goodsDetail);
         long detailAmount = 0;
@@ -218,7 +218,7 @@ public final class RefundRequest {
          * @return 当前构建器
          */
         public Builder addQueryOption(String value) {
-            queryOptions.add(AlipayPayValidationUtils.requireOneOf(
+            queryOptions.add(AlipayValidationUtils.requireOneOf(
                     value, "queryOption", OPTIONS));
             return this;
         }

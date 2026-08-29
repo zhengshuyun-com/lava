@@ -34,7 +34,8 @@ public record RefundQueryResult(
         @Nullable LocalDateTime refundTime,
         @Nullable Long sentBackAmount,
         @Nullable DepositBackInfo depositBackInfo,
-        List<RefundFundBill> fundBills) {
+        List<RefundFundBill> fundBills
+) {
     /**
      * 判断退款查询结果是否已明确成功。
      *

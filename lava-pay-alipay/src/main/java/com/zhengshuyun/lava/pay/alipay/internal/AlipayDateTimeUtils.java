@@ -5,7 +5,7 @@
 
 package com.zhengshuyun.lava.pay.alipay.internal;
 
-import com.zhengshuyun.lava.pay.alipay.exception.AlipayPayProtocolException;
+import com.zhengshuyun.lava.pay.alipay.exception.AlipayProtocolException;
 import org.jspecify.annotations.Nullable;
 
 import java.time.LocalDateTime;
@@ -17,15 +17,20 @@ import java.time.temporal.ChronoField;
 /**
  * 支付宝本地日期时间解析工具。
  */
-public final class AlipayPayDateTimeUtils {
+public final class AlipayDateTimeUtils {
     private static final DateTimeFormatter DATE_TIME = new DateTimeFormatterBuilder()
             .appendPattern("yyyy-MM-dd HH:mm:ss")
             .optionalStart()
-            .appendFraction(ChronoField.NANO_OF_SECOND, 0, 9, true)
+            .appendFraction(
+                    ChronoField.NANO_OF_SECOND,
+                    0,
+                    9,
+                    true
+            )
             .optionalEnd()
             .toFormatter();
 
-    private AlipayPayDateTimeUtils() {
+    private AlipayDateTimeUtils() {
         throw new UnsupportedOperationException("Utility class");
     }
 
@@ -43,7 +48,7 @@ public final class AlipayPayDateTimeUtils {
         try {
             return LocalDateTime.parse(value, DATE_TIME);
         } catch (DateTimeParseException exception) {
-            throw new AlipayPayProtocolException("支付宝响应字段 " + name + " 不是有效时间");
+            throw new AlipayProtocolException("支付宝响应字段 " + name + " 不是有效时间");
         }
     }
 
@@ -57,7 +62,7 @@ public final class AlipayPayDateTimeUtils {
     public static LocalDateTime parseRequired(@Nullable String value, String name) {
         LocalDateTime parsed = parseOptional(value, name);
         if (parsed == null) {
-            throw new AlipayPayProtocolException("支付宝响应缺少字段 " + name);
+            throw new AlipayProtocolException("支付宝响应缺少字段 " + name);
         }
         return parsed;
     }

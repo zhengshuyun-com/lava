@@ -6,7 +6,7 @@
 package com.zhengshuyun.lava.pay.alipay.internal;
 
 import com.zhengshuyun.lava.core.lang.ValidationUtils;
-import com.zhengshuyun.lava.pay.alipay.exception.AlipayPayProtocolException;
+import com.zhengshuyun.lava.pay.alipay.exception.AlipayProtocolException;
 import org.jspecify.annotations.Nullable;
 
 import java.net.URI;
@@ -17,12 +17,12 @@ import java.util.regex.Pattern;
 /**
  * 支付宝公共配置与业务字段校验工具。
  */
-public final class AlipayPayValidationUtils {
+public final class AlipayValidationUtils {
     private static final Pattern APP_ID = Pattern.compile("[A-Za-z0-9]{1,32}");
     private static final Pattern SELLER_ID = Pattern.compile("2088[0-9]{12}");
     private static final Pattern OUT_TRADE_NO = Pattern.compile("[A-Za-z0-9_]{1,64}");
 
-    private AlipayPayValidationUtils() {
+    private AlipayValidationUtils() {
         throw new UnsupportedOperationException("Utility class");
     }
 
@@ -93,7 +93,12 @@ public final class AlipayPayValidationUtils {
      * @return 原值
      */
     public static String requireIdentifier(String value, String name, int maximum) {
-        return requireText(value, name, 1, maximum);
+        return requireText(
+                value,
+                name,
+                1,
+                maximum
+        );
     }
 
     /**
@@ -105,7 +110,12 @@ public final class AlipayPayValidationUtils {
      * @param maximum 最多 Unicode 字符数
      * @return 原值
      */
-    public static String requireText(String value, String name, int minimum, int maximum) {
+    public static String requireText(
+            String value,
+            String name,
+            int minimum,
+            int maximum
+    ) {
         ValidationUtils.requireNonNull(value, name + " is required");
         int length = value.codePointCount(0, value.length());
         ValidationUtils.requireTrue(length >= minimum && length <= maximum,
@@ -125,7 +135,12 @@ public final class AlipayPayValidationUtils {
      */
     public static @Nullable String requireOptionalText(@Nullable String value,
                                                        String name, int maximum) {
-        return value == null ? null : requireText(value, name, 1, maximum);
+        return value == null ? null : requireText(
+                value,
+                name,
+                1,
+                maximum
+        );
     }
 
     /**
@@ -206,8 +221,8 @@ public final class AlipayPayValidationUtils {
      */
     public static void requireSame(String expected, @Nullable String actual) {
         if (!expected.equals(actual)) {
-            throw new com.zhengshuyun.lava.pay.alipay.exception.AlipayPaySecurityException(
-                    com.zhengshuyun.lava.pay.alipay.exception.AlipayPaySecurityFailure.RESPONSE_MISMATCH);
+            throw new com.zhengshuyun.lava.pay.alipay.exception.AlipaySecurityException(
+                    com.zhengshuyun.lava.pay.alipay.exception.AlipaySecurityFailure.RESPONSE_MISMATCH);
         }
     }
 
@@ -220,7 +235,7 @@ public final class AlipayPayValidationUtils {
      */
     public static String requireResponseText(@Nullable String value, String name) {
         if (value == null || value.isBlank()) {
-            throw new AlipayPayProtocolException("支付宝响应缺少字段 " + name);
+            throw new AlipayProtocolException("支付宝响应缺少字段 " + name);
         }
         return value;
     }

@@ -27,11 +27,11 @@ import java.util.Base64;
 /**
  * 支付宝 RSA2 原始 Base64、PEM 与 JCA 密钥解析工具。
  */
-public final class AlipayPayKeyUtils {
+public final class AlipayKeyUtils {
     private static final int MAX_KEY_TEXT_BYTES = 64 * 1024;
     private static final int MIN_RSA_BITS = 2048;
 
-    private AlipayPayKeyUtils() {
+    private AlipayKeyUtils() {
         throw new UnsupportedOperationException("Utility class");
     }
 

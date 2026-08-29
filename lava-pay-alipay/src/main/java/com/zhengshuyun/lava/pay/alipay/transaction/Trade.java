@@ -42,7 +42,8 @@ public record Trade(
         @Nullable Long invoiceAmount,
         @Nullable Long pointAmount,
         @Nullable String storeId,
-        List<FundBill> fundBills) {
+        List<FundBill> fundBills
+) {
 
     /**
      * 判断交易是否已完成付款。

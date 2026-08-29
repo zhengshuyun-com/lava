@@ -6,7 +6,7 @@
 package com.zhengshuyun.lava.pay.alipay.transaction;
 
 import com.zhengshuyun.lava.core.lang.ValidationUtils;
-import com.zhengshuyun.lava.pay.alipay.internal.AlipayPayValidationUtils;
+import com.zhengshuyun.lava.pay.alipay.internal.AlipayValidationUtils;
 import org.jspecify.annotations.Nullable;
 
 import java.util.LinkedHashSet;
@@ -23,7 +23,8 @@ public final class TradeQueryRequest {
             TradeQueryOption.VOUCHER_DETAIL_LIST,
             TradeQueryOption.DISCOUNT_GOODS_DETAIL,
             TradeQueryOption.MDISCOUNT_AMOUNT,
-            TradeQueryOption.MEDICAL_INSURANCE_INFO);
+            TradeQueryOption.MEDICAL_INSURANCE_INFO
+    );
 
     private final @Nullable String outTradeNo;
     private final @Nullable String tradeNo;
@@ -33,9 +34,9 @@ public final class TradeQueryRequest {
         ValidationUtils.requireTrue((builder.outTradeNo == null) != (builder.tradeNo == null),
                 "exactly one of outTradeNo and tradeNo is required");
         outTradeNo = builder.outTradeNo == null ? null
-                : AlipayPayValidationUtils.requireOutTradeNo(builder.outTradeNo);
+                : AlipayValidationUtils.requireOutTradeNo(builder.outTradeNo);
         tradeNo = builder.tradeNo == null ? null
-                : AlipayPayValidationUtils.requireTradeNo(builder.tradeNo);
+                : AlipayValidationUtils.requireTradeNo(builder.tradeNo);
         queryOptions = List.copyOf(builder.queryOptions);
     }
 
@@ -113,7 +114,7 @@ public final class TradeQueryRequest {
          * @return 当前构建器
          */
         public Builder addQueryOption(String value) {
-            queryOptions.add(AlipayPayValidationUtils.requireOneOf(
+            queryOptions.add(AlipayValidationUtils.requireOneOf(
                     value, "queryOption", OPTIONS));
             return this;
         }

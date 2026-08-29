@@ -35,7 +35,8 @@ public record RefundDepositBackNotification(
         String depositBackState,
         @Nullable Long depositBackAmount,
         @Nullable LocalDateTime bankAckTime,
-        @Nullable LocalDateTime estimatedReceiptTime) {
+        @Nullable LocalDateTime estimatedReceiptTime
+) {
 
     /**
      * 判断银行卡冲退是否已明确成功。

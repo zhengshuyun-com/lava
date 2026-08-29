@@ -21,13 +21,16 @@ import java.util.List;
  * @param buyerLogonId   脱敏买家登录账号；没有时为 {@code null}
  * @param fundBills      本次退款资金渠道
  */
-public record RefundResult(String tradeNo, String outTradeNo,
-                           @Nullable String fundChange,
-                           long refundedAmount,
-                           @Nullable Long sentBackAmount,
-                           @Nullable String buyerOpenId,
-                           @Nullable String buyerLogonId,
-                           List<RefundFundBill> fundBills) {
+public record RefundResult(
+        String tradeNo,
+        String outTradeNo,
+        @Nullable String fundChange,
+        long refundedAmount,
+        @Nullable Long sentBackAmount,
+        @Nullable String buyerOpenId,
+        @Nullable String buyerLogonId,
+        List<RefundFundBill> fundBills
+) {
     /**
      * 仅当支付宝明确返回 {@code fund_change=Y} 时表示本次同步退款成功。
      *

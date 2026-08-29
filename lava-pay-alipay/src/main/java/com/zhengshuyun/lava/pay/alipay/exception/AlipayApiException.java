@@ -10,7 +10,7 @@ import org.jspecify.annotations.Nullable;
 /**
  * 支付宝网关返回的已验签 API 失败。
  */
-public final class AlipayPayApiException extends AlipayPayException {
+public final class AlipayApiException extends AlipayException {
     /** 支付宝网关返回码。 */
     private final String code;
     /** 支付宝网关返回描述。 */
@@ -31,10 +31,13 @@ public final class AlipayPayApiException extends AlipayPayException {
      * @param subMessage 可选业务返回描述
      * @param traceId    可选链路标识
      */
-    public AlipayPayApiException(String code, String apiMessage,
-                                 @Nullable String subCode,
-                                 @Nullable String subMessage,
-                                 @Nullable String traceId) {
+    public AlipayApiException(
+            String code,
+            String apiMessage,
+            @Nullable String subCode,
+            @Nullable String subMessage,
+            @Nullable String traceId
+    ) {
         super("支付宝 API 调用失败，code=" + code
                 + (subCode == null ? "" : ", subCode=" + subCode));
         this.code = code;

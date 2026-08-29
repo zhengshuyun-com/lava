@@ -8,8 +8,8 @@ package com.zhengshuyun.lava.pay.alipay.internal;
 import com.zhengshuyun.lava.http.*;
 import com.zhengshuyun.lava.json.JsonCodec;
 import com.zhengshuyun.lava.json.JsonException;
-import com.zhengshuyun.lava.pay.alipay.exception.AlipayPayProtocolException;
-import com.zhengshuyun.lava.pay.alipay.exception.AlipayPayTransportException;
+import com.zhengshuyun.lava.pay.alipay.exception.AlipayProtocolException;
+import com.zhengshuyun.lava.pay.alipay.exception.AlipayTransportException;
 import org.jspecify.annotations.Nullable;
 
 import java.net.URI;
@@ -27,7 +27,7 @@ import java.util.TreeMap;
 /**
  * 支付宝 OpenAPI 公钥模式的统一参数签名、表单生成、发送和响应验签层。
  */
-public final class AlipayPayTransport {
+public final class AlipayTransport {
     private static final String VERSION = "1.0";
     private static final String FORMAT = "json";
     private static final String CHARSET = "UTF-8";
@@ -40,7 +40,7 @@ public final class AlipayPayTransport {
     private final URI gatewayUrl;
     private final Clock clock;
     private final JsonCodec jsonCodec;
-    private final AlipayPayResponseParser responseParser;
+    private final AlipayResponseParser responseParser;
 
     /**
      * 创建内部传输层。调用方负责在构造前完成配置校验。
@@ -53,16 +53,22 @@ public final class AlipayPayTransport {
      * @param clock          协议时钟
      * @param jsonCodec      JSON 编解码器
      */
-    public AlipayPayTransport(String appId, PrivateKey appPrivateKey,
-                              PublicKey alipayPublicKey, HttpClient httpClient,
-                              URI gatewayUrl, Clock clock, JsonCodec jsonCodec) {
+    public AlipayTransport(
+            String appId,
+            PrivateKey appPrivateKey,
+            PublicKey alipayPublicKey,
+            HttpClient httpClient,
+            URI gatewayUrl,
+            Clock clock,
+            JsonCodec jsonCodec
+    ) {
         this.appId = appId;
         this.appPrivateKey = appPrivateKey;
         this.httpClient = httpClient;
         this.gatewayUrl = gatewayUrl;
         this.clock = clock;
         this.jsonCodec = jsonCodec;
-        responseParser = new AlipayPayResponseParser(alipayPublicKey, jsonCodec);
+        responseParser = new AlipayResponseParser(alipayPublicKey, jsonCodec);
     }
 
     /**
@@ -92,9 +98,19 @@ public final class AlipayPayTransport {
      * @param returnUrl  同步返回地址
      * @return 可直接作为 HTML 响应输出的自动提交表单
      */
-    public String pageForm(String method, Object bizRequest, URI notifyUrl, URI returnUrl) {
+    public String pageForm(
+            String method,
+            Object bizRequest,
+            URI notifyUrl,
+            URI returnUrl
+    ) {
         String bizContent = encode(bizRequest);
-        Map<String, String> signed = signedParameters(method, bizContent, notifyUrl, returnUrl);
+        Map<String, String> signed = signedParameters(
+                method,
+                bizContent,
+                notifyUrl,
+                returnUrl
+        );
         Map<String, String> query = new LinkedHashMap<>(signed);
         query.remove("biz_content");
 
@@ -119,7 +135,12 @@ public final class AlipayPayTransport {
      */
     public <T> T execute(String method, Object bizRequest, Class<T> responseType) {
         String bizContent = encode(bizRequest);
-        Map<String, String> signed = signedParameters(method, bizContent, null, null);
+        Map<String, String> signed = signedParameters(
+                method,
+                bizContent,
+                null,
+                null
+        );
         Map<String, String> query = new LinkedHashMap<>(signed);
         query.remove("biz_content");
 
@@ -133,19 +154,30 @@ public final class AlipayPayTransport {
         try {
             response = httpClient.send(request);
         } catch (HttpException exception) {
-            throw new AlipayPayTransportException(exception.getKind(), exception.getMethod(),
-                    exception.getUrl(), exception.getTransportCauseType());
+            throw new AlipayTransportException(
+                    exception.getKind(),
+                    exception.getMethod(),
+                    exception.getUrl(),
+                    exception.getTransportCauseType()
+            );
         }
         if (!response.isSuccessful()) {
-            throw new AlipayPayTransportException(response.statusCode());
+            throw new AlipayTransportException(response.statusCode());
         }
-        return responseParser.parse(method, response.getBodyAsBytes(), responseType,
-                response.getHeaders().get("trace_id"));
+        return responseParser.parse(
+                method,
+                response.getBodyAsBytes(),
+                responseType,
+                response.getHeaders().get("trace_id")
+        );
     }
 
-    private Map<String, String> signedParameters(String method, String bizContent,
-                                                 @Nullable URI notifyUrl,
-                                                 @Nullable URI returnUrl) {
+    private Map<String, String> signedParameters(
+            String method,
+            String bizContent,
+            @Nullable URI notifyUrl,
+            @Nullable URI returnUrl
+    ) {
         TreeMap<String, String> params = new TreeMap<>();
         params.put("app_id", appId);
         params.put("biz_content", bizContent);
@@ -158,11 +190,11 @@ public final class AlipayPayTransport {
         if (returnUrl != null) {
             params.put("return_url", returnUrl.toASCIIString());
         }
-        params.put("sign_type", AlipayPayCryptoUtils.SIGN_TYPE);
+        params.put("sign_type", AlipayCryptoUtils.SIGN_TYPE);
         params.put("timestamp", TIMESTAMP.format(
                 clock.instant().atZone(ZoneOffset.ofHours(8))));
         params.put("version", VERSION);
-        params.put("sign", AlipayPayCryptoUtils.sign(params, appPrivateKey));
+        params.put("sign", AlipayCryptoUtils.sign(params, appPrivateKey));
         return params;
     }
 
@@ -170,7 +202,7 @@ public final class AlipayPayTransport {
         try {
             return jsonCodec.write(value);
         } catch (JsonException exception) {
-            throw new AlipayPayProtocolException("无法编码支付宝请求 JSON");
+            throw new AlipayProtocolException("无法编码支付宝请求 JSON");
         }
     }
 

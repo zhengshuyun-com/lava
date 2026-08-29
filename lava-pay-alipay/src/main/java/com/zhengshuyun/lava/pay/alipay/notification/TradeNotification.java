@@ -5,8 +5,8 @@
 
 package com.zhengshuyun.lava.pay.alipay.notification;
 
-import com.zhengshuyun.lava.pay.alipay.exception.AlipayPaySecurityException;
-import com.zhengshuyun.lava.pay.alipay.exception.AlipayPaySecurityFailure;
+import com.zhengshuyun.lava.pay.alipay.exception.AlipaySecurityException;
+import com.zhengshuyun.lava.pay.alipay.exception.AlipaySecurityFailure;
 import com.zhengshuyun.lava.pay.alipay.transaction.TradeState;
 import org.jspecify.annotations.Nullable;
 
@@ -50,7 +50,8 @@ public record TradeNotification(
         @Nullable String body,
         @Nullable String passbackParams,
         @Nullable LocalDateTime paymentTime,
-        @Nullable LocalDateTime closeTime) {
+        @Nullable LocalDateTime closeTime
+) {
 
     /**
      * 使用后端可信订单记录核对订单号和订单金额。
@@ -58,12 +59,12 @@ public record TradeNotification(
      * @param expectedOutTradeNo 可信商户订单号
      * @param expectedAmount     可信订单金额，单位为分
      * @return 当前通知
-     * @throws AlipayPaySecurityException 任一业务字段不匹配
+     * @throws AlipaySecurityException 任一业务字段不匹配
      */
     public TradeNotification requireOrder(String expectedOutTradeNo, long expectedAmount) {
         if (!outTradeNo.equals(expectedOutTradeNo) || totalAmount != expectedAmount) {
-            throw new AlipayPaySecurityException(
-                    AlipayPaySecurityFailure.RESPONSE_MISMATCH);
+            throw new AlipaySecurityException(
+                    AlipaySecurityFailure.RESPONSE_MISMATCH);
         }
         return this;
     }
