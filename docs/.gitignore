@@ -1,0 +1,6 @@
+# 本地安装的 Node.js 依赖可由 pnpm-lock.yaml 还原，不纳入版本管理。
+node_modules/
+
+# VitePress 缓存和静态站点构建产物由本地或 CI 生成，不纳入版本管理。
+.vitepress/cache/
+.vitepress/dist/
