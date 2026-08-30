@@ -23,7 +23,7 @@ import com.zhengshuyun.lava.json.JsonCodec;
 import com.zhengshuyun.lava.pay.alipay.bill.BillClient;
 import com.zhengshuyun.lava.pay.alipay.internal.AlipayJsonUtils;
 import com.zhengshuyun.lava.pay.alipay.internal.AlipayKeyUtils;
-import com.zhengshuyun.lava.pay.alipay.internal.AlipayPagePayFormFactory;
+import com.zhengshuyun.lava.pay.alipay.internal.AlipayPagePayRedirectFactory;
 import com.zhengshuyun.lava.pay.alipay.internal.AlipayRuntime;
 import com.zhengshuyun.lava.pay.alipay.internal.AlipayTransport;
 import com.zhengshuyun.lava.pay.alipay.internal.AlipayValidationUtils;
@@ -465,8 +465,8 @@ public final class AlipayClient implements AutoCloseable {
                             clock,
                             jsonCodec
                     );
-                    AlipayPagePayFormFactory pagePayFormFactory =
-                            new AlipayPagePayFormFactory(
+                    AlipayPagePayRedirectFactory pagePayRedirectFactory =
+                            new AlipayPagePayRedirectFactory(
                                     checkedAppId,
                                     checkedPrivateKey,
                                     baseUrl,
@@ -475,7 +475,7 @@ public final class AlipayClient implements AutoCloseable {
                             );
                     AlipayRuntime runtime = new AlipayRuntime(
                             transport,
-                            pagePayFormFactory,
+                            pagePayRedirectFactory,
                             effectiveHttpClient,
                             ownsHttpClient
                     );

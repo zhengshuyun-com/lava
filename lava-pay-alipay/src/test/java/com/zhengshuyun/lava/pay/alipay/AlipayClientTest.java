@@ -162,6 +162,76 @@ class AlipayClientTest {
     }
 
     /**
+     * 验证电脑网站支付 GET 模式返回可直接跳转的完整地址，并对业务参数和回调地址统一签名。
+     */
+    @Test
+    void pagePayGeneratesCompleteSignedGetUrl() {
+        PagePayRequest request = PagePayRequest.builder()
+                .outTradeNo("ORDER_001")
+                .totalAmount(123)
+                .subject("订单 ORDER_001")
+                .timeout(Duration.ofMinutes(30))
+                .qrPayMode(PagePayQrMode.REDIRECT)
+                .passbackParams("a=b&c=d")
+                .build();
+
+        URI paymentUrl = client.pagePay(
+                URI.create("https://pay.example.com/alipay/notify"),
+                URI.create("https://pay.example.com/alipay/return")
+        ).createUrl(request);
+
+        assertEquals("/gateway.do", paymentUrl.getPath());
+        Map<String, String> params = queryParams(paymentUrl);
+        String signature = params.remove("sign");
+        assertNotNull(signature);
+        assertTrue(AlipayCryptoUtils.verify(
+                AlipayCryptoUtils.signatureContent(params),
+                signature,
+                appKeys.getPublic()
+        ));
+        assertEquals("alipay.trade.page.pay", params.get("method"));
+        assertEquals("2026-08-29 12:00:00", params.get("timestamp"));
+        assertEquals("https://pay.example.com/alipay/notify", params.get("notify_url"));
+        assertEquals("https://pay.example.com/alipay/return", params.get("return_url"));
+
+        JsonNode body = JsonCodec.defaultCodec().readTree(params.get("biz_content"));
+        assertEquals("ORDER_001", body.get("out_trade_no").stringValue());
+        assertEquals("1.23", body.get("total_amount").stringValue());
+        assertEquals("FAST_INSTANT_TRADE_PAY", body.get("product_code").stringValue());
+        assertEquals("a%3Db%26c%3Dd", body.get("passback_params").stringValue());
+    }
+
+    /**
+     * 验证 GET 页面跳转数据超过支付宝长度上限时拒绝返回 URL，并提示调用方改用 POST 表单。
+     */
+    @Test
+    void pagePayRejectsOversizedGetUrl() {
+        PagePayRequest.Builder request = PagePayRequest.builder()
+                .outTradeNo("ORDER_001")
+                .totalAmount(10_000)
+                .subject("超长 GET 页面跳转数据");
+        for (int index = 0; index < 50; index++) {
+            request.addGoodsDetail(PagePayGoodsDetail.builder()
+                    .goodsId("SKU_" + index)
+                    .goodsName("测试商品" + index)
+                    .quantity(1)
+                    .price(1)
+                    .body("商品说明".repeat(50))
+                    .build());
+        }
+
+        AlipayProtocolException failure = assertThrows(
+                AlipayProtocolException.class,
+                () -> client.pagePay(
+                        URI.create("https://pay.example.com/alipay/notify"),
+                        URI.create("https://pay.example.com/alipay/return")
+                ).createUrl(request.build())
+        );
+
+        assertTrue(failure.getMessage().contains("POST 表单"));
+    }
+
+    /**
      * 验证查询和关单请求使用 V3 JSON 路径与签名，并将交易金额、时间和资金渠道正确映射到领域对象。
      */
     @Test

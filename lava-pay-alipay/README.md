@@ -18,7 +18,7 @@ JSON、Crypto 与 JDK RSA 能力，实现 OpenAPI V3 REST 请求签名、响应�
 当前版本支持：
 
 - 自研普通商户、RSA2 公钥模式；
-- `alipay.trade.page.pay` 电脑网站支付 AOP POST 表单；
+- `alipay.trade.page.pay` 电脑网站支付 AOP POST 表单和 GET 支付 URL；
 - OpenAPI V3 `alipay.trade.query` 查单和 `alipay.trade.close` 关单；
 - OpenAPI V3 `alipay.trade.refund` 退款和 `alipay.trade.fastpay.refund.query` 退款查询；
 - 支付结果通知和 `alipay.trade.refund.depositback.completed` 银行卡冲退通知；
@@ -28,7 +28,7 @@ JSON、Crypto 与 JDK RSA 能力，实现 OpenAPI V3 REST 请求签名、响应�
 
 | 能力 | 官方实际协议 |
 | --- | --- |
-| 页面支付 | `POST /gateway.do`，AOP `pageExecute` HTML 表单 |
+| 页面支付 | `POST /gateway.do` AOP 自动提交 HTML 表单，或 `GET /gateway.do` AOP 支付 URL |
 | 查单、关单、退款、退款查询 | `POST /v3/...`，JSON + V3 Authorization |
 | 账单下载地址 | `GET /v3/...`，query + V3 Authorization |
 | 支付、退款冲退通知 | URL 编码表单 + RSA2 V1 参数验签 |
@@ -72,7 +72,7 @@ AlipayClient client = AlipayClient.builder()
 
 ## 电脑网站支付
 
-页面支付没有 REST V3 端点。它按支付宝官方 `pageExecute` 语义，在商户服务端生成完整的 AOP 签名 HTML 表单：
+页面支付没有 REST V3 端点。它按支付宝官方 `pageExecute` 语义，在商户服务端生成完整的 AOP 签名请求；支付宝建议优先使用 POST 自动提交 HTML 表单：
 
 ```java
 import com.zhengshuyun.lava.pay.alipay.pagepay.PagePayForm;
@@ -92,8 +92,24 @@ httpResponse.setContentType(PagePayForm.CONTENT_TYPE);
 httpResponse.getWriter().write(form.html());
 ```
 
-必须把 `form.html()` 作为 HTML 页面渲染并自动提交，不能将其赋给 `window.location.href`。`product_code` 固定为
-`FAST_INSTANT_TRADE_PAY`，`integration_type` 固定为 `PCWEB`；应用 ID、`notify_url` 和 `return_url` 均由客户端参与签名并注入。
+必须把 `form.html()` 作为 HTML 页面渲染并自动提交，不能将这段 HTML 赋给 `window.location.href`。如需由前端直接打开或重定向，使用
+`createUrl(...)` 获取 GET 支付 URL：
+
+```java
+import java.net.URI;
+
+URI paymentUrl = pagePay.createUrl(PagePayRequest.builder()
+        .outTradeNo("ORDER_001")
+        .totalAmount(100) // 单位：分
+        .subject("订单 ORDER_001")
+        .build());
+
+// 将 paymentUrl 交给前端直接打开或重定向；不得记录完整 URL。
+```
+
+GET URL 含完整业务参数和签名，不能写入日志、监控标签或分析平台。支付宝限制页面跳转数据最多 `16384` 个字符；超过此限制时
+`createUrl(...)` 抛出协议异常，调用方应改用 `createForm(...)`。`product_code` 固定为 `FAST_INSTANT_TRADE_PAY`，
+`integration_type` 固定为 `PCWEB`；应用 ID、`notify_url` 和 `return_url` 均由客户端参与签名并注入。
 
 前台同步返回只用于页面展示，不代表支付成功。`return_url` 处理逻辑应主动调用查单接口确认结果。
 

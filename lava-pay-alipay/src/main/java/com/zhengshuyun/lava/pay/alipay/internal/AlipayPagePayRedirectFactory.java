@@ -23,12 +23,15 @@ import java.util.Map;
 import java.util.TreeMap;
 
 /**
- * 电脑网站支付 AOP 自动提交表单生成器。
+ * 电脑网站支付 AOP 页面跳转数据生成器。
  *
  * <p>支付宝官方尚未提供 {@code alipay.trade.page.pay} 的 REST V3 路径；该类隔离页面支付仍需使用的
- * {@code gateway.do} 参数签名协议，避免它与服务端 API 的 V3 传输逻辑混在一起。</p>
+ * {@code gateway.do} 参数签名协议，避免它与服务端 API 的 V3 传输逻辑混在一起。POST 模式生成自动提交
+ * HTML 表单，GET 模式生成可直接交给浏览器跳转的支付 URL；支付宝官方推荐优先使用 POST。</p>
  */
-public final class AlipayPagePayFormFactory {
+public final class AlipayPagePayRedirectFactory {
+    /** 支付宝 {@code pageRedirectionData} 允许的最大长度，单位为字符。 */
+    private static final int MAX_REDIRECTION_DATA_LENGTH = 16_384;
     /** 页面支付 AOP 协议版本，固定为 {@code 1.0}。 */
     private static final String VERSION = "1.0";
     /** 页面支付业务参数格式，固定为 JSON。 */
@@ -53,7 +56,7 @@ public final class AlipayPagePayFormFactory {
     private final JsonCodec jsonCodec;
 
     /**
-     * 创建页面支付表单生成器。
+     * 创建页面支付跳转数据生成器。
      *
      * @param appId         支付宝应用 ID
      * @param appPrivateKey 应用私钥
@@ -61,7 +64,7 @@ public final class AlipayPagePayFormFactory {
      * @param clock         协议时钟
      * @param jsonCodec     JSON 编解码器
      */
-    public AlipayPagePayFormFactory(
+    public AlipayPagePayRedirectFactory(
             String appId,
             PrivateKey appPrivateKey,
             URI baseUrl,
@@ -87,7 +90,7 @@ public final class AlipayPagePayFormFactory {
      * @param returnUrl  同步返回地址
      * @return 可直接作为 HTML 响应输出的自动提交表单
      */
-    public String create(
+    public String createForm(
             String method,
             Object bizRequest,
             URI notifyUrl,
@@ -117,6 +120,48 @@ public final class AlipayPagePayFormFactory {
                 + "<input type=\"hidden\" name=\"biz_content\" value=\"" + hiddenValue
                 + "\">\n<input type=\"submit\" value=\"立即支付\" style=\"display:none\">\n"
                 + "</form>\n<script>document.forms[0].submit();</script>";
+    }
+
+    /**
+     * 生成电脑网站支付的官方 AOP 签名 GET 地址，不向支付宝发送 HTTP 请求。
+     *
+     * <p>该地址包含完整业务参数和签名，可能出现在浏览器历史、代理及访问日志中；调用方不得记录
+     * 完整地址。业务参数较多时应改用 {@link #createForm(String, Object, URI, URI)}，避免超过浏览器、
+     * 网关或支付宝允许的 URL 长度。</p>
+     *
+     * @param method     页面支付接口名称
+     * @param bizRequest 业务参数
+     * @param notifyUrl  异步通知地址
+     * @param returnUrl  同步返回地址
+     * @return 可直接交给浏览器打开或作为 HTTP 重定向目标的支付宝支付地址
+     */
+    public URI createUrl(
+            String method,
+            Object bizRequest,
+            URI notifyUrl,
+            URI returnUrl
+    ) {
+        // 1. 业务对象只编码一次，保证参与签名和进入查询参数的是同一份 JSON 原文。
+        String bizContent = encode(bizRequest);
+
+        // 2. 对全部 AOP 公共参数、回调地址和业务参数生成 RSA2 签名。
+        Map<String, String> signed = signedParameters(
+                method,
+                bizContent,
+                notifyUrl,
+                returnUrl
+        );
+
+        // 3. 将签名前的原始参数逐项编码为查询参数，返回浏览器可直接打开的 GET 地址。
+        HttpUrlBuilder url = HttpUrlBuilder.from(baseUrl).encodedPath("/gateway.do");
+        signed.forEach(url::queryParam);
+        URI result = url.build();
+        if (result.toASCIIString().length() > MAX_REDIRECTION_DATA_LENGTH) {
+            throw new AlipayProtocolException(
+                    "支付宝 GET 页面跳转地址超过 16384 字符，请改用 POST 表单"
+            );
+        }
+        return result;
     }
 
     /**

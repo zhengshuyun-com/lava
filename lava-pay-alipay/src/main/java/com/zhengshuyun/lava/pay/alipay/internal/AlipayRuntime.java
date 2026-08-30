@@ -16,8 +16,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public final class AlipayRuntime implements AutoCloseable {
     /** 各业务入口共用的 OpenAPI V3 传输层。 */
     private final AlipayTransport transport;
-    /** 页面支付专用的 AOP 签名表单生成器。 */
-    private final AlipayPagePayFormFactory pagePayFormFactory;
+    /** 页面支付专用的 AOP 签名跳转数据生成器。 */
+    private final AlipayPagePayRedirectFactory pagePayRedirectFactory;
     /** 传输层实际使用的 HTTP 客户端。 */
     private final HttpClient httpClient;
     /** 是否由运行时负责关闭 HTTP 客户端。 */
@@ -29,20 +29,20 @@ public final class AlipayRuntime implements AutoCloseable {
      * 创建共享运行时。
      *
      * @param transport          V3 协议传输层
-     * @param pagePayFormFactory 页面支付表单生成器
+     * @param pagePayRedirectFactory 页面支付跳转数据生成器
      * @param httpClient         HTTP 客户端
      * @param ownsHttpClient     是否负责关闭 HTTP 客户端
      */
     public AlipayRuntime(
             AlipayTransport transport,
-            AlipayPagePayFormFactory pagePayFormFactory,
+            AlipayPagePayRedirectFactory pagePayRedirectFactory,
             HttpClient httpClient,
             boolean ownsHttpClient
     ) {
         this.transport = ValidationUtils.requireNonNull(transport, "transport");
-        this.pagePayFormFactory = ValidationUtils.requireNonNull(
-                pagePayFormFactory,
-                "pagePayFormFactory"
+        this.pagePayRedirectFactory = ValidationUtils.requireNonNull(
+                pagePayRedirectFactory,
+                "pagePayRedirectFactory"
         );
         this.httpClient = ValidationUtils.requireNonNull(httpClient, "httpClient");
         this.ownsHttpClient = ownsHttpClient;
@@ -60,14 +60,14 @@ public final class AlipayRuntime implements AutoCloseable {
     }
 
     /**
-     * 返回仍可用的页面支付表单生成器。
+     * 返回仍可用的页面支付跳转数据生成器。
      *
-     * @return 页面支付表单生成器
+     * @return 页面支付跳转数据生成器
      * @throws IllegalStateException 根客户端已经关闭
      */
-    public AlipayPagePayFormFactory pagePayForms() {
+    public AlipayPagePayRedirectFactory pagePayRedirects() {
         ensureOpen();
-        return pagePayFormFactory;
+        return pagePayRedirectFactory;
     }
 
     /**

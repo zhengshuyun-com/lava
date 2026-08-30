@@ -25,7 +25,8 @@ import java.util.List;
  * 固定绑定异步通知与同步返回地址的电脑网站支付入口。
  *
  * <p>支付宝当前未提供该页面支付接口的 REST V3 路径，本入口按官方 {@code pageExecute}
- * 语义生成 AOP 自动提交表单。</p>
+ * 语义生成 AOP 页面跳转数据。POST 模式返回自动提交表单，GET 模式返回支付 URL；支付宝官方推荐
+ * 优先使用 POST。</p>
  */
 public final class PagePayClient {
     /** 电脑网站统一收单页面支付的固定 AOP 方法名。 */
@@ -65,19 +66,82 @@ public final class PagePayClient {
      * @return 应作为 HTML 响应正文输出的表单
      */
     public PagePayForm createForm(PagePayRequest request) {
-        // 1. 确认根客户端仍可用，并按支付宝时区校验订单绝对过期时间。
+        // 1. 校验订单时效并转换为支付宝页面支付业务载荷。
+        PagePayPayload payload = createPayload(request);
+
+        // 2. 注入公共参数和回调地址，完成 RSA2 签名、HTML 转义与 POST 表单组装。
+        return new PagePayForm(runtime.pagePayRedirects().createForm(
+                METHOD,
+                payload,
+                notifyUrl,
+                returnUrl
+        ));
+    }
+
+    /**
+     * 生成已签名的 GET 支付地址。
+     *
+     * <p>前端可直接打开或重定向到返回地址。该地址包含完整业务参数和签名，不得写入应用日志；
+     * 参数较多或地址过长时应改用 {@link #createForm(PagePayRequest)}。</p>
+     *
+     * @param request 单笔订单业务参数
+     * @return 可直接交给浏览器打开的支付宝支付绝对地址
+     * @throws IllegalArgumentException 请求为空或订单字段、时效不符合支付宝约束
+     * @throws com.zhengshuyun.lava.pay.alipay.exception.AlipayProtocolException
+     *         GET 地址超过支付宝 {@code pageRedirectionData} 的 16384 字符上限
+     * @throws IllegalStateException 根客户端已经关闭
+     */
+    public URI createUrl(PagePayRequest request) {
+        // 1. 校验订单时效并转换为支付宝页面支付业务载荷。
+        PagePayPayload payload = createPayload(request);
+
+        // 2. 将全部公共参数、回调地址和业务参数签名后编码进 GET 查询串。
+        return runtime.pagePayRedirects().createUrl(
+                METHOD,
+                payload,
+                notifyUrl,
+                returnUrl
+        );
+    }
+
+    /**
+     * 获取当前入口绑定的异步通知地址。
+     *
+     * @return 固定异步通知地址
+     */
+    public URI notifyUrl() {
+        return notifyUrl;
+    }
+
+    /**
+     * 获取当前入口绑定的同步返回地址。
+     *
+     * @return 固定同步返回地址
+     */
+    public URI returnUrl() {
+        return returnUrl;
+    }
+
+    /**
+     * 校验页面支付请求并转换为固定产品参数的 AOP 业务载荷。
+     *
+     * @param request 单笔订单业务参数
+     * @return 金额、时间、渠道及商品字段均已转换完成的不可变载荷
+     * @throws IllegalArgumentException 请求为空或绝对过期时间超出允许窗口
+     * @throws IllegalStateException 根客户端已经关闭
+     */
+    private PagePayPayload createPayload(PagePayRequest request) {
         AlipayTransport transport = runtime.transport();
         ValidationUtils.requireNonNull(request, "request must not be null");
         validateTimeExpire(transport, request.timeExpire());
 
-        // 2. 将公开业务模型转换为固定产品参数和 AOP biz_content 载荷。
         String timeExpire = request.timeExpire() == null ? null
                 : DATE_TIME.format(request.timeExpire());
         String timeoutExpress = request.timeout() == null ? null
                 : request.timeout().toMinutes() + "m";
         List<GoodsPayload> goods = request.goodsDetail().isEmpty() ? null
                 : request.goodsDetail().stream().map(GoodsPayload::from).toList();
-        PagePayPayload payload = new PagePayPayload(
+        return new PagePayPayload(
                 request.outTradeNo(),
                 AlipayMoneyUtils.formatPositive(request.totalAmount()),
                 request.subject(),
@@ -98,31 +162,6 @@ public final class PagePayClient {
                 request.passbackParams() == null ? null
                         : URLEncoder.encode(request.passbackParams(), StandardCharsets.UTF_8)
         );
-        // 3. 由独立 AOP 表单生成器完成公共参数注入、RSA2 签名、HTML 转义和表单组装。
-        return new PagePayForm(runtime.pagePayForms().create(
-                METHOD,
-                payload,
-                notifyUrl,
-                returnUrl
-        ));
-    }
-
-    /**
-     * 获取当前入口绑定的异步通知地址。
-     *
-     * @return 固定异步通知地址
-     */
-    public URI notifyUrl() {
-        return notifyUrl;
-    }
-
-    /**
-     * 获取当前入口绑定的同步返回地址。
-     *
-     * @return 固定同步返回地址
-     */
-    public URI returnUrl() {
-        return returnUrl;
     }
 
     /**
