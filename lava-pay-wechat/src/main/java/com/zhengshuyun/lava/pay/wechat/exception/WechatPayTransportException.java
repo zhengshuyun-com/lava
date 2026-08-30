@@ -26,6 +26,9 @@ import java.io.Serial;
  * 微信支付 HTTP 传输失败。
  */
 public final class WechatPayTransportException extends WechatPayException {
+    /**
+     * Java 序列化版本标识。
+     */
     @Serial
     private static final long serialVersionUID = 1L;
 

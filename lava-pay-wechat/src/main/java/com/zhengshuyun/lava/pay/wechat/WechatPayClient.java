@@ -76,7 +76,11 @@ public final class WechatPayClient implements AutoCloseable {
      */
     private final NotificationParser notificationParser;
 
-    /** 使用共享运行时创建并缓存各业务入口。 */
+    /**
+     * 使用共享运行时创建并缓存各业务入口。
+     *
+     * @param runtime 已建立传输层与 HTTP 资源所有权的共享运行时
+     */
     private WechatPayClient(WechatPayRuntime runtime) {
         this.runtime = runtime;
         transactionClient = new TransactionClient(runtime);
@@ -547,14 +551,24 @@ public final class WechatPayClient implements AutoCloseable {
             }
         }
 
-        /** 配置协议测试使用的固定时钟。 */
+        /**
+         * 配置协议测试使用的固定时钟。
+         *
+         * @param value 请求签名和响应时效校验共用的时钟
+         * @return 当前构建器
+         */
         Builder clock(Clock value) {
             ensureNotBuilt();
             clock = ValidationUtils.requireNonNull(value, "clock must not be null");
             return this;
         }
 
-        /** 配置协议测试使用的随机串供应器。 */
+        /**
+         * 配置协议测试使用的随机串供应器。
+         *
+         * @param value 每次请求的签名随机串供应器
+         * @return 当前构建器
+         */
         Builder nonceSupplier(Supplier<String> value) {
             ensureNotBuilt();
             nonceSupplier = ValidationUtils.requireNonNull(value,
@@ -573,7 +587,13 @@ public final class WechatPayClient implements AutoCloseable {
             }
         }
 
-        /** 校验可安全写入 HTTP 引号参数的文本。 */
+        /**
+         * 校验可安全写入 HTTP 引号参数的文本。
+         *
+         * @param value 待写入鉴权请求头的文本
+         * @param name 用于报错的参数名称
+         * @return 校验通过的原文本
+         */
         private static String requireHeaderValue(String value, String name) {
             ValidationUtils.requireNotBlank(value, name + " must not be blank");
             ValidationUtils.requireTrue(value.codePoints().noneMatch(

@@ -29,9 +29,13 @@ import java.util.TreeMap;
  * {@code gateway.do} 参数签名协议，避免它与服务端 API 的 V3 传输逻辑混在一起。</p>
  */
 public final class AlipayPagePayFormFactory {
+    /** 页面支付 AOP 协议版本，固定为 {@code 1.0}。 */
     private static final String VERSION = "1.0";
+    /** 页面支付业务参数格式，固定为 JSON。 */
     private static final String FORMAT = "json";
+    /** 页面支付签名和表单字符集，固定为 UTF-8。 */
     private static final String CHARSET = "UTF-8";
+    /** 页面支付 AOP 公共参数使用的本地时间格式。 */
     private static final DateTimeFormatter TIMESTAMP = DateTimeFormatter.ofPattern(
             "yyyy-MM-dd HH:mm:ss",
             Locale.ROOT

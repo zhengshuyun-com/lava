@@ -18,12 +18,16 @@ import java.util.regex.Pattern;
  * 支付宝公共配置与业务字段校验工具。
  */
 public final class AlipayValidationUtils {
+    /** 允许承载生产签名请求的支付宝正式和沙箱域名。 */
     private static final Set<String> OFFICIAL_OPENAPI_HOSTS = Set.of(
             "openapi.alipay.com",
             "openapi-sandbox.dl.alipaydev.com"
     );
+    /** 应用 ID 格式：1 至 32 个 ASCII 字母或数字。 */
     private static final Pattern APP_ID = Pattern.compile("[A-Za-z0-9]{1,32}");
+    /** 卖家用户 ID 格式：以 2088 开头的 16 位数字。 */
     private static final Pattern SELLER_ID = Pattern.compile("2088[0-9]{12}");
+    /** 商户订单号格式：1 至 64 个 ASCII 字母、数字或下划线。 */
     private static final Pattern OUT_TRADE_NO = Pattern.compile("[A-Za-z0-9_]{1,64}");
 
     /** 禁止实例化支付宝校验工具。 */

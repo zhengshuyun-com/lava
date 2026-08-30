@@ -28,14 +28,21 @@ import java.util.List;
  * 语义生成 AOP 自动提交表单。</p>
  */
 public final class PagePayClient {
+    /** 电脑网站统一收单页面支付的固定 AOP 方法名。 */
     private static final String METHOD = "alipay.trade.page.pay";
+    /** 电脑网站即时到账产品码，固定为 {@code FAST_INSTANT_TRADE_PAY}。 */
     private static final String PRODUCT_CODE = "FAST_INSTANT_TRADE_PAY";
+    /** 电脑网站支付接入类型，固定为 {@code PCWEB}。 */
     private static final String INTEGRATION_TYPE = "PCWEB";
+    /** 页面支付绝对过期时间的固定格式，精确到秒。 */
     private static final DateTimeFormatter DATE_TIME = DateTimeFormatter.ofPattern(
             "yyyy-MM-dd HH:mm:ss");
 
+    /** 根客户端共享运行时，用于检查关闭状态并取得表单生成器。 */
     private final AlipayRuntime runtime;
+    /** 支付结果异步通知地址，随公共参数参与 AOP 签名。 */
     private final URI notifyUrl;
+    /** 支付完成后的浏览器同步返回地址，不可作为支付成功依据。 */
     private final URI returnUrl;
 
     /**
@@ -135,6 +142,26 @@ public final class PagePayClient {
                 "timeExpire must be between 1 minute and 15 days from now");
     }
 
+    /**
+     * 电脑网站支付 {@code biz_content} 的最终协议载荷。
+     *
+     * @param outTradeNo        商户订单号，最长 64 字符
+     * @param totalAmount       订单金额，单位为元、固定保留两位小数
+     * @param subject           订单标题，最长 256 字符
+     * @param productCode       产品码，固定为 {@code FAST_INSTANT_TRADE_PAY}
+     * @param body              可选订单描述，最长 400 字符
+     * @param timeExpire        可选绝对过期时间，格式为 {@code yyyy-MM-dd HH:mm:ss}
+     * @param timeoutExpress    可选相对有效期，以整分钟文本表示
+     * @param qrPayMode         可选二维码展示模式
+     * @param qrcodeWidth       自定义二维码宽度，仅模式 {@code 4} 有效
+     * @param goodsDetail       可选商品明细；没有时为 {@code null}
+     * @param enablePayChannels 可选允许渠道列表，逗号分隔
+     * @param disablePayChannels 可选禁用渠道列表，逗号分隔
+     * @param integrationType   页面集成类型，固定为 {@code PCWEB}
+     * @param storeId           可选商户门店编号，最长 32 字符
+     * @param merchantOrderNo   可选商户原始订单号，最长 32 字符
+     * @param passbackParams    可选业务回传参数，已完成一次 URL 编码
+     */
     private record PagePayPayload(
             @JsonProperty("out_trade_no") String outTradeNo,
             @JsonProperty("total_amount") String totalAmount,
@@ -155,6 +182,19 @@ public final class PagePayClient {
     ) {
     }
 
+    /**
+     * 页面支付载荷中的单个商品明细。
+     *
+     * @param goodsId       商户商品编号，最长 64 字符
+     * @param goodsName     商品名称，最长 256 字符
+     * @param quantity      商品数量，必须大于零
+     * @param price         商品单价，单位为元、固定保留两位小数
+     * @param alipayGoodsId 可选支付宝商品编号，最长 32 字符
+     * @param goodsCategory 可选商品类目，最长 24 字符
+     * @param categoriesTree 可选商品类目树，最长 128 字符
+     * @param body          可选商品说明，最长 400 字符
+     * @param showUrl       可选商品展示绝对地址，最长 400 字符
+     */
     private record GoodsPayload(
             @JsonProperty("goods_id") String goodsId,
             @JsonProperty("goods_name") String goodsName,
@@ -166,7 +206,12 @@ public final class PagePayClient {
             @JsonProperty("body") @Nullable String body,
             @JsonProperty("show_url") @Nullable String showUrl
     ) {
-        /** 将公开商品模型映射为页面支付协议载荷。 */
+        /**
+         * 将已校验的公开商品模型映射为页面支付业务参数载荷。
+         *
+         * @param value 不可变商品明细，价格单位为分
+         * @return 价格已转换为元、展示地址已转换为 ASCII 文本的协议载荷
+         */
         private static GoodsPayload from(PagePayGoodsDetail value) {
             return new GoodsPayload(
                     value.goodsId(),

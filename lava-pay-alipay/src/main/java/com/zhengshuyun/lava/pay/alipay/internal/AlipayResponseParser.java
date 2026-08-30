@@ -277,6 +277,14 @@ public final class AlipayResponseParser {
         return value != null && !value.isBlank();
     }
 
+    /**
+     * OpenAPI V3 标准错误响应载荷。
+     *
+     * @param code    错误码；缺失或为空时视为协议错误
+     * @param message 错误描述；缺失或为空时视为协议错误
+     * @param details 可选字段级错误明细；未返回时为 {@code null}
+     * @param links   可选解决方案链接，兼容字符串及对象数组两种官方响应形式
+     */
     @JsonIgnoreProperties(ignoreUnknown = true)
     private record ErrorPayload(
             @JsonProperty("code") @Nullable String code,
@@ -286,6 +294,15 @@ public final class AlipayResponseParser {
     ) {
     }
 
+    /**
+     * OpenAPI V3 错误响应中的字段级问题。
+     *
+     * @param field       出错字段名；未返回时为 {@code null}
+     * @param value       支付宝收到的字段值，可能包含业务数据；未返回时为 {@code null}
+     * @param location    字段位置，例如请求体或查询参数；未返回时为 {@code null}
+     * @param issue       稳定问题类型；未返回时为 {@code null}
+     * @param description 面向开发者的补充描述；未返回时为 {@code null}
+     */
     @JsonIgnoreProperties(ignoreUnknown = true)
     private record ErrorDetail(
             @JsonProperty("field") @Nullable String field,

@@ -25,6 +25,7 @@ import java.util.Set;
  * 金额单位为分，构建完成后对象不可变。</p>
  */
 public final class PagePayRequest {
+    /** 页面支付允许使用的二维码展示模式集合。 */
     private static final Set<String> QR_MODES = Set.of(
             PagePayQrMode.SIMPLE_FRONT,
             PagePayQrMode.FRONT,
@@ -32,25 +33,46 @@ public final class PagePayRequest {
             PagePayQrMode.MINI_FRONT,
             PagePayQrMode.CUSTOM_WIDTH
     );
+    /** 相对支付有效期下限，固定为 1 分钟。 */
     private static final Duration MIN_TIMEOUT = Duration.ofMinutes(1);
+    /** 相对支付有效期上限，固定为 15 天。 */
     private static final Duration MAX_TIMEOUT = Duration.ofDays(15);
 
+    /** 商户订单号，在当前商户范围内保持唯一。 */
     private final String outTradeNo;
+    /** 订单总金额，单位为分，必须大于零。 */
     private final long totalAmount;
+    /** 订单标题，1 至 256 个字符且不能包含 {@code /、=、&}。 */
     private final String subject;
+    /** 可选订单描述，最长 400 个字符。 */
     private final @Nullable String body;
+    /** 可选绝对支付截止时间，按 GMT+8 解释并与相对有效期二选一。 */
     private final @Nullable LocalDateTime timeExpire;
+    /** 可选相对支付有效期，必须为 1 分钟至 15 天的整分钟。 */
     private final @Nullable Duration timeout;
+    /** 可选二维码展示模式，必须属于 {@link PagePayQrMode} 定义的范围。 */
     private final @Nullable String qrPayMode;
+    /** 自定义二维码宽度，范围为 1 至 9999，仅自定义宽度模式有效。 */
     private final @Nullable Integer qrcodeWidth;
+    /** 不可变商品明细列表；没有商品明细时为空列表。 */
     private final List<PagePayGoodsDetail> goodsDetail;
+    /** 仅允许使用的支付渠道集合，与禁用渠道集合互斥。 */
     private final Set<String> enablePayChannels;
+    /** 禁止使用的支付渠道集合，与启用渠道集合互斥。 */
     private final Set<String> disablePayChannels;
+    /** 可选商户门店编号，最长 32 个字符。 */
     private final @Nullable String storeId;
+    /** 可选商户原始订单号，最长 32 个字符。 */
     private final @Nullable String merchantOrderNo;
+    /** 可选业务回传参数，最长 512 个字符，发送前进行一次 URL 编码。 */
     private final @Nullable String passbackParams;
 
-    /** 使用构建期参数创建并校验页面支付请求。 */
+    /**
+     * 使用构建期参数创建并校验不可变页面支付请求。
+     *
+     * @param builder 已收集订单、有效期、页面展示、商品和支付渠道参数的构建器
+     * @throws IllegalArgumentException 必填字段缺失、字段越界，或有效期与支付渠道等互斥配置冲突
+     */
     private PagePayRequest(Builder builder) {
         outTradeNo = AlipayValidationUtils.requireOutTradeNo(builder.outTradeNo);
         totalAmount = AlipayValidationUtils.requirePositiveAmount(
@@ -247,19 +269,33 @@ public final class PagePayRequest {
      * 电脑网站支付请求 fluent 构建器。
      */
     public static final class Builder {
+        /** 构建期商户订单号；构建前必须配置。 */
         private @Nullable String outTradeNo;
+        /** 构建期订单金额，单位为分；构建前必须配置。 */
         private @Nullable Long totalAmount;
+        /** 构建期订单标题；构建前必须配置。 */
         private @Nullable String subject;
+        /** 构建期可选订单描述。 */
         private @Nullable String body;
+        /** 构建期可选绝对过期时间，与相对有效期互斥。 */
         private @Nullable LocalDateTime timeExpire;
+        /** 构建期可选相对有效期，与绝对过期时间互斥。 */
         private @Nullable Duration timeout;
+        /** 构建期可选二维码展示模式。 */
         private @Nullable String qrPayMode;
+        /** 构建期可选二维码宽度，仅自定义宽度模式有效。 */
         private @Nullable Integer qrcodeWidth;
+        /** 按添加顺序保存的构建期商品明细。 */
         private final List<PagePayGoodsDetail> goodsDetail = new ArrayList<>();
+        /** 构建期允许渠道集合，与禁用渠道集合互斥。 */
         private final Set<String> enablePayChannels = new LinkedHashSet<>();
+        /** 构建期禁用渠道集合，与允许渠道集合互斥。 */
         private final Set<String> disablePayChannels = new LinkedHashSet<>();
+        /** 构建期可选商户门店编号。 */
         private @Nullable String storeId;
+        /** 构建期可选商户原始订单号。 */
         private @Nullable String merchantOrderNo;
+        /** 构建期可选业务回传参数，生成表单时统一 URL 编码。 */
         private @Nullable String passbackParams;
 
         /** 创建空页面支付请求构建器。 */
@@ -429,7 +465,13 @@ public final class PagePayRequest {
             return new PagePayRequest(this);
         }
 
-        /** 校验支付渠道标识。 */
+        /**
+         * 校验单个支付渠道标识，禁止会破坏支付宝逗号分隔编码的字符。
+         *
+         * @param value 支付宝支付渠道标识，长度为 1 至 64 个字符
+         * @return 通过非空白、长度和分隔符校验的原标识
+         * @throws IllegalArgumentException 标识为空白、超过长度限制或包含逗号
+         */
         private static String requireChannel(String value) {
             value = AlipayValidationUtils.requireText(
                     value,

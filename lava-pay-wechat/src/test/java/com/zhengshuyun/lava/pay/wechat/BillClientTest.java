@@ -27,17 +27,43 @@ import java.util.zip.GZIPOutputStream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * 验证微信支付账单申请、流式下载、解压、哈希校验和原子发布的安全边界。
+ */
 class BillClientTest {
+    /**
+     * 用于校验账单日期窗口和响应签名时间的固定 UTC 时钟。
+     */
     private static final Clock CLOCK = Clock.fixed(
             Instant.parse("2026-08-29T00:00:00Z"), ZoneOffset.UTC);
+    /**
+     * 客户端请求签名使用的测试商户 RSA 密钥对。
+     */
     private static KeyPair merchantKeys;
+    /**
+     * 模拟服务端响应签名使用的微信支付 RSA 密钥对。
+     */
     private static KeyPair wechatKeys;
 
+    /**
+     * JUnit 为每个测试提供的隔离目录，用于断言账单文件与临时文件状态。
+     */
     @TempDir
     Path temporaryDirectory;
+    /**
+     * 每个测试独占的本地微信支付协议模拟服务端。
+     */
     private WechatPayTestServer server;
+    /**
+     * 指向本地模拟服务端的待测微信支付根客户端。
+     */
     private WechatPayClient client;
 
+    /**
+     * 为全部账单测试生成一次性 RSA 2048 位商户密钥和微信支付密钥。
+     *
+     * @throws Exception 当当前 JCA 环境无法创建 RSA 密钥生成器时抛出
+     */
     @BeforeAll
     static void generateKeys() throws Exception {
         KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
@@ -46,6 +72,9 @@ class BillClientTest {
         wechatKeys = generator.generateKeyPair();
     }
 
+    /**
+     * 在每个测试前启动独立模拟服务端，并构建具有固定时钟的待测客户端。
+     */
     @BeforeEach
     void setUp() {
         server = WechatPayTestServer.start(wechatKeys.getPrivate(), CLOCK);
@@ -61,12 +90,20 @@ class BillClientTest {
                 .build();
     }
 
+    /**
+     * 在每个测试后关闭待测客户端和本地模拟服务端。
+     */
     @AfterEach
     void tearDown() {
         client.close();
         server.close();
     }
 
+    /**
+     * 验证账单被流式下载、SHA-1 校验后发布，并在目标已存在时拒绝覆盖。
+     *
+     * @throws Exception 当测试摘要计算或临时文件读取失败时抛出
+     */
     @Test
     void billIsStreamedVerifiedAndPublishedWithoutOverwrite() throws Exception {
         byte[] file = "交易时间,商户订单号\n2026-08-28,ORDER_001\n"
@@ -97,6 +134,11 @@ class BillClientTest {
         assertEquals(WechatPayFileFailure.TARGET_EXISTS, exists.failure());
     }
 
+    /**
+     * 验证账单 SHA-1 不匹配时关闭失败，既不发布目标文件，也不遗留 {@code .part} 临时文件。
+     *
+     * @throws Exception 当枚举测试临时目录内容失败时抛出
+     */
     @Test
     void hashMismatchLeavesNoPublishedOrPartialFile() throws Exception {
         byte[] file = "changed".getBytes(StandardCharsets.UTF_8);
@@ -121,6 +163,11 @@ class BillClientTest {
         }
     }
 
+    /**
+     * 验证 GZIP 账单先解压再对原文执行 SHA-1 校验，最终发布的文件也为解压后内容。
+     *
+     * @throws Exception 当测试压缩、摘要计算或临时文件读取失败时抛出
+     */
     @Test
     void gzipBillIsDecompressedBeforeHashVerificationAndPublication() throws Exception {
         byte[] file = "交易时间,商户订单号\n2026-08-28,ORDER_001\n"
@@ -145,6 +192,9 @@ class BillClientTest {
         assertEquals("/download?token=secret", server.takeRequest().target());
     }
 
+    /**
+     * 验证已验签的账单元数据中 SHA-1 格式非法时立即报协议错误，不进入文件下载阶段。
+     */
     @Test
     void malformedSignedBillMetadataFailsBeforeDownload() {
         String info = "{\"hash_type\":\"SHA1\",\"hash_value\":\"not-a-sha1\","
@@ -157,6 +207,9 @@ class BillClientTest {
                         .build()));
     }
 
+    /**
+     * 验证手工构造的跨源下载地址被拒绝，防止携带敏感令牌访问非微信支付主机，且调试文本不泄露令牌。
+     */
     @Test
     void manuallyConstructedDownloadInfoCannotSendCredentialsToAnotherOrigin() {
         BillDownloadInfo forged = new BillDownloadInfo(
@@ -173,6 +226,9 @@ class BillClientTest {
         assertFalse(Files.exists(target));
     }
 
+    /**
+     * 验证账单日期必须早于当天且不得超出最近三个月的可申请窗口。
+     */
     @Test
     void billDateMustBeBeforeTodayAndWithinThreeMonths() {
         assertThrows(
@@ -193,10 +249,24 @@ class BillClientTest {
         );
     }
 
+    /**
+     * 计算测试账单原文的 SHA-1 小写十六进制摘要。
+     *
+     * @param value 待计算摘要的原始字节
+     * @return 40 个小写十六进制字符组成的 SHA-1 摘要
+     * @throws Exception 当当前 JCA 环境不支持 SHA-1 时抛出
+     */
     private static String sha1(byte[] value) throws Exception {
         return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-1").digest(value));
     }
 
+    /**
+     * 将测试账单原文压缩为 GZIP 字节，用于模拟压缩账单下载。
+     *
+     * @param value 待压缩的原始账单字节
+     * @return 完整的 GZIP 数据
+     * @throws Exception 当内存输出或 GZIP 写入失败时抛出
+     */
     private static byte[] gzip(byte[] value) throws Exception {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         try (GZIPOutputStream gzip = new GZIPOutputStream(output)) {

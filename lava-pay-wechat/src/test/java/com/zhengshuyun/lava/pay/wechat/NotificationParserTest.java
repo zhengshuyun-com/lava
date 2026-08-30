@@ -22,19 +22,51 @@ import java.util.Base64;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * 验证微信支付通知的签名、时效、AES-GCM 解密、商户绑定和业务对账边界。
+ */
 class NotificationParserTest {
+    /**
+     * 用于判定通知签名时间窗口的固定 UTC 时钟。
+     */
     private static final Clock CLOCK = Clock.fixed(
             Instant.parse("2026-08-29T00:00:00Z"), ZoneOffset.UTC);
+    /**
+     * 通知解密后必须匹配的测试商户号。
+     */
     private static final String MCHID = "1900000109";
+    /**
+     * 用于加密模拟通知资源的 32 字节 APIv3 密钥。
+     */
     private static final byte[] API_V3_KEY =
             "0123456789abcdef0123456789abcdef".getBytes(StandardCharsets.UTF_8);
+    /**
+     * AES-GCM 测试加密使用的固定 12 字节随机量。
+     */
     private static final byte[] NONCE = "0123456789ab".getBytes(StandardCharsets.UTF_8);
 
+    /**
+     * 构建待测客户端所需的测试商户 RSA 密钥对。
+     */
     private static KeyPair merchantKeys;
+    /**
+     * 通知签名和客户端验签使用的微信支付 RSA 密钥对。
+     */
     private static KeyPair wechatKeys;
+    /**
+     * 为待测客户端提供本地 API 地址的模拟服务端。
+     */
     private WechatPayTestServer server;
+    /**
+     * 持有测试商户号、APIv3 密钥和微信支付公钥的待测客户端。
+     */
     private WechatPayClient client;
 
+    /**
+     * 为全部通知测试生成一次性 RSA 2048 位商户密钥和微信支付密钥。
+     *
+     * @throws Exception 当当前 JCA 环境无法创建 RSA 密钥生成器时抛出
+     */
     @BeforeAll
     static void generateKeys() throws Exception {
         KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
@@ -43,6 +75,9 @@ class NotificationParserTest {
         wechatKeys = generator.generateKeyPair();
     }
 
+    /**
+     * 在每个测试前启动模拟服务端，并构建具有固定时钟和通知密钥的待测客户端。
+     */
     @BeforeEach
     void setUp() {
         server = WechatPayTestServer.start(wechatKeys.getPrivate(), CLOCK);
@@ -58,12 +93,18 @@ class NotificationParserTest {
                 .build();
     }
 
+    /**
+     * 在每个测试后关闭待测客户端和本地模拟服务端。
+     */
     @AfterEach
     void tearDown() {
         client.close();
         server.close();
     }
 
+    /**
+     * 验证交易通知必须先验签再解密，并支持按应用、订单号和金额对账；篡改密文必须报签名无效。
+     */
     @Test
     void transactionNotificationIsVerifiedBeforeDecryption() {
         String plaintext = """
@@ -104,6 +145,9 @@ class NotificationParserTest {
         assertEquals(WechatPaySecurityFailure.INVALID_SIGNATURE, failure.failure());
     }
 
+    /**
+     * 验证退款通知保留微信支付官方 {@code ABNORMAL} 状态，并在商户退款号或金额不匹配时拒绝对账。
+     */
     @Test
     void refundNotificationPreservesOfficialStatus() {
         String plaintext = """
@@ -138,6 +182,9 @@ class NotificationParserTest {
         );
     }
 
+    /**
+     * 验证超出 5 分钟时间窗口的通知和解密后商户号不匹配的通知均关闭失败，且安全分类稳定。
+     */
     @Test
     void staleNotificationAndMerchantMismatchFailClosed() {
         String plaintext = """
@@ -164,6 +211,9 @@ class NotificationParserTest {
         assertEquals(WechatPaySecurityFailure.MERCHANT_MISMATCH, mismatch.failure());
     }
 
+    /**
+     * 验证通知验签通过后，缺失加密资源或解密业务字段不完整时以协议错误终止处理。
+     */
     @Test
     void malformedEnvelopeFailsAsProtocolErrorAfterSignatureVerification() {
         byte[] body = """
@@ -191,6 +241,9 @@ class NotificationParserTest {
                         incompleteBody));
     }
 
+    /**
+     * 验证通知含多个签名头时在密码校验前拒绝，防止不确定的验签头选择。
+     */
     @Test
     void duplicateSignatureHeadersAreRejectedBeforeVerification() {
         String plaintext = """
@@ -221,6 +274,9 @@ class NotificationParserTest {
         );
     }
 
+    /**
+     * 验证不支持的通知加密算法和错误 APIv3 密钥分别映射为稳定的算法不支持与解密失败安全分类。
+     */
     @Test
     void unsupportedAlgorithmAndWrongApiV3KeyFailWithStableSecurityCategories() {
         String plaintext = """
@@ -265,6 +321,14 @@ class NotificationParserTest {
         }
     }
 
+    /**
+     * 使用固定 APIv3 密钥和随机量加密业务原文，生成微信支付通知信封 JSON。
+     *
+     * @param eventType 通知的官方事件类型
+     * @param originalType 加密资源的原始业务类型
+     * @param plaintext 要放入加密资源的 UTF-8 JSON 原文
+     * @return UTF-8 编码的完整通知信封
+     */
     private static byte[] envelope(String eventType, String originalType, String plaintext) {
         byte[] ciphertext = CryptoUtils.aesGcmEncrypt(
                 API_V3_KEY,
@@ -287,6 +351,13 @@ class NotificationParserTest {
         return json.getBytes(StandardCharsets.UTF_8);
     }
 
+    /**
+     * 使用微信支付测试私钥为通知正文生成完整验签请求头。
+     *
+     * @param body 签名覆盖的原始通知正文
+     * @param timestamp 签名请求头使用的 Unix 秒级时间戳
+     * @return 包含时间戳、随机串、公钥 ID 和 Base64 签名的 HTTP 请求头
+     */
     private static HttpHeaders signedHeaders(byte[] body, long timestamp) {
         return WechatPayTestServer.signedHeaders(
                 body,

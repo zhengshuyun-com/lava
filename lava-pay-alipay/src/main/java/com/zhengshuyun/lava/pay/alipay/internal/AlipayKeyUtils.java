@@ -28,7 +28,9 @@ import java.util.Base64;
  * 支付宝 RSA2 原始 Base64、PEM 与 JCA 密钥解析工具。
  */
 public final class AlipayKeyUtils {
+    /** 单个密钥文本文件允许读取的最大大小，单位为字节。 */
     private static final int MAX_KEY_TEXT_BYTES = 64 * 1024;
+    /** 支付宝 RSA2 密钥允许的最小模数位数。 */
     private static final int MIN_RSA_BITS = 2048;
 
     /** 禁止实例化支付宝密钥工具。 */
@@ -123,6 +125,7 @@ public final class AlipayKeyUtils {
      *
      * @param value Base64 文本
      * @return RSA 私钥
+     * @throws GeneralSecurityException 当前运行环境不支持 RSA，或密钥不符合 PKCS#8 编码
      */
     private static PrivateKey decodePrivateKey(String value)
             throws GeneralSecurityException {
@@ -140,6 +143,7 @@ public final class AlipayKeyUtils {
      *
      * @param value Base64 文本
      * @return RSA 公钥
+     * @throws GeneralSecurityException 当前运行环境不支持 RSA，或密钥不符合 X.509 编码
      */
     private static PublicKey decodePublicKey(String value)
             throws GeneralSecurityException {

@@ -36,13 +36,21 @@ import java.util.UUID;
  * 支付宝公钥模式 OpenAPI V3 REST 传输层。
  */
 public final class AlipayTransport {
+    /** OpenAPI V3 公钥模式固定使用的 RSA2 鉴权方案。 */
     private static final String V3_AUTH_SCHEME = "ALIPAY-SHA256withRSA";
+    /** 承载应用 ID、时间戳、随机串和请求签名的鉴权头。 */
     private static final String HEADER_AUTHORIZATION = "Authorization";
+    /** 最长 32 字符的请求幂等追踪标识头。 */
     private static final String HEADER_REQUEST_ID = "alipay-request-id";
+    /** 支付宝 V3 响应 RSA2 签名头。 */
     private static final String HEADER_SIGNATURE = "alipay-signature";
+    /** 支付宝 V3 响应签名时间戳头。 */
     private static final String HEADER_TIMESTAMP = "alipay-timestamp";
+    /** 支付宝 V3 响应签名随机串头。 */
     private static final String HEADER_NONCE = "alipay-nonce";
+    /** 公共协议定义的支付宝链路标识头。 */
     private static final String HEADER_TRACE_ID = "alipay-trace-id";
+    /** 部分接口元数据使用的兼容链路标识头。 */
     private static final String HEADER_TRACE_ID_COMPATIBLE = "alipay-traceid";
     /** 当前传输层绑定的应用 ID。 */
     private final String appId;
@@ -60,7 +68,7 @@ public final class AlipayTransport {
     private final AlipayResponseParser responseParser;
 
     /**
-     * 创建内部传输层。调用方负责在构造前完成配置校验。
+     * 创建内部传输层，并再次校验域名、密钥和 HTTP 安全配置以防绕过根客户端构建器。
      *
      * @param appId           应用 ID
      * @param appPrivateKey   应用私钥
@@ -253,7 +261,13 @@ public final class AlipayTransport {
         return values.isEmpty() ? null : values.getFirst();
     }
 
-    /** 校验借入 HTTP 客户端不会隐式重试或跟随重定向。 */
+    /**
+     * 校验借入 HTTP 客户端不会隐式重试或跟随重定向，避免签名请求被透明重放或改发其他地址。
+     *
+     * @param value 调用方托管且已完成基础配置的 HTTP 客户端
+     * @return 通过安全配置校验的原客户端实例；本方法不接管其生命周期
+     * @throws IllegalArgumentException 客户端为空、启用了连接失败重试、普通重定向或跨协议重定向
+     */
     private static HttpClient requireSafeHttpClient(HttpClient value) {
         ValidationUtils.requireNonNull(value, "httpClient must not be null");
         ValidationUtils.requireTrue(

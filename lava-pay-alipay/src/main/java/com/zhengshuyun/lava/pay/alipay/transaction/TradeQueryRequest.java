@@ -17,6 +17,7 @@ import java.util.Set;
  * 支付宝交易查询参数。商户订单号与支付宝交易号至少提供一个；同时提供时支付宝优先使用交易号。
  */
 public final class TradeQueryRequest {
+    /** 交易查询接口允许请求的官方扩展响应字段集合。 */
     private static final Set<String> OPTIONS = Set.of(
             TradeQueryOption.TRADE_SETTLE_INFO,
             TradeQueryOption.FUND_BILL_LIST,
@@ -26,11 +27,19 @@ public final class TradeQueryRequest {
             TradeQueryOption.MEDICAL_INSURANCE_INFO
     );
 
+    /** 商户订单号；与支付宝交易号至少提供一个，同时存在时支付宝优先使用交易号。 */
     private final @Nullable String outTradeNo;
+    /** 支付宝交易号；与商户订单号至少提供一个，同时存在时该字段优先。 */
     private final @Nullable String tradeNo;
+    /** 不可变扩展响应字段列表；默认为空且不包含重复选项。 */
     private final List<String> queryOptions;
 
-    /** 使用构建期参数创建并校验交易查询请求。 */
+    /**
+     * 使用构建期参数创建并校验不可变交易查询请求。
+     *
+     * @param builder 已收集交易标识和扩展查询选项的构建器
+     * @throws IllegalArgumentException 未提供交易标识，或订单号、交易号、查询选项不符合约束
+     */
     private TradeQueryRequest(Builder builder) {
         ValidationUtils.requireTrue(builder.outTradeNo != null || builder.tradeNo != null,
                 "at least one of outTradeNo and tradeNo is required");
@@ -79,8 +88,11 @@ public final class TradeQueryRequest {
 
     /** 交易查询 fluent 构建器。 */
     public static final class Builder {
+        /** 构建期商户订单号；与支付宝交易号至少配置一个。 */
         private @Nullable String outTradeNo;
+        /** 构建期支付宝交易号；与商户订单号同时配置时优先使用。 */
         private @Nullable String tradeNo;
+        /** 构建期扩展响应字段集合；默认为空并按添加顺序自动去重。 */
         private final Set<String> queryOptions = new LinkedHashSet<>();
 
         /** 创建空交易查询构建器。 */

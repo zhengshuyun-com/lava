@@ -28,8 +28,10 @@ import org.jspecify.annotations.Nullable;
  * 普通支付退款申请与查询客户端。
  */
 public final class RefundClient {
+    /** 普通支付退款申请及按商户退款单号查询的 APIv3 固定路径。 */
     private static final String REFUND_PATH = "/v3/refund/domestic/refunds";
 
+    /** 根客户端共享的签名传输层与关闭状态。 */
     private final WechatPayRuntime runtime;
 
     /**
@@ -71,7 +73,13 @@ public final class RefundClient {
         return refund;
     }
 
-    /** 将退款申请响应的业务标识和金额绑定到原请求。 */
+    /**
+     * 将退款申请响应的业务标识和金额绑定到原请求，防止已验签的其他退款被误返回。
+     *
+     * @param request 本次退款申请
+     * @param refund 微信支付返回的已验签退款单
+     * @throws WechatPaySecurityException 退款单号、原订单标识或金额与请求不一致时抛出
+     */
     private static void requireApplyResponse(RefundRequest request, Refund refund) {
         // 1. 先核对幂等退款单号和原支付订单，避免把其他业务单的已验签响应交给调用方。
         requireSame(request.outRefundNo(), refund.outRefundNo());
@@ -88,7 +96,13 @@ public final class RefundClient {
         }
     }
 
-    /** 校验请求和响应中的业务标识一致。 */
+    /**
+     * 校验请求与响应中的业务标识严格一致。
+     *
+     * @param expected 请求携带的期望标识；不应为 {@code null}
+     * @param actual 已验签响应中的实际标识
+     * @throws WechatPaySecurityException 期望标识缺失或两者不一致时抛出
+     */
     private static void requireSame(@Nullable String expected, String actual) {
         if (expected == null || !expected.equals(actual)) {
             throw new WechatPaySecurityException(WechatPaySecurityFailure.RESPONSE_MISMATCH);

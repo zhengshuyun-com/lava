@@ -11,14 +11,25 @@ import org.jspecify.annotations.Nullable;
 import java.time.LocalDate;
 
 /**
- * 申请资金账单的查询参数。
+ * 申请资金账单的不可变查询参数。账单日期由客户端在发送前校验，
+ * 必须早于当日且不早于最近三个月。
  */
 public final class FundFlowBillRequest {
+    /** 账单日期，按微信支付中国标准时区计算，不得为当日或更晚日期。 */
     private final LocalDate billDate;
+
+    /** 资金账户类型；未配置时由微信支付按 {@link FundFlowAccountType#BASIC} 处理。 */
     private final @Nullable FundFlowAccountType accountType;
+
+    /** 账单压缩类型；未配置时返回未压缩的原始文本。 */
     private final @Nullable BillTarType tarType;
 
-    /** 使用构建期参数创建不可变资金账单请求。 */
+    /**
+     * 使用构建期参数创建不可变资金账单请求。
+     *
+     * @param builder 已收集查询参数的构建器
+     * @throws IllegalArgumentException 未配置账单日期时抛出
+     */
     private FundFlowBillRequest(Builder builder) {
         billDate = ValidationUtils.requireNonNull(builder.billDate, "billDate is required");
         accountType = builder.accountType;
@@ -65,8 +76,13 @@ public final class FundFlowBillRequest {
      * 资金账单请求构建器。
      */
     public static final class Builder {
+        /** 待申请的账单日期；必填，初始为 {@code null}。 */
         private @Nullable LocalDate billDate;
+
+        /** 待查询的资金账户类型；可选，初始为 {@code null}。 */
         private @Nullable FundFlowAccountType accountType;
+
+        /** 待申请的账单压缩类型；可选，初始为 {@code null}。 */
         private @Nullable BillTarType tarType;
 
         /** 创建空资金账单请求构建器。 */
@@ -111,6 +127,7 @@ public final class FundFlowBillRequest {
          * 校验并创建资金账单请求。
          *
          * @return 不可变资金账单请求
+         * @throws IllegalArgumentException 未配置账单日期时抛出
          */
         public FundFlowBillRequest build() {
             return new FundFlowBillRequest(this);

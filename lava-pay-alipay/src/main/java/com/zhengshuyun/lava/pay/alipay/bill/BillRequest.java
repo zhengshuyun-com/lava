@@ -17,6 +17,7 @@ import java.util.Set;
  * 普通商户日账单或月账单下载地址查询参数。
  */
 public final class BillRequest {
+    /** 官方 Java V3 SDK 当前收录的账单类型集合。 */
     private static final Set<String> TYPES = Set.of(
             BillType.TRADE,
             BillType.SIGN_CUSTOMER,
@@ -26,9 +27,13 @@ public final class BillRequest {
             BillType.SETTLEMENT_MERGE
     );
 
+    /** 账单类型，必须属于 {@link BillType} 定义的范围。 */
     private final String billType;
+    /** 日账单日期；与 {@link #month} 严格二选一。 */
     private final @Nullable LocalDate date;
+    /** 月账单月份；与 {@link #date} 严格二选一。 */
     private final @Nullable YearMonth month;
+    /** 直付通二级商户 SMID，仅允许用于二级商户交易账单。 */
     private final @Nullable String smid;
 
     /**
@@ -99,9 +104,13 @@ public final class BillRequest {
 
     /** 对账单查询 fluent 构建器。 */
     public static final class Builder {
+        /** 构建期账单类型。 */
         private @Nullable String billType;
+        /** 构建期日账单日期。 */
         private @Nullable LocalDate date;
+        /** 构建期月账单月份。 */
         private @Nullable YearMonth month;
+        /** 构建期直付通二级商户 SMID。 */
         private @Nullable String smid;
 
         /** 创建空账单请求构建器。 */

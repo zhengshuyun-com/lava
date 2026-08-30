@@ -57,7 +57,11 @@ public final class NativePrepayRequest {
     /** 是否将订单标记为后续可能进行分账的订单。 */
     private final @Nullable Boolean profitSharing;
 
-    /** 使用构建期参数创建并校验 Native 下单请求。 */
+    /**
+     * 使用构建期参数创建并校验 Native 下单请求。
+     *
+     * @param builder 已收集下单业务参数的构建器
+     */
     private NativePrepayRequest(Builder builder) {
         // 1. 建立下单必填业务参数，保证最终请求可以关联本地订单。
         description = WechatPayValidationUtils.requireText(

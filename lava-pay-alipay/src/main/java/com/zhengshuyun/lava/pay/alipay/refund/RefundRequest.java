@@ -23,20 +23,33 @@ import java.util.Set;
  * 优先使用交易号。</p>
  */
 public final class RefundRequest {
+    /** 退款接口允许请求的扩展响应字段集合。 */
     private static final Set<String> OPTIONS = Set.of(
             RefundQueryOption.REFUND_DETAIL_ITEM_LIST,
             RefundQueryOption.DEPOSIT_BACK_INFO,
             RefundQueryOption.REFUND_VOUCHER_DETAIL_LIST);
 
+    /** 商户订单号；与支付宝交易号至少提供一个，同时存在时支付宝优先使用交易号。 */
     private final @Nullable String outTradeNo;
+    /** 支付宝交易号；与商户订单号至少提供一个，同时存在时该字段优先。 */
     private final @Nullable String tradeNo;
+    /** 本次退款金额，单位为分，取值范围为 1 至单笔支付金额上限。 */
     private final long refundAmount;
+    /** 商户退款请求号；同一笔退款重试或查询时必须保持不变，用于支付宝幂等控制。 */
     private final String outRequestNo;
+    /** 退款原因；可选，最长 256 个字符。 */
     private final @Nullable String reason;
+    /** 不可变退款商品明细；各明细退款金额之和不得超过本次退款金额。 */
     private final List<RefundGoodsDetail> goodsDetail;
+    /** 不可变扩展响应字段列表；默认请求银行卡冲退信息。 */
     private final List<String> queryOptions;
 
-    /** 使用构建期参数创建并校验退款请求。 */
+    /**
+     * 使用构建期参数创建并校验不可变退款请求。
+     *
+     * @param builder 已收集交易标识、退款金额、幂等请求号和可选退款明细的构建器
+     * @throws IllegalArgumentException 必填字段缺失、字段越界，或商品明细退款金额合计超过本次退款金额
+     */
     private RefundRequest(Builder builder) {
         ValidationUtils.requireTrue(builder.outTradeNo != null || builder.tradeNo != null,
                 "at least one of outTradeNo and tradeNo is required");
@@ -135,12 +148,19 @@ public final class RefundRequest {
 
     /** 退款请求 fluent 构建器。 */
     public static final class Builder {
+        /** 构建期商户订单号；与支付宝交易号至少配置一个。 */
         private @Nullable String outTradeNo;
+        /** 构建期支付宝交易号；与商户订单号同时配置时优先使用。 */
         private @Nullable String tradeNo;
+        /** 构建期退款金额，单位为分；未配置时构建失败。 */
         private @Nullable Long refundAmount;
+        /** 构建期退款幂等请求号；未配置时构建失败。 */
         private @Nullable String outRequestNo;
+        /** 构建期退款原因；可选，最长 256 个字符。 */
         private @Nullable String reason;
+        /** 构建期退款商品明细；默认为空，构建后复制为不可变列表。 */
         private final List<RefundGoodsDetail> goodsDetail = new ArrayList<>();
+        /** 构建期扩展响应字段集合；默认包含银行卡冲退信息并自动去重。 */
         private final Set<String> queryOptions = new LinkedHashSet<>(
                 Set.of(RefundQueryOption.DEPOSIT_BACK_INFO));
 

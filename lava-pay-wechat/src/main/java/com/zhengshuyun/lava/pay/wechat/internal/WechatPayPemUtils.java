@@ -39,7 +39,9 @@ import java.util.Locale;
  * 微信支付使用的 RSA PEM 和 X.509 商户证书解析工具。
  */
 public final class WechatPayPemUtils {
+    /** 单个 PEM 文本文件允许读取的最大大小，单位为字节。 */
     private static final int MAX_PEM_BYTES = 64 * 1024;
+    /** 微信支付签名与验签密钥允许的最小 RSA 模数位数。 */
     private static final int MIN_RSA_BITS = 2048;
 
     /** 禁止实例化微信支付 PEM 工具。 */
@@ -177,7 +179,12 @@ public final class WechatPayPemUtils {
         }
     }
 
-    /** 在大小限制内读取 ASCII PEM 文件。 */
+    /**
+     * 在大小限制内读取 ASCII PEM 文件。
+     *
+     * @param path 待读取的普通 PEM 文件路径
+     * @return 不超过 64 KiB 的 ASCII PEM 文本
+     */
     private static String readPem(Path path) {
         ValidationUtils.requireNonNull(path, "PEM path must not be null");
         try {
@@ -192,7 +199,12 @@ public final class WechatPayPemUtils {
         }
     }
 
-    /** 校验密钥算法和最小 RSA 位数。 */
+    /**
+     * 校验密钥使用 RSA 算法且模数不小于 2048 位。
+     *
+     * @param key 待校验的 JCA 密钥
+     * @param name 用于报错的配置项名称
+     */
     private static void requireRsaKey(java.security.Key key, String name) {
         ValidationUtils.requireTrue("RSA".equalsIgnoreCase(key.getAlgorithm()),
                 name + " must use RSA");

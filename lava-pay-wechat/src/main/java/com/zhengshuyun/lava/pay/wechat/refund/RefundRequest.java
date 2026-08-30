@@ -28,19 +28,40 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * 普通支付退款申请。
+ * 普通支付退款申请。微信支付订单号与商户订单号必须且只能配置一个，
+ * 金额均以人民币分为单位，构建失败时抛出 {@link IllegalArgumentException}。
  */
 public final class RefundRequest {
+    /** 微信支付订单号，最多 32 字符；与商户订单号二选一。 */
     private final @Nullable String transactionId;
+
+    /** 商户订单号，长度为 6–32 字符；与微信支付订单号二选一。 */
     private final @Nullable String outTradeNo;
+
+    /** 商户退款单号，必填且在商户号下唯一，最多 64 个允许字符。 */
     private final String outRefundNo;
+
+    /** 退款原因，可选，最多 80 个 UTF-8 字节。 */
     private final @Nullable String reason;
+
+    /** 退款结果通知地址，可选，必须是不超过 256 字符的公网 HTTPS 地址。 */
     private final @Nullable URI notifyUrl;
+
+    /** 退款出资账户，可选，仅支持 {@code AVAILABLE} 或 {@code UNSETTLED}。 */
     private final @Nullable String fundsAccount;
+
+    /** 本次退款与原订单金额信息，币种固定为人民币，单位为分。 */
     private final Amount amount;
+
+    /** 指定商品退款明细；未配置时为 {@code null}，各项退款金额之和不得超过本次退款额。 */
     private final @Nullable List<GoodsDetail> goodsDetail;
 
-    /** 使用构建期参数创建并校验退款申请。 */
+    /**
+     * 使用构建期参数创建并校验退款申请。
+     *
+     * @param builder 已收集退款参数的构建器
+     * @throws IllegalArgumentException 订单标识未二选一、必填参数缺失、金额越界或明细合计不合法时抛出
+     */
     private RefundRequest(Builder builder) {
         boolean hasTransactionId = builder.transactionId != null;
         boolean hasOutTradeNo = builder.outTradeNo != null;
@@ -179,15 +200,34 @@ public final class RefundRequest {
      * 退款请求构建器。
      */
     public static final class Builder {
+        /** 待使用的微信支付订单号；与商户订单号二选一，初始为 {@code null}。 */
         private @Nullable String transactionId;
+
+        /** 待使用的商户订单号；与微信支付订单号二选一，初始为 {@code null}。 */
         private @Nullable String outTradeNo;
+
+        /** 待提交的商户退款单号；必填，初始为 {@code null}。 */
         private @Nullable String outRefundNo;
+
+        /** 退款原因；可选，最多 80 个 UTF-8 字节。 */
         private @Nullable String reason;
+
+        /** 退款结果通知地址；可选，初始为 {@code null}。 */
         private @Nullable URI notifyUrl;
+
+        /** 退款出资账户；可选，仅接受 {@code AVAILABLE} 或 {@code UNSETTLED}。 */
         private @Nullable String fundsAccount;
+
+        /** 本次退款金额，单位为分；必填且必须大于 0。 */
         private @Nullable Long refund;
+
+        /** 原订单总金额，单位为分；必填、必须大于 0 且不小于退款金额。 */
         private @Nullable Long total;
+
+        /** 退款出资账户明细；默认为空，配置后账户不得重复且金额合计必须等于退款额。 */
         private final List<AmountFrom> amountFrom = new ArrayList<>();
+
+        /** 指定商品退款明细；默认为空，各项退款金额之和不得超过本次退款额。 */
         private final List<GoodsDetail> goodsDetail = new ArrayList<>();
 
         /** 创建空退款请求构建器。 */
@@ -318,6 +358,7 @@ public final class RefundRequest {
          * 校验并创建退款请求。
          *
          * @return 不可变退款请求
+         * @throws IllegalArgumentException 订单标识、必填参数、金额或明细不符合退款协议时抛出
          */
         public RefundRequest build() {
             return new RefundRequest(this);
@@ -327,10 +368,10 @@ public final class RefundRequest {
     /**
      * 退款金额信息。
      *
-     * @param refund 退款金额
-     * @param from 退款出资账户
-     * @param total 原订单金额
-     * @param currency 固定为 CNY
+     * @param refund 本次退款金额，单位为分，必须大于 0 且不超过原订单金额
+     * @param from 退款出资账户明细；未指定时为 {@code null}，指定时金额合计必须等于退款额
+     * @param total 原订单总金额，单位为分，必须大于 0
+     * @param currency 币种代码，固定为 {@code CNY}
      */
     public record Amount(
             @JsonProperty("refund") long refund,
@@ -339,7 +380,10 @@ public final class RefundRequest {
             @JsonProperty("currency") String currency
     ) {
         /**
-         * 校验退款金额、出资账户和币种。
+         * 校验退款金额、出资账户和币种，并防御性复制出资明细。
+         *
+         * @throws IllegalArgumentException 金额非正数、退款超额、币种不是人民币，
+         *                                  或出资账户重复、金额合计不等于退款额时抛出
          */
         public Amount {
             WechatPayValidationUtils.requirePositive(refund, "amount.refund");
@@ -370,14 +414,16 @@ public final class RefundRequest {
     /**
      * 退款出资账户及金额。
      *
-     * @param account 仅支持 AVAILABLE 或 UNAVAILABLE
+     * @param account 出资账户，仅支持 {@code AVAILABLE} 或 {@code UNAVAILABLE}
      * @param amount 出资金额，单位为分
      */
     public record AmountFrom(
             @JsonProperty("account") String account,
             @JsonProperty("amount") long amount) {
         /**
-         * 校验退款出资信息。
+         * 校验退款出资账户与正金额。
+         *
+         * @throws IllegalArgumentException 账户不受支持或金额不大于 0 时抛出
          */
         public AmountFrom {
             ValidationUtils.requireTrue(RefundFundsAccount.AVAILABLE.equals(account)
@@ -393,8 +439,8 @@ public final class RefundRequest {
      * @param merchantGoodsId 商户侧商品编码
      * @param wechatpayGoodsId 微信支付商品编码
      * @param goodsName 商品名称
-     * @param unitPrice 商品单价
-     * @param refundAmount 商品退款金额
+     * @param unitPrice 商品单价，单位为分，必须大于 0
+     * @param refundAmount 该商品退款金额，单位为分，必须大于 0
      * @param refundQuantity 商品退货数量
      */
     public record GoodsDetail(
@@ -407,7 +453,9 @@ public final class RefundRequest {
     ) {
 
         /**
-         * 校验指定商品退款信息。
+         * 校验指定商品的编码、名称、单价、退款额与退货数量。
+         *
+         * @throws IllegalArgumentException 编码或名称越界，或数值不大于 0 时抛出
          */
         public GoodsDetail {
             merchantGoodsId = WechatPayValidationUtils.requireMerchantGoodsId(

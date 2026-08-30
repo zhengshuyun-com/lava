@@ -31,9 +31,13 @@ import java.net.URI;
  * 普通支付交易查单和关单客户端。
  */
 public final class TransactionClient {
+    /** 按商户订单号查单及关单的 APIv3 路径前缀。 */
     private static final String OUT_TRADE_NO_PREFIX = "/v3/pay/transactions/out-trade-no";
+
+    /** 按微信支付订单号查单的 APIv3 路径前缀。 */
     private static final String TRANSACTION_ID_PREFIX = "/v3/pay/transactions/id";
 
+    /** 根客户端共享的签名传输层与关闭状态。 */
     private final WechatPayRuntime runtime;
 
     /**
@@ -92,7 +96,12 @@ public final class TransactionClient {
         transport.postNoContent(uri, new ClosePayload(transport.mchid()));
     }
 
-    /** 将查单响应商户号绑定到当前根客户端。 */
+    /**
+     * 将查单响应商户号绑定到当前根客户端，防止其他商户的已验签交易被误返回。
+     *
+     * @param transport 持有期望商户号的传输层
+     * @param transaction 已验签的查单响应
+     */
     private static void requireMchid(WechatPayTransport transport,
                                      Transaction transaction) {
         if (!transport.mchid().equals(transaction.mchid())) {
@@ -100,13 +109,23 @@ public final class TransactionClient {
         }
     }
 
-    /** 校验查单响应标识与请求目标一致。 */
+    /**
+     * 校验查单响应标识与请求目标一致。
+     *
+     * @param expected 请求路径中的商户订单号或微信支付订单号
+     * @param actual 已验签响应中的实际订单标识；协议缺失时为 {@code null}
+     */
     private static void requireIdentifier(String expected, @Nullable String actual) {
         if (!expected.equals(actual)) {
             throw new WechatPaySecurityException(WechatPaySecurityFailure.RESPONSE_MISMATCH);
         }
     }
 
+    /**
+     * 关单接口的最小请求载荷，用于将目标订单绑定到当前普通商户。
+     *
+     * @param mchid 当前根客户端配置的商户号
+     */
     private record ClosePayload(@JsonProperty("mchid") String mchid) {
     }
 }

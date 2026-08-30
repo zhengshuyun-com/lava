@@ -30,8 +30,17 @@ import java.util.regex.Pattern;
  * 微信支付公开模型共用的字段校验工具。
  */
 public final class WechatPayValidationUtils {
+    /**
+     * 微信支付协议使用的 {@code OUT_TRADE_NO} 常量。
+     */
     private static final Pattern OUT_TRADE_NO = Pattern.compile("[0-9A-Za-z_\\-|*]{6,32}");
+    /**
+     * 微信支付协议使用的 {@code OUT_REFUND_NO} 常量。
+     */
     private static final Pattern OUT_REFUND_NO = Pattern.compile("[0-9A-Za-z_\\-|*@]{1,64}");
+    /**
+     * 微信支付协议使用的 {@code MERCHANT_GOODS_ID} 常量。
+     */
     private static final Pattern MERCHANT_GOODS_ID = Pattern.compile("[0-9A-Za-z_-]{1,32}");
 
     /** 禁止实例化微信支付校验工具。 */
@@ -337,7 +346,12 @@ public final class WechatPayValidationUtils {
         return value.getBytes(StandardCharsets.UTF_8).length;
     }
 
-    /** 判断主机文本是否为 IPv4 或 IPv6 字面量。 */
+    /**
+     * 判断主机文本是否为可直接解析的 IPv4 或 IPv6 字面量，方括号包裹的 IPv6 地址也受支持。
+     *
+     * @param host 待判断的 URI 主机文本
+     * @return 能按 IP 字面量解析时返回 {@code true}；域名或非法地址返回 {@code false}
+     */
     private static boolean isIpLiteral(String host) {
         String candidate = host.startsWith("[") && host.endsWith("]")
                 ? host.substring(1, host.length() - 1) : host;
@@ -349,7 +363,12 @@ public final class WechatPayValidationUtils {
         }
     }
 
-    /** 判断主机名是否为本地环回地址。 */
+    /**
+     * 判断主机名是否为允许在测试网关中使用的本地环回地址。
+     *
+     * @param host 待判断的 URI 主机文本
+     * @return 主机为 {@code localhost}、IPv4 环回或 IPv6 环回字面量时返回 {@code true}
+     */
     private static boolean isLoopbackHost(String host) {
         return "localhost".equalsIgnoreCase(host)
                 || "127.0.0.1".equals(host)

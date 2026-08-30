@@ -28,6 +28,9 @@ import java.io.Serial;
  * 避免日志框架自动打印异常时泄露业务输入。</p>
  */
 public final class WechatPayApiException extends WechatPayException {
+    /**
+     * Java 序列化版本标识。
+     */
     @Serial
     private static final long serialVersionUID = 1L;
 
@@ -114,7 +117,14 @@ public final class WechatPayApiException extends WechatPayException {
         return requestId;
     }
 
-    /** 构造不包含响应业务值的安全异常文本。 */
+    /**
+     * 构造不包含响应业务值的安全异常文本。
+     *
+     * @param statusCode HTTP 响应状态码
+     * @param code 微信支付错误码；缺失时在文本中替换为 {@code UNKNOWN}
+     * @param requestId 可选的微信支付请求标识
+     * @return 可安全记录的异常消息
+     */
     private static String format(int statusCode, String code, @Nullable String requestId) {
         StringBuilder message = new StringBuilder("微信支付 API 调用失败: status=")
                 .append(statusCode)

@@ -43,13 +43,23 @@ import java.util.Set;
  * 业务幂等、持久化和异步处理不由本工具包负责。</p>
  */
 public final class NotificationParser {
+    /** 单个通知原始正文允许的最大大小，单位为字节。 */
     private static final int MAX_NOTIFICATION_BYTES = 2 * 1024 * 1024;
+
+    /** 本解析器支持的通知资源类型，表示业务资源需要 AES-GCM 解密。 */
     private static final String RESOURCE_TYPE = "encrypt-resource";
+
+    /** 支付成功通知的唯一支持事件类型。 */
     private static final String TRANSACTION_EVENT = "TRANSACTION.SUCCESS";
+
+    /** 退款通知允许的成功、异常和关闭事件类型。 */
     private static final Set<String> REFUND_EVENTS = Set.of(
             "REFUND.SUCCESS", "REFUND.ABNORMAL", "REFUND.CLOSED");
 
+    /** 根客户端共享的验签、解密能力与关闭状态。 */
     private final WechatPayRuntime runtime;
+
+    /** 验签后的通知信封与解密业务资源使用的 JSON 编解码器。 */
     private final JsonCodec jsonCodec = JsonCodec.defaultCodec();
 
     /**
@@ -161,7 +171,14 @@ public final class NotificationParser {
         }
     }
 
-    /** 验证原始消息并解析出字段完整的通知信封。 */
+    /**
+     * 验证原始消息并解析出字段完整的通知信封。
+     *
+     * @param transport 当前根客户端的验签传输层
+     * @param headers 未修改的通知请求头
+     * @param body 未修改的通知正文字节，大小必须在 1 字节至 2 MiB 之间
+     * @return 已验签且必填字段完整的通知信封
+     */
     private VerifiedEnvelope verifiedEnvelope(WechatPayTransport transport,
                                               HttpHeaders headers,
                                               byte[] body) {
@@ -193,7 +210,13 @@ public final class NotificationParser {
         );
     }
 
-    /** 校验通知事件、资源类型和业务资源原始类型。 */
+    /**
+     * 校验通知事件、资源类型和业务资源原始类型。
+     *
+     * @param envelope 已验签的通知信封
+     * @param eventType 当前解析入口期望的事件类型
+     * @param originalType 当前解析入口期望的解密资源类型
+     */
     private static void requireEnvelope(VerifiedEnvelope envelope, String eventType,
                                         String originalType) {
         if (!eventType.equals(envelope.eventType())) {
@@ -207,7 +230,13 @@ public final class NotificationParser {
         }
     }
 
-    /** 解密已经完成类型校验的通知资源。 */
+    /**
+     * 解密已经完成类型校验的通知资源。
+     *
+     * @param transport 提供 APIv3 密钥和 AES-GCM 解密能力的传输层
+     * @param resource 已校验必填字段的加密资源
+     * @return 待解析的 UTF-8 JSON 明文字节，由调用方负责清零
+     */
     private static byte[] decrypt(WechatPayTransport transport,
                                   VerifiedResource resource) {
         // 3. 仅在信封类型校验通过后解密，并由 AES-GCM 认证标签验证密文完整性。
@@ -219,7 +248,12 @@ public final class NotificationParser {
         );
     }
 
-    /** 将解密资源中的商户号绑定到当前根客户端。 */
+    /**
+     * 将解密资源中的商户号绑定到当前根客户端。
+     *
+     * @param transport 持有期望商户号的传输层
+     * @param actualMchid 解密业务资源中的实际商户号
+     */
     private static void requireMchid(WechatPayTransport transport,
                                      String actualMchid) {
         if (!transport.mchid().equals(actualMchid)) {
@@ -227,14 +261,23 @@ public final class NotificationParser {
         }
     }
 
-    /** 校验支付成功通知确实承载 SUCCESS 交易。 */
+    /**
+     * 校验支付成功通知确实承载 {@code SUCCESS} 交易。
+     *
+     * @param transaction 解密并解析得到的交易模型
+     */
     private static void requireSuccessfulTransaction(Transaction transaction) {
         if (!TradeState.SUCCESS.equals(transaction.tradeState())) {
             throw new WechatPayProtocolException("支付成功通知的 tradeState 必须为 SUCCESS");
         }
     }
 
-    /** 校验退款事件类型与解密资源状态一致。 */
+    /**
+     * 校验退款事件类型与解密资源状态一致，并要求成功事件携带成功时间。
+     *
+     * @param eventType 已验签通知信封中的退款事件类型
+     * @param refund 解密并解析得到的退款资源
+     */
     private static void requireRefundStatus(String eventType,
                                             RefundNotification.Resource refund) {
         String expectedStatus = eventType.substring("REFUND.".length());
@@ -246,7 +289,15 @@ public final class NotificationParser {
         }
     }
 
-    /** 将已验证字节严格解码为指定通知模型。 */
+    /**
+     * 将已验证字节严格解码为指定通知模型，统一隐藏 JSON 底层解析细节。
+     *
+     * @param body 已验签的信封字节或已认证的解密明文
+     * @param type 目标通知模型类型
+     * @param failureMessage JSON 格式不符合预期时的安全错误文本
+     * @param <T> 目标模型类型
+     * @return 非空的通知模型
+     */
     private <T> T read(byte[] body, Class<T> type, String failureMessage) {
         try {
             T result = jsonCodec.read(body, type);
@@ -259,7 +310,13 @@ public final class NotificationParser {
         }
     }
 
-    /** 读取通知中的必填文本字段。 */
+    /**
+     * 读取通知中的必填非空白文本字段。
+     *
+     * @param value JSON 映射得到的可空文本
+     * @param field 用于协议报错的字段路径
+     * @return 非空白的原文本
+     */
     private static String requireText(@Nullable String value, String field) {
         if (value == null || value.isBlank()) {
             throw new WechatPayProtocolException("微信支付通知缺少必填字段 " + field);
@@ -267,7 +324,14 @@ public final class NotificationParser {
         return value;
     }
 
-    /** 读取通知中的必填对象字段。 */
+    /**
+     * 读取通知中的必填对象字段。
+     *
+     * @param value JSON 映射得到的可空对象
+     * @param field 用于协议报错的字段路径
+     * @param <T> 字段类型
+     * @return 非空的原对象
+     */
     private static <T> T requireField(@Nullable T value, String field) {
         if (value == null) {
             throw new WechatPayProtocolException("微信支付通知缺少必填字段 " + field);
@@ -275,36 +339,61 @@ public final class NotificationParser {
         return value;
     }
 
+    /**
+     * 承载尚未完成字段校验的通知信封 JSON；仅在原始消息验签通过后解析。
+     */
     @JsonIgnoreProperties(ignoreUnknown = true)
     private static final class NotificationEnvelope {
+        /** 通知唯一标识；JSON 缺失时为 {@code null}，后续校验将拒绝。 */
         @JsonProperty("id")
         public @Nullable String id;
+        /** 通知创建时间；JSON 缺失或无法解析时不会进入业务处理。 */
         @JsonProperty("create_time")
         public @Nullable OffsetDateTime createTime;
+        /** 通知事件类型，用于选择支付或退款解析分支。 */
         @JsonProperty("event_type")
         public @Nullable String eventType;
+        /** 通知资源类型，本解析器仅接受 {@code encrypt-resource}。 */
         @JsonProperty("resource_type")
         public @Nullable String resourceType;
+        /** 微信支付返回的通知摘要，缺失或空白时拒绝通知。 */
         @JsonProperty("summary")
         public @Nullable String summary;
+        /** 待校验类型并解密的加密业务资源；缺失时拒绝通知。 */
         @JsonProperty("resource")
         public @Nullable EncryptedResource resource;
     }
 
+    /** 承载通知信封内尚未验证和解密的 AES-GCM 资源字段。 */
     @JsonIgnoreProperties(ignoreUnknown = true)
     private static final class EncryptedResource {
+        /** 资源加密算法，必须为 {@code AEAD_AES_256_GCM}。 */
         @JsonProperty("algorithm")
         public @Nullable String algorithm;
+        /** Base64 编码的业务资源密文与 GCM 认证标签。 */
         @JsonProperty("ciphertext")
         public @Nullable String ciphertext;
+        /** GCM 认证使用的可选附加数据；JSON 缺失时为 {@code null}。 */
         @JsonProperty("associated_data")
         public @Nullable String associatedData;
+        /** 解密后的业务资源类型，必须与当前解析入口一致。 */
         @JsonProperty("original_type")
         public @Nullable String originalType;
+        /** AES-GCM 解密使用的随机串；缺失或空白时拒绝通知。 */
         @JsonProperty("nonce")
         public @Nullable String nonce;
     }
 
+    /**
+     * 已完成原始消息验签与必填字段校验的不可变通知信封。
+     *
+     * @param id 通知唯一标识
+     * @param createTime 通知创建时间
+     * @param eventType 用于通知路由的事件类型
+     * @param resourceType 资源封装类型，必须为 {@code encrypt-resource}
+     * @param summary 微信支付提供的通知摘要
+     * @param resource 已校验必填字段的加密资源
+     */
     private record VerifiedEnvelope(
             String id,
             OffsetDateTime createTime,
@@ -315,6 +404,15 @@ public final class NotificationParser {
     ) {
     }
 
+    /**
+     * 已完成必填字段校验、尚未解密的不可变通知资源。
+     *
+     * @param algorithm 加密算法，解密层仅接受 {@code AEAD_AES_256_GCM}
+     * @param ciphertext Base64 编码的密文与 GCM 认证标签
+     * @param associatedData GCM 认证使用的可选附加数据
+     * @param originalType 解密后的业务资源类型
+     * @param nonce AES-GCM 解密使用的随机串
+     */
     private record VerifiedResource(
             String algorithm,
             String ciphertext,

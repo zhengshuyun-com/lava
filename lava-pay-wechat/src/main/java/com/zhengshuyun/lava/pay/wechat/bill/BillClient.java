@@ -41,9 +41,13 @@ import java.util.zip.GZIPInputStream;
  * 微信支付交易账单、资金账单申请与安全下载客户端。
  */
 public final class BillClient {
+    /** 申请交易账单下载信息的 APIv3 固定路径。 */
     private static final String TRADE_BILL_PATH = "/v3/bill/tradebill";
+
+    /** 申请资金账单下载信息的 APIv3 固定路径。 */
     private static final String FUND_FLOW_BILL_PATH = "/v3/bill/fundflowbill";
 
+    /** 根客户端共享的签名传输层与关闭状态。 */
     private final WechatPayRuntime runtime;
 
     /**
@@ -202,20 +206,37 @@ public final class BillClient {
                 "billDate must be within the last 3 months");
     }
 
+    /**
+     * 承载申请账单接口返回的下载元数据，转为公开模型前校验必填字段。
+     *
+     * @param hashType 文件摘要算法，当前微信支付固定返回 {@code SHA1}
+     * @param hashValue 账单原文的 40 位十六进制 SHA-1 摘要
+     * @param downloadUrl 带短时效下载令牌的账单地址，不得记录到日志
+     */
     @JsonIgnoreProperties(ignoreUnknown = true)
     private record BillInfoPayload(
             @JsonProperty("hash_type") String hashType,
             @JsonProperty("hash_value") String hashValue,
             @JsonProperty("download_url") URI downloadUrl) {
 
-        /** 校验微信支付返回的账单下载元数据。 */
+        /**
+         * 校验微信支付返回的账单下载元数据。
+         *
+         * @throws IllegalArgumentException 摘要类型、摘要值或下载地址缺失时抛出
+         */
         private BillInfoPayload {
             ValidationUtils.requireNotBlank(hashType, "hashType must not be blank");
             ValidationUtils.requireNotBlank(hashValue, "hashValue must not be blank");
             ValidationUtils.requireNonNull(downloadUrl, "downloadUrl must not be null");
         }
 
-        /** 将内部响应映射为会隐藏下载令牌的公开模型。 */
+        /**
+         * 将内部响应映射为会在文本表示中隐藏下载令牌的公开模型。
+         *
+         * @param tarType 申请账单时指定的压缩类型；未指定时为 {@code null}
+         * @return 校验通过的账单下载信息
+         * @throws WechatPayProtocolException 响应字段不符合账单下载协议时抛出
+         */
         private BillDownloadInfo toPublic(@Nullable BillTarType tarType) {
             try {
                 return new BillDownloadInfo(

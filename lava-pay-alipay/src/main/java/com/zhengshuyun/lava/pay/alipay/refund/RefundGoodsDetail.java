@@ -16,13 +16,23 @@ import java.util.List;
  * 单个退款商品明细。
  */
 public final class RefundGoodsDetail {
+    /** 商户商品编号；必填，最长 32 个字符。 */
     private final String goodsId;
+    /** 该商品的退款金额，单位为分，取值范围为 1 至 999999999。 */
     private final long refundAmount;
+    /** 商家小程序商品 ID；可选，最长 64 个字符。 */
     private final @Nullable String outItemId;
+    /** 商家小程序 SKU ID；可选，最长 64 个字符。 */
     private final @Nullable String outSkuId;
+    /** 不可变外部凭证编号列表；每个编号最长 128 个字符。 */
     private final List<String> outCertificateNos;
 
-    /** 使用构建期参数创建并校验退款商品明细。 */
+    /**
+     * 使用构建期参数创建并校验不可变退款商品明细。
+     *
+     * @param builder 已收集商品编号、退款金额和可选外部商品信息的构建器
+     * @throws IllegalArgumentException 商品编号或退款金额缺失，或任一字段超过支付宝约束
+     */
     private RefundGoodsDetail(Builder builder) {
         goodsId = AlipayValidationUtils.requireIdentifier(builder.goodsId, "goodsId", 32);
         refundAmount = AlipayValidationUtils.requirePositiveAmount(
@@ -91,10 +101,15 @@ public final class RefundGoodsDetail {
 
     /** 退款商品 fluent 构建器。 */
     public static final class Builder {
+        /** 构建期商户商品编号；未配置时构建失败。 */
         private @Nullable String goodsId;
+        /** 构建期商品退款金额，单位为分；未配置时构建失败。 */
         private @Nullable Long refundAmount;
+        /** 构建期商家小程序商品 ID；可选。 */
         private @Nullable String outItemId;
+        /** 构建期商家小程序 SKU ID；可选。 */
         private @Nullable String outSkuId;
+        /** 构建期外部凭证编号列表；默认为空，构建后复制为不可变列表。 */
         private final List<String> outCertificateNos = new ArrayList<>();
 
         /** 创建空退款商品构建器。 */

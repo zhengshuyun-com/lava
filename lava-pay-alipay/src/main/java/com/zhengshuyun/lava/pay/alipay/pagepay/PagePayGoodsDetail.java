@@ -15,17 +15,31 @@ import java.net.URI;
  * 电脑网站支付订单中的单个商品明细。
  */
 public final class PagePayGoodsDetail {
+    /** 商户侧商品编号，最长 64 个字符。 */
     private final String goodsId;
+    /** 商品名称，最长 256 个 Unicode 字符。 */
     private final String goodsName;
+    /** 商品数量，必须大于零。 */
     private final long quantity;
+    /** 商品单价，单位为分，必须大于零。 */
     private final long price;
+    /** 可选支付宝商品编号，最长 32 个字符。 */
     private final @Nullable String alipayGoodsId;
+    /** 可选商品类目，最长 24 个字符。 */
     private final @Nullable String goodsCategory;
+    /** 可选商品类目树，最长 128 个字符。 */
     private final @Nullable String categoriesTree;
+    /** 可选商品说明，最长 400 个字符。 */
     private final @Nullable String body;
+    /** 可选商品展示地址，必须是最长 400 字符的绝对 HTTP 或 HTTPS URI。 */
     private final @Nullable URI showUrl;
 
-    /** 使用构建期参数创建并校验商品明细。 */
+    /**
+     * 使用构建期参数创建并校验不可变商品明细。
+     *
+     * @param builder 已收集必填商品标识、名称、数量、价格及可选扩展字段的构建器
+     * @throws IllegalArgumentException 必填字段缺失，文本、数量、价格或展示地址不符合支付宝约束
+     */
     private PagePayGoodsDetail(Builder builder) {
         goodsId = AlipayValidationUtils.requireIdentifier(builder.goodsId,
                 "goodsId", 64);
@@ -153,14 +167,23 @@ public final class PagePayGoodsDetail {
      * 商品明细 fluent 构建器。
      */
     public static final class Builder {
+        /** 构建期商户商品编号；构建前必须配置。 */
         private @Nullable String goodsId;
+        /** 构建期商品名称；构建前必须配置。 */
         private @Nullable String goodsName;
+        /** 构建期商品数量；构建前必须配置且大于零。 */
         private @Nullable Long quantity;
+        /** 构建期商品单价，单位为分；构建前必须配置。 */
         private @Nullable Long price;
+        /** 构建期可选支付宝商品编号。 */
         private @Nullable String alipayGoodsId;
+        /** 构建期可选商品类目。 */
         private @Nullable String goodsCategory;
+        /** 构建期可选商品类目树。 */
         private @Nullable String categoriesTree;
+        /** 构建期可选商品说明。 */
         private @Nullable String body;
+        /** 构建期可选商品展示地址。 */
         private @Nullable URI showUrl;
 
         /** 创建空商品明细构建器。 */

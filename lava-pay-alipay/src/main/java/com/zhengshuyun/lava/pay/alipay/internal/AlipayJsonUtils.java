@@ -13,6 +13,7 @@ import com.zhengshuyun.lava.json.JsonMapperFactory;
  * 支付宝协议共享 JSON 编解码器。
  */
 public final class AlipayJsonUtils {
+    /** 忽略空值字段的线程安全共享 JSON 编解码器。 */
     private static final JsonCodec CODEC = new JsonCodec(JsonMapperFactory.builder()
             .customize(builder -> builder.changeDefaultPropertyInclusion(
                     inclusion -> inclusion.withValueInclusion(JsonInclude.Include.NON_NULL)))

@@ -33,21 +33,59 @@ import java.util.regex.Pattern;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * 验证微信支付 APIv3 客户端的请求签名、响应验签、业务映射和资源生命周期。
+ */
 class WechatPayClientTest {
+    /**
+     * 用于生成可重复请求签名和响应时效校验的固定 UTC 时钟。
+     */
     private static final Clock CLOCK = Clock.fixed(
             Instant.parse("2026-08-29T00:00:00Z"), ZoneOffset.UTC);
+    /**
+     * 测试请求和响应对账使用的固定商户号。
+     */
     private static final String MCHID = "1900000109";
+    /**
+     * Native 支付应用上下文注入的固定应用 ID。
+     */
     private static final String APPID = "wx1234567890";
+    /**
+     * 构建客户端使用的 32 字节 APIv3 密钥字符串。
+     */
     private static final String API_V3_KEY = "0123456789abcdef0123456789abcdef";
+    /**
+     * 用于精确重建并校验请求签名串的固定随机串。
+     */
     private static final String REQUEST_NONCE = "0123456789abcdef0123456789abcdef";
+    /**
+     * 从 HTTP Authorization 头中提取 Base64 签名值的正则表达式。
+     */
     private static final Pattern SIGNATURE = Pattern.compile("signature=\"([^\"]+)\"");
 
+    /**
+     * 客户端请求签名和测试断言验签使用的商户 RSA 密钥对。
+     */
     private static KeyPair merchantKeys;
+    /**
+     * 模拟响应签名和客户端验签使用的微信支付 RSA 密钥对。
+     */
     private static KeyPair wechatKeys;
 
+    /**
+     * 每个测试独占的本地微信支付协议模拟服务端。
+     */
     private WechatPayTestServer server;
+    /**
+     * 指向本地模拟服务端的待测微信支付根客户端。
+     */
     private WechatPayClient client;
 
+    /**
+     * 为全部客户端测试生成一次性 RSA 2048 位商户密钥和微信支付密钥。
+     *
+     * @throws Exception 当当前 JCA 环境无法创建 RSA 密钥生成器时抛出
+     */
     @BeforeAll
     static void generateKeys() throws Exception {
         KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
@@ -56,12 +94,20 @@ class WechatPayClientTest {
         wechatKeys = generator.generateKeyPair();
     }
 
+    /**
+     * 在每个测试前启动独立模拟服务端，并构建具有固定时钟和随机串的待测客户端。
+     */
     @BeforeEach
     void setUp() {
         server = WechatPayTestServer.start(wechatKeys.getPrivate(), CLOCK);
         client = clientBuilder().build();
     }
 
+    /**
+     * 创建已填充完整商户凭据、本地 API 地址和确定性协议参数的客户端 Builder。
+     *
+     * @return 尚未执行构建、可由单个测试继续定制的 Builder
+     */
     private WechatPayClient.Builder clientBuilder() {
         return WechatPayClient.builder()
                 .mchid(MCHID)
@@ -75,12 +121,18 @@ class WechatPayClientTest {
                 .nonceSupplier(() -> REQUEST_NONCE);
     }
 
+    /**
+     * 在每个测试后关闭待测客户端和本地模拟服务端。
+     */
     @AfterEach
     void tearDown() {
         client.close();
         server.close();
     }
 
+    /**
+     * 验证 Native 预支付自动注入应用 ID、商户号和通知地址，并对实际发送的 JSON 正文精确签名。
+     */
     @Test
     void nativePrepayInjectsApplicationConfigurationAndSignsExactBody() {
         server.enqueueSigned(200,
@@ -119,6 +171,9 @@ class WechatPayClientTest {
                 captured.header("Wechatpay-Serial"));
     }
 
+    /**
+     * 验证商户订单号查询和关单分别使用官方 APIv3 路径、HTTP 方法和商户号参数。
+     */
     @Test
     void transactionQueryAndCloseUseOfficialPaths() {
         String transaction = """
@@ -144,6 +199,9 @@ class WechatPayClientTest {
         assertTrue(verifyRequestSignature(close));
     }
 
+    /**
+     * 验证微信支付订单号查询使用官方路径，并将返回交易映射为统一领域模型。
+     */
     @Test
     void transactionIdQueryUsesOfficialPath() {
         server.enqueueSigned(200, """
@@ -168,6 +226,9 @@ class WechatPayClientTest {
         assertTrue(verifyRequestSignature(query));
     }
 
+    /**
+     * 验证退款申请和查询共用强类型退款模型，保留状态、金额和商户业务标识。
+     */
     @Test
     void refundApplyAndQueryShareTypedRefundModel() {
         String refund = refundJson();
@@ -210,6 +271,9 @@ class WechatPayClientTest {
                 server.takeRequest().target());
     }
 
+    /**
+     * 验证已验签的 API 错误被解析为结构化异常，保留错误码、请求 ID 和字段信息，但不泄露原始响应。
+     */
     @Test
     void signedApiErrorIsStructuredAndRawBodyIsNotInExceptionText() {
         server.enqueueSigned(400, """
@@ -228,6 +292,9 @@ class WechatPayClientTest {
         assertFalse(failure.toString().contains("secret-value"));
     }
 
+    /**
+     * 验证响应公钥 ID 与配置不匹配时关闭失败，不使用未信任密钥继续验签。
+     */
     @Test
     void responseWithUnexpectedPublicKeyIdFailsClosed() {
         server.enqueueSigned(
@@ -251,6 +318,9 @@ class WechatPayClientTest {
                 failure.failure());
     }
 
+    /**
+     * 验证响应签名不能由已配置微信支付公钥通过时关闭失败。
+     */
     @Test
     void responseWithInvalidSignatureFailsClosed() {
         server.enqueueSigned(
@@ -273,6 +343,9 @@ class WechatPayClientTest {
         assertEquals(WechatPaySecurityFailure.INVALID_SIGNATURE, failure.failure());
     }
 
+    /**
+     * 验证签名正确但成功响应 JSON 结构非法时抛出协议异常，而非安全或 API 异常。
+     */
     @Test
     void signedMalformedSuccessResponseUsesProtocolException() {
         server.enqueueSigned(200, "{}");
@@ -286,6 +359,9 @@ class WechatPayClientTest {
                                 .build()));
     }
 
+    /**
+     * 验证 HTTP 202 只表示请求已受理，不得将其载荷视为最终交易成功结果。
+     */
     @Test
     void acceptedResponseIsNotTreatedAsFinalSuccess() {
         server.enqueueSigned(
@@ -305,6 +381,9 @@ class WechatPayClientTest {
         );
     }
 
+    /**
+     * 验证退款状态为 {@code SUCCESS} 时必须同时返回成功时间，否则视为协议错误。
+     */
     @Test
     void successfulRefundRequiresSuccessTime() {
         server.enqueueSigned(
@@ -321,6 +400,9 @@ class WechatPayClientTest {
         );
     }
 
+    /**
+     * 验证交易查询响应中的商户号与客户端配置不一致时以安全异常拒绝。
+     */
     @Test
     void transactionQueryRejectsResponseForAnotherMerchant() {
         server.enqueueSigned(200, """
@@ -336,6 +418,9 @@ class WechatPayClientTest {
                 failure.failure());
     }
 
+    /**
+     * 验证交易和退款响应的商户订单号、商户退款号必须与本次请求一致。
+     */
     @Test
     void transactionAndRefundResponsesMustMatchRequestedBusinessIdentifiers() {
         server.enqueueSigned(200, """
@@ -365,6 +450,9 @@ class WechatPayClientTest {
                 refundFailure.failure());
     }
 
+    /**
+     * 验证关闭微信支付客户端不会关闭由调用方注入的 HTTP 客户端。
+     */
     @Test
     void closingWechatClientDoesNotCloseBorrowedHttpClient() {
         client.close();
@@ -388,6 +476,9 @@ class WechatPayClientTest {
         }
     }
 
+    /**
+     * 验证请求 Builder 拒绝歧义交易标识、重复商品和溢出分账金额等非法组合。
+     */
     @Test
     void requestBuildersRejectAmbiguousIdentifiersAndOverflowingContributions() {
         assertThrows(IllegalArgumentException.class, () -> RefundRequest.builder()
@@ -442,6 +533,9 @@ class WechatPayClientTest {
                         .build());
     }
 
+    /**
+     * 验证客户端 Builder 构建失败后清除私钥等敏感配置，构建成功后拒绝再次使用。
+     */
     @Test
     void clientBuilderClearsSecretsAfterFailureAndRejectsReuseAfterSuccess() {
         WechatPayClient.Builder incomplete = WechatPayClient.builder()
@@ -466,6 +560,9 @@ class WechatPayClientTest {
         }
     }
 
+    /**
+     * 验证根客户端关闭后，关闭前取得的交易、退款、账单、通知和 Native 支付入口均拒绝继续工作。
+     */
     @Test
     void closedClientRejectsExistingEntryObjects() {
         var transactions = client.transactions();
@@ -486,6 +583,12 @@ class WechatPayClientTest {
         assertThrows(IllegalStateException.class, () -> nativePay.prepay(null));
     }
 
+    /**
+     * 按 APIv3 规则重建请求签名串，并使用商户公钥校验 Authorization 中的签名。
+     *
+     * @param request 模拟服务端捕获的实际 HTTP 请求
+     * @return 签名能否由测试商户公钥验证通过
+     */
     private static boolean verifyRequestSignature(
             WechatPayTestServer.CapturedRequest request) {
         String authorization = request.header("Authorization");
@@ -501,6 +604,11 @@ class WechatPayClientTest {
                 message.getBytes(StandardCharsets.UTF_8), signature);
     }
 
+    /**
+     * 返回退款申请和查询测试共用的处理中退款 JSON。
+     *
+     * @return 包含订单标识、退款标识和分单位金额的官方响应示例
+     */
     private static String refundJson() {
         return """
                 {"refund_id":"5000000001","out_refund_no":"REFUND_001",

@@ -24,10 +24,13 @@ import java.util.Map;
  * 支付宝 OpenAPI V3 对账单下载地址查询客户端。
  */
 public final class BillClient {
+    /** 查询对账单下载地址的 OpenAPI V3 固定路径。 */
     private static final String QUERY_PATH =
             "/v3/alipay/data/dataservice/bill/downloadurl/query";
+    /** 汇总结算账单支持查询的最早业务日期。 */
     private static final LocalDate SETTLEMENT_MERGE_START = LocalDate.of(2023, 4, 17);
 
+    /** 根客户端共享的 V3 传输层和关闭状态。 */
     private final AlipayRuntime runtime;
 
     /**
@@ -147,6 +150,12 @@ public final class BillClient {
         return uri;
     }
 
+    /**
+     * 对账单下载地址接口的原始响应载荷，验签后才允许映射为公开模型。
+     *
+     * @param downloadUrl 临时下载地址，最长 2048 字符；没有可下载账单时可能为 {@code null}
+     * @param fileCode    账单文件状态码；支付宝未返回时为 {@code null}
+     */
     @JsonIgnoreProperties(ignoreUnknown = true)
     private record Payload(
             @JsonProperty("bill_download_url") @Nullable String downloadUrl,

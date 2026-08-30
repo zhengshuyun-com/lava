@@ -56,7 +56,13 @@ public final class WechatPayCryptoUtils {
     public static final String HEADER_SIGNATURE_TYPE = "Wechatpay-Signature-Type";
     /** 微信支付服务端请求标识响应头。 */
     public static final String HEADER_REQUEST_ID = "Request-ID";
+    /**
+     * 协议允许的 {@code MAX_TIMESTAMP_SKEW_SECONDS} 最大边界。
+     */
     private static final long MAX_TIMESTAMP_SKEW_SECONDS = 5 * 60L;
+    /**
+     * 微信支付协议使用的 {@code RANDOM} 常量。
+     */
     private static final SecureRandom RANDOM = new SecureRandom();
 
     /** 禁止实例化微信支付密码学工具。 */
@@ -258,7 +264,14 @@ public final class WechatPayCryptoUtils {
         return uri.getRawQuery() == null ? path : path + '?' + uri.getRawQuery();
     }
 
-    /** 使用商户私钥生成 RSA-SHA256 签名。 */
+    /**
+     * 使用商户私钥为已按微信支付规则拼接的原文生成 RSA-SHA256 签名。
+     *
+     * @param privateKey 商户 API 证书对应的 RSA 私钥
+     * @param message    待签名原文字节；内容必须与最终发送请求完全一致
+     * @return 原始 RSA 签名字节，调用方可继续进行 Base64 编码
+     * @throws WechatPayProtocolException 私钥算法不受支持或底层签名运算失败
+     */
     private static byte[] sign(PrivateKey privateKey, byte[] message) {
         try {
             return CryptoUtils.rsaSha256Sign(privateKey, message);
@@ -267,7 +280,16 @@ public final class WechatPayCryptoUtils {
         }
     }
 
-    /** 构造微信支付五行请求签名原文。 */
+    /**
+     * 按 HTTP 方法、请求目标、时间戳、随机串和正文构造微信支付五行请求签名原文。
+     *
+     * @param method    最终发送的 HTTP 方法名称
+     * @param target    最终 URI 的原始路径及可选查询串
+     * @param timestamp Unix 时间戳，单位为秒
+     * @param nonce     本次请求使用的随机串
+     * @param body      最终发送的原始请求正文字节；无正文时传入空数组
+     * @return 以换行符分隔四行元数据并追加原始正文和结尾换行符的签名字节
+     */
     private static byte[] requestMessage(
             String method,
             String target,
@@ -284,12 +306,28 @@ public final class WechatPayCryptoUtils {
         );
     }
 
-    /** 构造微信支付三行响应验签原文。 */
+    /**
+     * 按时间戳、随机串和原始响应正文构造微信支付三行响应验签原文。
+     *
+     * @param timestamp 微信支付响应签名时间戳文本
+     * @param nonce     微信支付响应签名随机串
+     * @param body      未经解析或重新编码的原始响应正文字节
+     * @return 以换行符分隔两行元数据并追加原始正文和结尾换行符的验签字节
+     */
     private static byte[] responseMessage(String timestamp, String nonce, byte[] body) {
         return lines(timestamp, nonce, body);
     }
 
-    /** 拼接四行元数据和原始正文。 */
+    /**
+     * 以 UTF-8 和换行符顺序拼接四行签名元数据及原始正文。
+     *
+     * @param first  第一行元数据
+     * @param second 第二行元数据
+     * @param third  第三行元数据
+     * @param fourth 第四行元数据
+     * @param body   不做字符集转换的原始正文字节
+     * @return 包含四行元数据、正文和结尾换行符的新字节数组
+     */
     private static byte[] lines(
             String first,
             String second,
@@ -307,7 +345,14 @@ public final class WechatPayCryptoUtils {
         return output.toByteArray();
     }
 
-    /** 拼接两行元数据和原始正文。 */
+    /**
+     * 以 UTF-8 和换行符顺序拼接两行签名元数据及原始正文。
+     *
+     * @param first  第一行元数据
+     * @param second 第二行元数据
+     * @param body   不做字符集转换的原始正文字节
+     * @return 包含两行元数据、正文和结尾换行符的新字节数组
+     */
     private static byte[] lines(String first, String second, byte[] body) {
         ByteArrayOutputStream output = new ByteArrayOutputStream(body.length + 64);
         writeLine(output, first);
@@ -317,7 +362,12 @@ public final class WechatPayCryptoUtils {
         return output.toByteArray();
     }
 
-    /** 将 UTF-8 文本及换行符写入签名缓冲区。 */
+    /**
+     * 将单行 UTF-8 文本及其结尾换行符写入签名缓冲区。
+     *
+     * @param output 当前签名原文缓冲区；方法只追加内容，不关闭缓冲区
+     * @param value  不包含协议分隔换行符的元数据文本
+     */
     private static void writeLine(ByteArrayOutputStream output, String value) {
         output.writeBytes(value.getBytes(StandardCharsets.UTF_8));
         output.write('\n');

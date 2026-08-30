@@ -36,15 +36,22 @@ public final class NotificationParser {
     /** 通知处理失败后返回支付宝的固定响应。 */
     public static final String FAILURE = "fail";
 
+    /** 交易状态异步通知的固定通知类型。 */
     private static final String TRADE_NOTIFY_TYPE = "trade_status_sync";
+    /** 银行卡冲退完成蚂蚁消息的固定方法名。 */
     private static final String DEPOSIT_BACK_METHOD =
             "alipay.trade.refund.depositback.completed";
+    /** 冲退完成通知允许出现的最终状态集合，不包含处理中状态。 */
     private static final Set<String> DEPOSIT_BACK_STATES = Set.of(
             DepositBackStatus.SUCCESS, DepositBackStatus.FAILED);
 
+    /** 根客户端共享运行时，用于检查关闭状态。 */
     private final AlipayRuntime runtime;
+    /** 当前客户端绑定的应用 ID，用于拒绝跨应用通知。 */
     private final String appId;
+    /** 当前客户端绑定的卖家用户 ID，用于拒绝跨卖家通知。 */
     private final String sellerId;
+    /** 用于验证表单通知 RSA2 签名的支付宝公钥。 */
     private final PublicKey alipayPublicKey;
 
     /**
@@ -184,17 +191,38 @@ public final class NotificationParser {
         return copy;
     }
 
-    /** 从参数表读取必填文本。 */
+    /**
+     * 从已防御性复制的通知参数表读取必填文本，并统一执行非空白协议校验。
+     *
+     * @param params 已完成键值非空校验的通知参数表
+     * @param name   必填参数名，用于读取字段并定位协议错误
+     * @return 对应的非空白参数值
+     * @throws AlipayProtocolException 参数缺失、为空或仅包含空白字符
+     */
     private static String required(Map<String, String> params, String name) {
         return required(params.get(name), name);
     }
 
-    /** 校验协议模型中的必填文本。 */
+    /**
+     * 校验反序列化协议模型中的必填文本。
+     *
+     * @param value 待校验字段值；字段缺失时为 {@code null}
+     * @param name  用于异常定位的协议字段名
+     * @return 非空白的原字段值
+     * @throws AlipayProtocolException 字段缺失、为空或仅包含空白字符
+     */
     private static String required(@Nullable String value, String name) {
         return AlipayValidationUtils.requireResponseText(value, name);
     }
 
-    /** 按指定安全失败类型校验可信值一致性。 */
+    /**
+     * 按指定安全失败类型校验可信期望值与通知实际值一致，防止跨应用或跨商户通知被误用。
+     *
+     * @param expected 后端配置或业务记录中的可信值
+     * @param actual   支付宝通知中的实际值；字段缺失时为 {@code null}
+     * @param failure  不一致时用于区分安全失败原因的类型
+     * @throws AlipaySecurityException 实际值缺失或与可信值不一致
+     */
     private static void requireSame(String expected, @Nullable String actual,
                                     AlipaySecurityFailure failure) {
         if (!expected.equals(actual)) {
@@ -202,11 +230,29 @@ public final class NotificationParser {
         }
     }
 
-    /** 解析可选通知金额。 */
+    /**
+     * 将通知中的可选元金额文本严格转换为分，空白文本按未返回处理。
+     *
+     * @param value 元金额文本；缺失或空白时为 {@code null}
+     * @param name  用于异常定位的通知字段名
+     * @return 分金额；字段缺失或空白时返回 {@code null}
+     * @throws AlipayProtocolException 金额格式非法、精度超过两位小数或数值溢出
+     */
     private static @Nullable Long optionalMoney(@Nullable String value, String name) {
         return value == null || value.isBlank() ? null : AlipayMoneyUtils.parse(value, name);
     }
 
+    /**
+     * 银行卡冲退完成消息中 {@code biz_content} 的原始载荷。
+     *
+     * @param tradeNo              支付宝交易号；缺失时拒绝通知
+     * @param outTradeNo           商户订单号；缺失时拒绝通知
+     * @param outRequestNo         退款请求号；缺失时拒绝通知
+     * @param state                银行卡冲退状态，仅接受 {@code S} 或 {@code F}
+     * @param amount               冲退金额，单位为元、最多两位小数；成功状态下必填
+     * @param bankAckTime          银行响应时间；支付宝未返回时为 {@code null}
+     * @param estimatedReceiptTime 预计银行入账时间；支付宝未返回时为 {@code null}
+     */
     @JsonIgnoreProperties(ignoreUnknown = true)
     private record DepositBackPayload(
             @JsonProperty("trade_no") @Nullable String tradeNo,

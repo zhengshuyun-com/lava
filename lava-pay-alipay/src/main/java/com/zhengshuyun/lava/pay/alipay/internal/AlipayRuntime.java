@@ -14,10 +14,15 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * 支付宝根客户端与各功能入口共享的传输资源和关闭状态。
  */
 public final class AlipayRuntime implements AutoCloseable {
+    /** 各业务入口共用的 OpenAPI V3 传输层。 */
     private final AlipayTransport transport;
+    /** 页面支付专用的 AOP 签名表单生成器。 */
     private final AlipayPagePayFormFactory pagePayFormFactory;
+    /** 传输层实际使用的 HTTP 客户端。 */
     private final HttpClient httpClient;
+    /** 是否由运行时负责关闭 HTTP 客户端。 */
     private final boolean ownsHttpClient;
+    /** 根客户端关闭状态，保证关闭幂等并拒绝关闭后的业务调用。 */
     private final AtomicBoolean closed = new AtomicBoolean();
 
     /**

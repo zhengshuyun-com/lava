@@ -18,6 +18,7 @@ import java.time.temporal.ChronoField;
  * 支付宝本地日期时间解析工具。
  */
 public final class AlipayDateTimeUtils {
+    /** 支付宝业务响应时间使用的固定格式，精确到秒。 */
     private static final DateTimeFormatter DATE_TIME = new DateTimeFormatterBuilder()
             .appendPattern("yyyy-MM-dd HH:mm:ss")
             .optionalStart()
