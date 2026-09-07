@@ -21,6 +21,22 @@ String name = StringUtils.defaultIfBlank(input, "anonymous");
 完整方法包括 `isEmpty`、`isNotEmpty`、`isBlank`、`isNotBlank`、`nullToEmpty`、`emptyToNull`、
 `defaultIfEmpty` 和 `defaultIfBlank`。这些方法不执行 `trim` 或 `strip`，非空原值会保持不变。
 
+## 集合与映射判断
+
+`CollectionUtils` 与 `MapUtils` 分别处理 `Collection` 和 `Map`，避免重复编写 null 与空容器判断：
+
+```java
+if (CollectionUtils.isEmpty(items)) {
+    return;
+}
+
+if (MapUtils.isNotEmpty(headers)) {
+    send(headers);
+}
+```
+
+两者都把 `null` 视为空；`isNotEmpty` 仅在容器不为 `null` 且至少包含一个元素或条目时返回 true。
+
 ## 严格日期格式
 
 `DateTimeFormatterUtils` 提供不可变、线程安全并采用严格解析的常用格式：

@@ -1,7 +1,7 @@
 # lava-core
 
 `lava-core` 提供不依赖通用第三方工具包的基础能力：RFC 9562 UUIDv7、显式 worker 的 Snowflake、实例化重试、有界流读取、IEC/SI
-数据量格式化、严格时间格式、空值安全字符串处理和实用校验。生产依赖只有 JSpecify。
+数据量格式化、严格时间格式、空值安全字符串与容器判断和实用校验。生产依赖只有 JSpecify。
 
 ```xml
 <dependency>
@@ -95,6 +95,15 @@ String safe = StringUtils.nullToEmpty(input);
 ```
 
 `isEmpty` 只识别 `null` 和空字符串，`isBlank` 还识别纯 Unicode 空白；转换和默认值方法不会裁剪或修改非空原值。
+
+## 集合与映射
+
+`CollectionUtils` 和 `MapUtils` 分别提供集合与映射的空值安全判断，`null` 与不包含元素或条目的容器均视为空：
+
+```java
+boolean noItems = CollectionUtils.isEmpty(items);
+boolean hasHeaders = MapUtils.isNotEmpty(headers);
+```
 
 ## 时间与校验
 
