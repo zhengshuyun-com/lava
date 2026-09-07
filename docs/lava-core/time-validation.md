@@ -1,4 +1,25 @@
-# 时间与参数校验
+# 字符串、时间与参数校验
+
+## 字符串处理
+
+`StringUtils` 提供空值安全的常用字符串操作：
+
+```java
+boolean empty = StringUtils.isEmpty(input);
+boolean blank = StringUtils.isBlank(input);
+String safe = StringUtils.nullToEmpty(input);
+String name = StringUtils.defaultIfBlank(input, "anonymous");
+```
+
+| 方法 | `null` | `""` | `"  "` |
+| --- | ---: | ---: | ---: |
+| `isEmpty` | `true` | `true` | `false` |
+| `isBlank` | `true` | `true` | `true` |
+| `defaultIfEmpty(value, "x")` | `"x"` | `"x"` | 保留原值 |
+| `defaultIfBlank(value, "x")` | `"x"` | `"x"` | `"x"` |
+
+完整方法包括 `isEmpty`、`isNotEmpty`、`isBlank`、`isNotBlank`、`nullToEmpty`、`emptyToNull`、
+`defaultIfEmpty` 和 `defaultIfBlank`。这些方法不执行 `trim` 或 `strip`，非空原值会保持不变。
 
 ## 严格日期格式
 

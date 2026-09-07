@@ -31,6 +31,9 @@ try (HttpClient client = HttpClient.builder()
 客户端默认 header、bearer token 和 JSON 编解码器都可以被单个请求覆盖。请求体也可以使用 `HttpBodyUtils.bytes`、`text`、
 `form`、`file`、`stream` 和 `multipart`。
 
+`stream` 借用调用方的输入流并声明为一次性请求体，不会因重定向或自动重试再次上传已消费的流。输入流由调用方关闭；
+重新发送时应重新打开输入流并创建请求体。自定义一次性 `HttpBody` 必须覆盖 `isOneShot()` 返回 `true`。
+
 每次请求使用不同基础地址时，可以先追加基础路径和接口路径，再设置已经编码的原始查询串：
 
 ```java

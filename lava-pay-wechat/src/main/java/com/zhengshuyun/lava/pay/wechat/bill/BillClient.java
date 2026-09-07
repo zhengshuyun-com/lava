@@ -106,9 +106,13 @@ public final class BillClient {
     /**
      * 将账单流式下载到目标路径并校验 SHA-1。目标已存在时拒绝覆盖，GZIP 响应会先解压。
      *
+     * <p>目标文件系统必须支持硬链接，以便完整发布已校验内容并排他占用目标名称；
+     * 不支持时按文件 IO 失败处理，不退化为覆盖移动或逐字节复制到目标。</p>
+     *
      * @param info 申请账单返回的已验签下载信息
      * @param target 目标文件路径
      * @return 最终路径、大小和实际摘要
+     * @throws WechatPayFileException 目标已存在、目标无效或文件系统不能完成安全发布时抛出
      */
     public BillDownloadResult download(BillDownloadInfo info, Path target) {
         WechatPayTransport transport = runtime.transport();
@@ -119,7 +123,7 @@ public final class BillClient {
         }
 
         Path absoluteTarget = target.toAbsolutePath().normalize();
-        if (Files.exists(absoluteTarget)) {
+        if (Files.exists(absoluteTarget, LinkOption.NOFOLLOW_LINKS)) {
             throw new WechatPayFileException(WechatPayFileFailure.TARGET_EXISTS, "");
         }
         Path parent = absoluteTarget.getParent();
@@ -157,16 +161,13 @@ public final class BillClient {
                 throw new WechatPaySecurityException(WechatPaySecurityFailure.HASH_MISMATCH);
             }
 
-            // 3. 摘要通过后再发布目标文件；文件系统不支持原子移动时仍保持不覆盖语义。
-            try {
-                Files.move(temporary, absoluteTarget, StandardCopyOption.ATOMIC_MOVE);
-            } catch (AtomicMoveNotSupportedException exception) {
-                Files.move(temporary, absoluteTarget);
-            }
-            temporary = null;
+            // 3. 同目录硬链接一次性发布完整内容，并在目标名称已被占用时失败。
+            // ATOMIC_MOVE 可能替换竞争写入方的文件，不能用于保证不覆盖；不支持硬链接时明确失败。
+            long size = Files.size(temporary);
+            Files.createLink(absoluteTarget, temporary);
             return new BillDownloadResult(
                     absoluteTarget,
-                    Files.size(absoluteTarget),
+                    size,
                     "SHA1",
                     actualHash
             );
@@ -175,7 +176,7 @@ public final class BillClient {
                     exception.getClass().getName());
         } catch (WechatPayException exception) {
             throw exception;
-        } catch (IOException | NoSuchAlgorithmException exception) {
+        } catch (IOException | NoSuchAlgorithmException | UnsupportedOperationException exception) {
             throw new WechatPayFileException(WechatPayFileFailure.IO,
                     exception.getClass().getName());
         } finally {
@@ -183,7 +184,7 @@ public final class BillClient {
                 try {
                     Files.deleteIfExists(temporary);
                 } catch (IOException ignored) {
-                    // 主失败已经完整表达，清理失败不能覆盖原始诊断信息。
+                    // 只清理临时名称；失败不删除已发布的目标，也不覆盖主要操作结果。
                 }
             }
         }

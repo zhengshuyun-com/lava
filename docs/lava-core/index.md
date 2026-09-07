@@ -1,6 +1,6 @@
 # lava-core
 
-`lava-core` 是 Lava 的零框架基础模块，提供 ID、重试、有界流读取、时间格式化和参数校验能力。它不依赖 Spring，生产依赖只有 JSpecify，适合在服务端应用、命令行工具和独立 Java 程序中直接使用。
+`lava-core` 是 Lava 的零框架基础模块，提供 ID、重试、有界流读取、字符串处理、时间格式化和参数校验能力。它不依赖 Spring，生产依赖只有 JSpecify，适合在服务端应用、命令行工具和独立 Java 程序中直接使用。
 
 ## 环境要求
 
@@ -43,6 +43,7 @@
 | ID | `IdUtils`、`UUIDv7Generator`、`SnowflakeIdGenerator` | UUIDv4、时间有序 UUIDv7、分布式长整型 ID |
 | 重试 | `RetryPolicy`、`RetryExecutor` | 受控重试、指数退避、完全抖动、尝试观测 |
 | IO | `ByteStreamUtils`、`InputStreamSource` | 有界读取、流复制、明确资源所有权 |
+| 字符串 | `StringUtils` | 空值安全判断、空值转换和默认值 |
 | 时间 | `DateTimeFormatterUtils`、`TimeUtils`、`DurationFormatter` | 严格日期格式、兼容解析、时长展示 |
 | 校验 | `ValidationUtils` | 参数、非空白文本、非空集合与 Map 校验 |
 

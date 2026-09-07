@@ -5,16 +5,23 @@
 
 package com.zhengshuyun.lava.pay.wechat;
 
+import com.zhengshuyun.lava.http.HttpClient;
+import com.zhengshuyun.lava.http.OkHttpInterop;
 import com.zhengshuyun.lava.pay.wechat.bill.*;
 import com.zhengshuyun.lava.pay.wechat.exception.*;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.ByteArrayOutputStream;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.MessageDigest;
@@ -23,6 +30,8 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.HexFormat;
+import java.util.List;
+import java.util.Map;
 import java.util.zip.GZIPOutputStream;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -126,12 +135,119 @@ class BillClientTest {
         assertArrayEquals(file, Files.readAllBytes(target));
         assertEquals(file.length, result.size());
         assertEquals(hash, result.hashValue());
+        try (var files = Files.list(temporaryDirectory)) {
+            assertEquals(List.of(target), files.toList());
+        }
         assertTrue(server.takeRequest().target().contains("bill_date=2026-08-28"));
         assertEquals("/download?token=secret", server.takeRequest().target());
 
         WechatPayFileException exists = assertThrows(WechatPayFileException.class,
                 () -> client.bills().download(download, target));
         assertEquals(WechatPayFileFailure.TARGET_EXISTS, exists.failure());
+    }
+
+    /**
+     * 目标在下载开始后出现时，发布必须失败并保留其他写入方的完整文件。
+     *
+     * @throws Exception 本地文件操作或摘要计算失败时抛出
+     */
+    @Test
+    void targetCreatedDuringDownloadIsNeverOverwritten() throws Exception {
+        byte[] file = "downloaded-bill".getBytes(StandardCharsets.UTF_8);
+        Path target = temporaryDirectory.resolve("race.csv");
+        BillDownloadInfo info = new BillDownloadInfo(
+                "SHA1",
+                sha1(file),
+                server.baseUrl().resolve("download"),
+                null
+        );
+        server.enqueueUnsigned(200, file, "text/csv");
+
+        HttpClient.Builder httpBuilder = HttpClient.builder().followRedirects(false);
+        OkHttpInterop.addInterceptor(httpBuilder, chain -> {
+            // 拦截器在下载方法的初始存在性检查之后执行，确定性地重现竞争窗口。
+            Files.writeString(target, "existing-business-data", StandardOpenOption.CREATE_NEW);
+            return chain.proceed(chain.request());
+        });
+        try (HttpClient http = httpBuilder.build();
+             WechatPayClient racingClient = WechatPayClient.builder()
+                     .mchid("1900000109")
+                     .merchantPrivateKey(merchantKeys.getPrivate())
+                     .merchantSerialNo("ABCDEF")
+                     .apiV3Key("0123456789abcdef0123456789abcdef")
+                     .wechatPayPublicKeyId(WechatPayTestServer.PUBLIC_KEY_ID)
+                     .wechatPayPublicKey(wechatKeys.getPublic())
+                     .apiBaseUrl(server.baseUrl())
+                     .httpClient(http)
+                     .build()) {
+            WechatPayFileException failure = assertThrows(WechatPayFileException.class,
+                    () -> racingClient.bills().download(info, target));
+
+            assertEquals(WechatPayFileFailure.TARGET_EXISTS, failure.failure());
+            assertEquals("existing-business-data", Files.readString(target));
+            try (var files = Files.list(temporaryDirectory)) {
+                assertEquals(List.of(target), files.toList());
+            }
+        }
+    }
+
+    /**
+     * 悬空符号链接也占用了目标名称，不能被当作不存在的文件覆盖。
+     *
+     * @throws Exception 创建符号链接或计算摘要失败时抛出
+     */
+    @Test
+    @EnabledOnOs({OS.LINUX, OS.MAC})
+    void danglingSymbolicLinkIsNotReplaced() throws Exception {
+        byte[] file = "downloaded-bill".getBytes(StandardCharsets.UTF_8);
+        Path target = temporaryDirectory.resolve("link.csv");
+        Path missing = temporaryDirectory.resolve("missing.csv");
+        Files.createSymbolicLink(target, missing);
+        BillDownloadInfo info = new BillDownloadInfo(
+                "SHA1",
+                sha1(file),
+                server.baseUrl().resolve("download"),
+                null
+        );
+        server.enqueueUnsigned(200, file, "text/csv");
+
+        WechatPayFileException failure = assertThrows(WechatPayFileException.class,
+                () -> client.bills().download(info, target));
+
+        assertEquals(WechatPayFileFailure.TARGET_EXISTS, failure.failure());
+        assertTrue(Files.exists(target, LinkOption.NOFOLLOW_LINKS));
+        assertEquals(missing, Files.readSymbolicLink(target));
+        assertFalse(Files.exists(missing));
+    }
+
+    /**
+     * 不支持硬链接的文件系统明确失败，不退化为可能覆盖目标的移动或暴露半文件的复制。
+     *
+     * @throws Exception ZIP 文件系统创建或摘要计算失败时抛出
+     */
+    @Test
+    void unsupportedPublicationLeavesNoTargetOrTemporaryFile() throws Exception {
+        byte[] file = "downloaded-bill".getBytes(StandardCharsets.UTF_8);
+        BillDownloadInfo info = new BillDownloadInfo(
+                "SHA1",
+                sha1(file),
+                server.baseUrl().resolve("download"),
+                null
+        );
+        server.enqueueUnsigned(200, file, "text/csv");
+        URI archive = URI.create("jar:" + temporaryDirectory.resolve("bills.zip").toUri());
+        try (var fileSystem = FileSystems.newFileSystem(archive, Map.of("create", "true"))) {
+            Path target = fileSystem.getPath("/trade.csv");
+
+            WechatPayFileException failure = assertThrows(WechatPayFileException.class,
+                    () -> client.bills().download(info, target));
+
+            assertEquals(WechatPayFileFailure.IO, failure.failure());
+            assertFalse(Files.exists(target));
+            try (var files = Files.list(fileSystem.getPath("/"))) {
+                assertEquals(0, files.count());
+            }
+        }
     }
 
     /**

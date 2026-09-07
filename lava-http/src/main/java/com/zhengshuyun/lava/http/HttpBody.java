@@ -51,4 +51,16 @@ public interface HttpBody {
     default long contentLength() {
         return -1L;
     }
+
+    /**
+     * 声明请求体是否只能写入一次，供传输层决定能否自动重试或在重定向后重放。
+     *
+     * <p>默认视为可重放；持有不可重新打开的输入流或其他一次性来源的实现必须返回
+     * {@code true}。此标记不会转移输入资源的所有权。</p>
+     *
+     * @return 不可安全重复写入时返回 true
+     */
+    default boolean isOneShot() {
+        return false;
+    }
 }

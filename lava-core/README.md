@@ -1,7 +1,7 @@
 # lava-core
 
 `lava-core` 提供不依赖通用第三方工具包的基础能力：RFC 9562 UUIDv7、显式 worker 的 Snowflake、实例化重试、有界流读取、IEC/SI
-数据量格式化、严格时间格式和实用校验。生产依赖只有 JSpecify。
+数据量格式化、严格时间格式、空值安全字符串处理和实用校验。生产依赖只有 JSpecify。
 
 ```xml
 <dependency>
@@ -83,6 +83,18 @@ long copied = ByteStreamUtils.copy(InputStreamSource.fromPath(source), output);
 - `readAllBytes` 默认上限为 16 MiB；超过上限抛 `SizeLimitExceededException`。
 
 `DataSizeFormatter.formatIec` 使用 `KiB/MiB`（1024 进制），`formatSi` 使用 `kB/MB`（1000 进制），不会混用含义。
+
+## 字符串
+
+`StringUtils` 提供空值安全的常用判断和默认值转换：
+
+```java
+boolean missing = StringUtils.isBlank(input);
+String name = StringUtils.defaultIfBlank(input, "anonymous");
+String safe = StringUtils.nullToEmpty(input);
+```
+
+`isEmpty` 只识别 `null` 和空字符串，`isBlank` 还识别纯 Unicode 空白；转换和默认值方法不会裁剪或修改非空原值。
 
 ## 时间与校验
 

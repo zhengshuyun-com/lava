@@ -144,6 +144,8 @@ public final class HttpBodyUtils {
     /**
      * 创建从输入流读取的一次性请求体，调用方负责关闭输入流。
      *
+     * <p>传输层不会为自动重试或保留正文的重定向再次消费该输入流。</p>
+     *
      * @param input       正文输入流
      * @param length      正文字节数；未知时为 -1
      * @param contentType 请求体媒体类型
@@ -170,6 +172,12 @@ public final class HttpBodyUtils {
             public long contentLength() {
                 return length;
             }
+
+            /** 返回一次性标记，禁止传输层重放已消费的输入流。 */
+            @Override
+            public boolean isOneShot() {
+                return true;
+            }
         };
     }
 
@@ -184,6 +192,12 @@ public final class HttpBodyUtils {
         return new OkHttpBackedBody(ValidationUtils.requireNonNull(body, "body must not be null"));
     }
 
+    /**
+     * 将传输无关请求体适配为 OkHttp 请求体，同时保留正文长度和可重放性。
+     *
+     * @param body 待适配的请求体
+     * @return 供 OkHttp 发送的请求体
+     */
     static RequestBody toOkHttp(HttpBody body) {
         if (body instanceof OkHttpBackedBody backed) {
             return backed.body;
@@ -198,6 +212,12 @@ public final class HttpBodyUtils {
             @Override
             public long contentLength() {
                 return body.contentLength();
+            }
+
+            /** 将一次性约束交给 OkHttp，阻止重试或重定向隐式重复上传。 */
+            @Override
+            public boolean isOneShot() {
+                return body.isOneShot();
             }
 
             @Override
@@ -247,6 +267,12 @@ public final class HttpBodyUtils {
             } catch (IOException ignored) {
                 return -1L;
             }
+        }
+
+        /** 保留原生请求体的一次性约束，供进一步包装或组合时使用。 */
+        @Override
+        public boolean isOneShot() {
+            return body.isOneShot();
         }
     }
 }

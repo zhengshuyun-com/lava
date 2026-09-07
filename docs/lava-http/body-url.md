@@ -24,6 +24,11 @@ HttpRequest request = HttpRequest.post(url)
         .build();
 ```
 
+`stream(...)` 创建的请求体只能消费一次。即使客户端允许重定向或自动重试，也不会在 307/308 重定向、408/503 重试时再次发送该流；
+这些情况下会返回原始 HTTP 响应。需要重新上传时，由调用方重新打开输入流并创建新的请求体。
+
+自定义 `HttpBody` 默认可重放；如果其数据来源只能消费一次，必须覆盖 `isOneShot()` 并返回 `true`。
+
 ## Multipart
 
 ```java

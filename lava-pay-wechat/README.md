@@ -195,6 +195,9 @@ BillDownloadResult result = client.bills().download(
 下载过程先写同目录临时文件，SHA-1 与申请账单结果一致后才发布目标文件。目标已存在时拒绝覆盖；申请 `GZIP` 时会先解压，
 再校验并保存账单原文，但不会解析账单字段。
 
+发布使用同目录硬链接，目标名称即使在下载期间被占用也不会覆盖。目标文件系统必须支持硬链接；不支持时返回
+`WechatPayFileException`（`IO`），并清理临时文件。
+
 ## 失败与重试
 
 公开异常统一位于 `com.zhengshuyun.lava.pay.wechat.exception` 包：
